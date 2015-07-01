@@ -1,4 +1,3 @@
-# The Race  
-A Commodore 64 game.
+# The Race
 
-WIP.
+A Commodore 64 game
