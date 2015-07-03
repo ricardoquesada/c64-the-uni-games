@@ -4,11 +4,12 @@
 
 IMAGE = "therace_final.d64"
 C1541 = /Applications/Vice/tools/c1541
+X64 = /Applications/Vice/x64.app/Contents/MacOS/x64
 
 all: disk
 
 prg:
-	cl65 -Osi --standard cc65 -u __EXEHDR__ -t c64 -o therace.prg -C therace.cfg main.s
+	cl65 -Ln therace.sym -d -g -u __EXEHDR__ -t c64 -o therace.prg -C therace.cfg intro.s
 	cp therace.hi.bin therace.hi
 
 disk: prg
@@ -23,10 +24,10 @@ dist: prg
 	$(C1541) $(IMAGE) -write therace_exo.prg "the race"
 	$(C1541) $(IMAGE) -write therace.hi
 	$(C1541) $(IMAGE) -list
-	rm -f main.o therace.prg therace_exo.prg therace.hi
+	rm -f intro.o therace.prg therace_exo.prg therace.hi
 
-test: dist
-	x64 $(IMAGE)
+test: disk
+	$(X64) -moncommands therace.sym therace.d64
 
 clean: 
-	rm -f *~ main.o therace.prg therace_exo.prg therace.d64 therace.hi $(IMAGE)
+	rm -f *~ intro.o therace.prg therace_exo.prg therace.d64 therace.hi therace.sym $(IMAGE)
