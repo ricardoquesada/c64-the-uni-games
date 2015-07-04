@@ -30,10 +30,10 @@ SCREEN_BOTTOM = $0400 + SCROLL_2_AT_LINE * 40
 MUSIC_INIT = __SIDMUSIC_LOAD__
 MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 
-SPEED = 1	 ; must be between 1 and 8
+SPEED = 2			; must be between 1 and 8
 
 
-.macpack cbm	 ; adds support for scrcode
+.macpack cbm			; adds support for scrcode
 
 .segment "CODE"
 
@@ -238,22 +238,27 @@ scroll:
 
 
 @loop:
+	ldx #0
+
 	lda ($f9),y
 	and chars_scrolled
 	beq @empty_char
 
 ;	 lda current_char
+	; different chars for top and bottom
 	lda #$fd
-	bne @print_to_screen
+	sta ($fb,x)
+	lda #$fe
+	sta ($fd,x)
+
+	bne :+
 
 @empty_char:
 	lda #$ff		; empty char
-
-@print_to_screen:
-	ldx #0
 	sta ($fb,x)
 	sta ($fd,x)
 
+:
 	; next line for top scroller
 	sec
 	lda $fb
@@ -293,7 +298,7 @@ scroll:
 ; args: -
 ; modifies: A, X, Status
 ;--------------------------------------------------------------------------
-scroll_screen:
+.proc scroll_screen
 	; move the chars to the left and right
 	ldx #0
 
@@ -315,6 +320,7 @@ scroll_screen:
 	dey
 	bpl @loop
 	rts
+.endproc
 
 ;--------------------------------------------------------------------------
 ; setup_charset(void)
@@ -323,7 +329,7 @@ scroll_screen:
 ; Modifies A, X, Status
 ; returns A: the character to print
 ;--------------------------------------------------------------------------
-setup_charset:
+.proc setup_charset
 	; put next char in column 40
 	ldx label_index
 	lda label,x
@@ -365,6 +371,7 @@ setup_charset:
 	sta $fa
 
 	rts
+.endproc
 
 ;--------------------------------------------------------------------------
 ; anim_char(void)
@@ -375,7 +382,7 @@ setup_charset:
 ;--------------------------------------------------------------------------
 .proc anim_char
 
-.if 0
+.if 1
 	; self modifying code
 	lda anim_char_idx
 	asl			; multiply by 8 (next char)
@@ -416,20 +423,20 @@ setup_charset:
 	; ror
 	clc
 	lda #%00000001
-	and __CHARSET_LOAD__ + 254 * 8,x
+	and __CHARSET_LOAD__ + $fd * 8,x
 	beq :+
 	sec
 :
-	ror __CHARSET_LOAD__ + 254 * 8,x
+	ror __CHARSET_LOAD__ + $fd * 8,x
 
 	; rol
 	clc
 	lda #%10000000
-	and __CHARSET_LOAD__ + 254 * 8,x
+	and __CHARSET_LOAD__ + $fe * 8,x
 	beq :+
 	sec
 :
-	rol __CHARSET_LOAD__ + 254 * 8,x
+	rol __CHARSET_LOAD__ + $fe * 8,x
 	dex
 	bpl @loop
 	rts
@@ -449,59 +456,77 @@ label:
 	.byte $ff
 
 anim_char_0:
-	.byte %11000011
-	.byte %11000011
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %11000011
-	.byte %11000011
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
 
-	.byte %00000110
-	.byte %11000110
-	.byte %11000000
+	.byte %00000000
+	.byte %01111110
+	.byte %01111110
+	.byte %01111110
+	.byte %01111110
+	.byte %01111110
+	.byte %01111110
+	.byte %00000000
+
 	.byte %00000000
 	.byte %00000000
-	.byte %00000011
-	.byte %01100011
-	.byte %01100000
+	.byte %00111100
+	.byte %00111100
+	.byte %00111100
+	.byte %00111100
+	.byte %00000000
+	.byte %00000000
 
-	.byte %00001100
-	.byte %00001100
-	.byte %11000000
-	.byte %11000000
-	.byte %00000011
-	.byte %00000011
-	.byte %00110000
-	.byte %00110000
-
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
 	.byte %00011000
 	.byte %00011000
 	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+
+	.byte %11111111
+	.byte %10000001
+	.byte %10000001
+	.byte %10000001
+	.byte %10000001
+	.byte %10000001
+	.byte %10000001
+	.byte %11111111
+
+	.byte %11111111
+	.byte %11111111
 	.byte %11000011
 	.byte %11000011
-	.byte %00000000
-	.byte %00011000
-	.byte %00011000
-
-	.byte %00110000
-	.byte %00110000
-	.byte %00000011
-	.byte %00000011
-	.byte %11000000
-	.byte %11000000
-	.byte %00001100
-	.byte %00001100
-
-	.byte %01100000
-	.byte %01100011
-	.byte %00000011
-	.byte %00000000
-	.byte %00000000
-	.byte %11000000
-	.byte %11000110
-	.byte %00000110
+	.byte %11000011
+	.byte %11000011
+	.byte %11111111
+	.byte %11111111
+	
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11100111
+	.byte %11100111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
 
 
 .segment "CHARSET"
@@ -509,15 +534,6 @@ anim_char_0:
 	.incbin "fonts/scrap_writer_iii_16.64c",2,(2048-8*3)
 
 .segment "CHARSET254"
-	.byte %00011000
-	.byte %00011000
-	.byte %00011000
-	.byte %11111111
-	.byte %11111111
-	.byte %00011000
-	.byte %00011000
-	.byte %00011000
-
 	.byte %00010000
 	.byte %00010000
 	.byte %00010000
@@ -527,6 +543,14 @@ anim_char_0:
 	.byte %00010000
 	.byte %00010000
 
+	.byte %00010000
+	.byte %00010000
+	.byte %00010000
+	.byte %11111111
+	.byte %00010000
+	.byte %00010000
+	.byte %00010000
+	.byte %00010000
 
 	.byte %11111111
 	.byte %11111111
