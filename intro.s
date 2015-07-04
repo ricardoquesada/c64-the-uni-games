@@ -23,8 +23,8 @@ RASTER_START = 50
 SCROLL_1_AT_LINE = 0
 SCROLL_2_AT_LINE = 17
 
-SCREEN_1 = $0400 + SCROLL_1_AT_LINE * 40
-SCREEN_2 = $0400 + SCROLL_2_AT_LINE * 40
+SCREEN_TOP = $0400 + SCROLL_1_AT_LINE * 40
+SCREEN_BOTTOM = $0400 + SCROLL_2_AT_LINE * 40
 
 
 MUSIC_INIT = __SIDMUSIC_LOAD__
@@ -225,16 +225,16 @@ scroll:
 
 :
 	; basic setup
-	ldx #<(SCREEN_1+39)
-	ldy #>(SCREEN_1+39)
+	ldx #<(SCREEN_TOP+7*40+39)
+	ldy #>(SCREEN_TOP+7*40+39)
 	stx $fb
 	sty $fc
-	ldx #<(SCREEN_2+8*40)
-	ldy #>(SCREEN_2+8*40)
+	ldx #<(SCREEN_BOTTOM)
+	ldy #>(SCREEN_BOTTOM)
 	stx $fd
 	sty $fe
 
-	ldy #0			; 8 rows
+	ldy #7			; 8 rows
 
 
 @loop:
@@ -243,8 +243,8 @@ scroll:
 	beq @empty_char
 
 ;	 lda current_char
-	lda #$fe
-	jmp @print_to_screen
+	lda #$fd
+	bne @print_to_screen
 
 @empty_char:
 	lda #$ff		; empty char
@@ -254,25 +254,26 @@ scroll:
 	sta ($fb,x)
 	sta ($fd,x)
 
-	; next line for upper scroller
-	clc
+	; next line for top scroller
+	sec
 	lda $fb
-	adc #40
-	sta $fb
-	bcc :+
-	inc $fc
-
-	; next line for bottom scroller
-:	sec
-	lda $fd
 	sbc #40
-	sta $fd
+	sta $fb
 	bcs :+
-	dec $fe
+	dec $fc
 
-:	iny			; next charset definition
-	cpy #8
-	bne @loop
+:
+	; next line for bottom scroller
+	clc
+	lda $fd
+	adc #40
+	sta $fd
+	bcc :+
+	inc $fe
+
+:
+	dey			; next charset definition
+	bpl @loop
 
 	lsr chars_scrolled
 	bcc @endscroll
@@ -296,24 +297,23 @@ scroll_screen:
 	; move the chars to the left and right
 	ldx #0
 
-	; intest of using #38, using #39 to avoid
 	; doing a cpy #$ff
-	ldy #39
+	ldy #38
 
 @loop:
 .repeat 8,i
-	lda SCREEN_1+40*i+1,x
-	sta SCREEN_1+40*i+0,x
+	lda SCREEN_TOP+40*i+1,x
+	sta SCREEN_TOP+40*i+0,x
 .endrepeat
 
 .repeat 8,i
-	lda SCREEN_2+40*i-1,y
-	sta SCREEN_2+40*i+0,y
+	lda SCREEN_BOTTOM+40*i+0,y
+	sta SCREEN_BOTTOM+40*i+1,y
 .endrepeat
 
 	inx
 	dey
-	bne @loop
+	bpl @loop
 	rts
 
 ;--------------------------------------------------------------------------
@@ -373,7 +373,9 @@ setup_charset:
 ; Modifies A, X, Status
 ; returns A: the character to print
 ;--------------------------------------------------------------------------
-anim_char:
+.proc anim_char
+
+.if 0
 	; self modifying code
 	lda anim_char_idx
 	asl			; multiply by 8 (next char)
@@ -408,6 +410,32 @@ anim_char:
 :
 	rts
 
+.else
+	ldx #7
+@loop:
+	; ror
+	clc
+	lda #%00000001
+	and __CHARSET_LOAD__ + 254 * 8,x
+	beq :+
+	sec
+:
+	ror __CHARSET_LOAD__ + 254 * 8,x
+
+	; rol
+	clc
+	lda #%10000000
+	and __CHARSET_LOAD__ + 254 * 8,x
+	beq :+
+	sec
+:
+	rol __CHARSET_LOAD__ + 254 * 8,x
+	dex
+	bpl @loop
+	rts
+.endif
+.endproc
+
 ; variables
 sync:	.byte 1
 scroll_left:	.byte 7
@@ -417,7 +445,7 @@ current_char:	.byte 0
 anim_char_idx:	.byte 0
 
 label:
-	scrcode ". . . . . the race . . . . ."
+	scrcode "welcome to the race. one or two players. networking races. hello world."
 	.byte $ff
 
 anim_char_0:
@@ -481,32 +509,33 @@ anim_char_0:
 	.incbin "fonts/scrap_writer_iii_16.64c",2,(2048-8*3)
 
 .segment "CHARSET254"
-	.byte %11000110
-	.byte %11000110
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %11000110
-	.byte %11000110
-	.byte %00000000
+	.byte %00011000
+	.byte %00011000
+	.byte %00011000
+	.byte %11111111
+	.byte %11111111
+	.byte %00011000
+	.byte %00011000
+	.byte %00011000
 
-	.byte %11000110
-	.byte %11000110
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %11000110
-	.byte %11000110
-	.byte %00000000
+	.byte %00010000
+	.byte %00010000
+	.byte %00010000
+	.byte %11111111
+	.byte %00010000
+	.byte %00010000
+	.byte %00010000
+	.byte %00010000
 
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
+
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
 
 .segment "SIDMUSIC"
 	 .incbin "music.sid",$7e
