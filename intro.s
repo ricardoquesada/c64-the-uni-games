@@ -394,8 +394,10 @@ scroll:
 	sta @anim_address+1
 	lda #>anim_char_0
 	sta @anim_address+2
-
-	ldx #7
+	bcc :+
+	inc @anim_address+2
+:
+	ldx #7			; 8 rows
 @loop:
 
 @anim_address:
@@ -403,16 +405,13 @@ scroll:
 	sta __CHARSET_LOAD__ + 254 * 8,x
 
 	dex
-	cpx #$ff
-	bne @loop
+	bpl @loop
 
-	inc anim_char_idx
-	lda anim_char_idx
-	cmp #6
-	bne :+
+	dec anim_char_idx
+	bpl :+
 
 	; reset anim_char_idx
-	lda #0
+	lda #9			; 10 frames
 	sta anim_char_idx
 :
 	rts
@@ -449,37 +448,55 @@ scroll_left:	.byte 7
 label_index:	.byte 0
 chars_scrolled:	.byte 128
 current_char:	.byte 0
-anim_char_idx:	.byte 0
+anim_char_idx:	.byte 9
 
 label:
 	scrcode "welcome to the race. one or two players. networking races. hello world."
 	.byte $ff
 
 anim_char_0:
+	.byte %01111110
 	.byte %11111111
 	.byte %11111111
 	.byte %11111111
 	.byte %11111111
 	.byte %11111111
 	.byte %11111111
+	.byte %01111110
+
+	.byte %00111100
+	.byte %01111110
 	.byte %11111111
 	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %01111110
+	.byte %00111100
+
+	.byte %00011000
+	.byte %00111100
+	.byte %01111110
+	.byte %11111111
+	.byte %11111111
+	.byte %01111110
+	.byte %00111100
+	.byte %00011000
 
 	.byte %00000000
+	.byte %00011000
+	.byte %00111100
 	.byte %01111110
 	.byte %01111110
-	.byte %01111110
-	.byte %01111110
-	.byte %01111110
-	.byte %01111110
+	.byte %00111100
+	.byte %00011000
 	.byte %00000000
 
 	.byte %00000000
 	.byte %00000000
+	.byte %00011000
 	.byte %00111100
 	.byte %00111100
-	.byte %00111100
-	.byte %00111100
+	.byte %00011000
 	.byte %00000000
 	.byte %00000000
 
@@ -494,40 +511,39 @@ anim_char_0:
 
 	.byte %00000000
 	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
+	.byte %00011000
+	.byte %00111100
+	.byte %00111100
+	.byte %00011000
 	.byte %00000000
 	.byte %00000000
 
-	.byte %11111111
-	.byte %10000001
-	.byte %10000001
-	.byte %10000001
-	.byte %10000001
-	.byte %10000001
-	.byte %10000001
-	.byte %11111111
+	.byte %00000000
+	.byte %00011000
+	.byte %00111100
+	.byte %01111110
+	.byte %01111110
+	.byte %00111100
+	.byte %00011000
+	.byte %00000000
 
+	.byte %00011000
+	.byte %00111100
+	.byte %01111110
 	.byte %11111111
 	.byte %11111111
-	.byte %11000011
-	.byte %11000011
-	.byte %11000011
-	.byte %11000011
-	.byte %11111111
-	.byte %11111111
-	
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11100111
-	.byte %11100111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
+	.byte %01111110
+	.byte %00111100
+	.byte %00011000
 
+	.byte %00111100
+	.byte %01111110
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %01111110
+	.byte %00111100
 
 .segment "CHARSET"
 	; last 3 chars reserved
