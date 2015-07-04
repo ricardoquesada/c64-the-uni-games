@@ -30,164 +30,164 @@ SCREEN_2 = $0400 + SCROLL_2_AT_LINE * 40
 MUSIC_INIT = __SIDMUSIC_LOAD__
 MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 
-SPEED = 1            ; must be between 1 and 8
+SPEED = 1	 ; must be between 1 and 8
 
 
-.macpack cbm         ; adds support for scrcode
+.macpack cbm	 ; adds support for scrcode
 
 .segment "CODE"
 
 ;--------------------------------------------------------------------------
 ; _main
 ;--------------------------------------------------------------------------
-                    jsr $ff81                       ; init screen
+	jsr $ff81		; init screen
 
-                    ; default is #$15  #00010101
-                    lda #%00011110
-                    sta $d018                       ; logo font at $3800
+	; default is #$15  #00010101
+	lda #%00011110
+	sta $d018		; logo font at $3800
 
-                    sei
+	sei
 
-                    ; turn off cia interrups
-                    lda #$7f
-                    sta $dc0d
-                    sta $dd0d
+	; turn off cia interrups
+	lda #$7f
+	sta $dc0d
+	sta $dd0d
 
-                    lda $d01a                       ; enable raster irq
-                    ora #$01
-                    sta $d01a
+	lda $d01a		; enable raster irq
+	ora #$01
+	sta $d01a
 
-                    lda $d011                       ; clear high bit of raster line
-                    and #$7f
-                    sta $d011
+	lda $d011		; clear high bit of raster line
+	and #$7f
+	sta $d011
 
-                    ; irq handler
-                    lda #<irq1
-                    sta $0314
-                    lda #>irq1
-                    sta $0315
+	; irq handler
+	lda #<irq1
+	sta $0314
+	lda #>irq1
+	sta $0315
 
-                    ; raster interrupt
-                    lda #RASTER_START+SCROLL_1_AT_LINE*8
-                    sta $d012
+	; raster interrupt
+	lda #RASTER_START+SCROLL_1_AT_LINE*8
+	sta $d012
 
-                    ; clear interrupts and ACK irq
-                    lda $dc0d
-                    lda $dd0d
-                    asl $d019
+	; clear interrupts and ACK irq
+	lda $dc0d
+	lda $dd0d
+	asl $d019
 
-                    lda #0
-                    jsr MUSIC_INIT
+	lda #0
+	jsr MUSIC_INIT
 
-                    cli
+	cli
 
 
 mainloop:
-                    lda #0
-                    sta sync
-:                   cmp sync
-                    beq :-
+	lda #0
+	sta sync
+:	cmp sync
+	beq :-
 
-                    jsr scroll
-                    jmp mainloop
+	jsr scroll
+	jmp mainloop
 
 irq1:
-                    asl $d019
+	asl $d019
 
-                    lda #<irq2
-                    sta $0314
-                    lda #>irq2
-                    sta $0315
+	lda #<irq2
+	sta $0314
+	lda #>irq2
+	sta $0315
 
-                    lda #RASTER_START+(SCROLL_1_AT_LINE+8)*8
-                    sta $d012
+	lda #RASTER_START+(SCROLL_1_AT_LINE+8)*8
+	sta $d012
 
-                    lda #3
-                    sta $d020
+	lda #3
+	sta $d020
 
-                    ; scroll left, upper part
-                    lda scroll_left
-                    sta $d016
+	; scroll left, upper part
+	lda scroll_left
+	sta $d016
 
-                    jmp $ea81
+	jmp $ea81
 
 irq2:
-                    asl $d019
+	asl $d019
 
-                    lda #<irq3
-                    sta $0314
-                    lda #>irq3
-                    sta $0315
+	lda #<irq3
+	sta $0314
+	lda #>irq3
+	sta $0315
 
-                    ; FIXME If I don't add the -1 it won't scroll correctly.
-                    ; FIXME Raster is not stable.
-                    lda #RASTER_START+(SCROLL_2_AT_LINE)*8-1
-                    sta $d012
+	; FIXME If I don't add the -1 it won't scroll correctly.
+	; FIXME Raster is not stable.
+	lda #RASTER_START+(SCROLL_2_AT_LINE)*8-1
+	sta $d012
 
-                    lda #1
-                    sta $d020
+	lda #1
+	sta $d020
 
-                    ; no scroll
-                    lda #%00001000
-                    sta $d016
+	; no scroll
+	lda #%00001000
+	sta $d016
 
-                    jmp $ea81
+	jmp $ea81
 
 
 irq3:
-                    asl $d019
+	asl $d019
 
-                    lda #<irq4
-                    sta $0314
-                    lda #>irq4
-                    sta $0315
+	lda #<irq4
+	sta $0314
+	lda #>irq4
+	sta $0315
 
-                    lda #RASTER_START+(SCROLL_2_AT_LINE+8)*8
-                    sta $d012
+	lda #RASTER_START+(SCROLL_2_AT_LINE+8)*8
+	sta $d012
 
-                    lda #0
-                    sta $d020
+	lda #0
+	sta $d020
 
-                    ; scroll right, bottom part
-                    lda scroll_left
-                    eor #$07                        ; negate "scroll left" to simulate "scroll right"
-                    and #$07
-                    sta $d016
+	; scroll right, bottom part
+	lda scroll_left
+	eor #$07		; negate "scroll left" to simulate "scroll right"
+	and #$07
+	sta $d016
 
-                    jmp $ea81
+	jmp $ea81
 
 
 irq4:
-                    asl $d019
+	asl $d019
 
-                    lda #<irq1
-                    sta $0314
-                    lda #>irq1
-                    sta $0315
+	lda #<irq1
+	sta $0314
+	lda #>irq1
+	sta $0315
 
-                    ; FIXME If I don't add the -1 it won't scroll correctly.
-                    ; FIXME Raster is not stable.
-                    lda #RASTER_START+SCROLL_1_AT_LINE*8-1
-                    sta $d012
+	; FIXME If I don't add the -1 it won't scroll correctly.
+	; FIXME Raster is not stable.
+	lda #RASTER_START+SCROLL_1_AT_LINE*8-1
+	sta $d012
 
-                    lda #1
-                    sta $d020
+	lda #1
+	sta $d020
 
-                    ; no scroll
-                    lda #%00001000
-                    sta $d016
+	; no scroll
+	lda #%00001000
+	sta $d016
 
-                    inc sync
+	inc sync
 
 .if (DEBUG=1)
-                    inc $d020
+	inc $d020
 .endif
-                    jsr MUSIC_PLAY
+	jsr MUSIC_PLAY
 .if (DEBUG=1)
-                    dec $d020
+	dec $d020
 .endif
 
-                    jmp $ea31
+	jmp $ea31
 
 
 ;--------------------------------------------------------------------------
@@ -195,96 +195,95 @@ irq4:
 ; main scroll function
 ;--------------------------------------------------------------------------
 scroll:
-                    ; speed control
+	; speed control
 
-                    ldx scroll_left                 ; save current value in X
-
+	ldx scroll_left		; save current value in X
 .repeat SPEED
-                    dec scroll_left
+	dec scroll_left
 .endrepeat
 
-                    lda scroll_left
-                    and #07
-                    sta scroll_left
+	lda scroll_left
+	and #07
+	sta scroll_left
 
-                    cpx scroll_left                 ; new value is higher than the old one ? if so, then scroll
-                    bcc :+
+	cpx scroll_left		; new value is higher than the old one ? if so, then scroll
+	bcc :+
 
-                    rts
-
-:
-                    jsr scroll_screen
-                    jsr anim_char
-
-                    lda chars_scrolled
-                    cmp #%10000000
-                    bne :+
-
-                    ; A and current_char will contain the char to print
-                    ; $f9/$fa points to the charset definition of the char
-                    jsr setup_charset
+	rts
 
 :
-                    ; basic setup
-                    ldx #<(SCREEN_1+39)
-                    ldy #>(SCREEN_1+39)
-                    stx $fb
-                    sty $fc
-                    ldx #<(SCREEN_2+8*40)
-                    ldy #>(SCREEN_2+8*40)
-                    stx $fd
-                    sty $fe
+	jsr scroll_screen
+	jsr anim_char
 
-                    ldy #0                          ; 8 rows
+	lda chars_scrolled
+	cmp #%10000000
+	bne :+
+
+	; A and current_char will contain the char to print
+	; $f9/$fa points to the charset definition of the char
+	jsr setup_charset
+
+:
+	; basic setup
+	ldx #<(SCREEN_1+39)
+	ldy #>(SCREEN_1+39)
+	stx $fb
+	sty $fc
+	ldx #<(SCREEN_2+8*40)
+	ldy #>(SCREEN_2+8*40)
+	stx $fd
+	sty $fe
+
+	ldy #0			; 8 rows
 
 
 @loop:
-                    lda ($f9),y
-                    and chars_scrolled
-                    beq @empty_char
+	lda ($f9),y
+	and chars_scrolled
+	beq @empty_char
 
-;                    lda current_char
-                    lda #$fe
-                    jmp @print_to_screen
+;	 lda current_char
+	lda #$fe
+	jmp @print_to_screen
 
 @empty_char:
-                    lda #$ff                        ; empty char
+	lda #$ff		; empty char
 
 @print_to_screen:
-                    ldx #0
-                    sta ($fb,x)
-                    sta ($fd,x)
+	ldx #0
+	sta ($fb,x)
+	sta ($fd,x)
 
-                    ; next line for upper scroller
-                    clc
-                    lda $fb
-                    adc #40
-                    sta $fb
-                    bcc :+
-                    inc $fc
+	; next line for upper scroller
+	clc
+	lda $fb
+	adc #40
+	sta $fb
+	bcc :+
+	inc $fc
 
-                    ; next line for bottom scroller
-:                   sec
-                    lda $fd
-                    sbc #40
-                    sta $fd
-                    bcs :+
-                    dec $fe
+	; next line for bottom scroller
+:	sec
+	lda $fd
+	sbc #40
+	sta $fd
+	bcs :+
+	dec $fe
 
-:                   iny                             ; next charset definition
-                    cpy #8
-                    bne @loop
+:	iny			; next charset definition
+	cpy #8
+	bne @loop
 
-                    lsr chars_scrolled
-                    bcc @endscroll
+	lsr chars_scrolled
+	bcc @endscroll
 
-                    lda #128
-                    sta chars_scrolled
+	lda #128
+	sta chars_scrolled
 
-                    inc label_index
+	inc label_index
 
 @endscroll:
-                    rts
+	rts
 
 
 ;--------------------------------------------------------------------------
@@ -294,28 +293,28 @@ scroll:
 ; modifies: A, X, Status
 ;--------------------------------------------------------------------------
 scroll_screen:
-                    ; move the chars to the left and right
-                    ldx #0
+	; move the chars to the left and right
+	ldx #0
 
-                    ; intest of using #38, using #39 to avoid
-                    ; doing a cpy #$ff
-                    ldy #39
+	; intest of using #38, using #39 to avoid
+	; doing a cpy #$ff
+	ldy #39
 
 @loop:
 .repeat 8,i
-                    lda SCREEN_1+40*i+1,x
-                    sta SCREEN_1+40*i+0,x
+	lda SCREEN_1+40*i+1,x
+	sta SCREEN_1+40*i+0,x
 .endrepeat
 
 .repeat 8,i
-                    lda SCREEN_2+40*i-1,y
-                    sta SCREEN_2+40*i+0,y
+	lda SCREEN_2+40*i-1,y
+	sta SCREEN_2+40*i+0,y
 .endrepeat
 
-                    inx
-                    dey
-                    bne @loop
-                    rts
+	inx
+	dey
+	bne @loop
+	rts
 
 ;--------------------------------------------------------------------------
 ; setup_charset(void)
@@ -325,47 +324,47 @@ scroll_screen:
 ; returns A: the character to print
 ;--------------------------------------------------------------------------
 setup_charset:
-                    ; put next char in column 40
-                    ldx label_index
-                    lda label,x
-                    cmp #$ff
-                    bne :+
+	; put next char in column 40
+	ldx label_index
+	lda label,x
+	cmp #$ff
+	bne :+
 
-                    ; reached $ff ? Then start from the beginning
-                    lda #%10000000
-                    sta chars_scrolled
-                    lda #0
-                    sta label_index
-                    lda label
+	; reached $ff ? Then start from the beginning
+	lda #%10000000
+	sta chars_scrolled
+	lda #0
+	sta label_index
+	lda label
 :
-                    sta current_char
+	sta current_char
 
-                    tax
+	tax
 
-                    ; address = CHARSET + 8 * index
-                    ; multiply by 8 (LSB)
-                    asl
-                    asl
-                    asl
-                    clc
-                    adc #<__CHARSET_LOAD__
-                    sta $f9
+	; address = CHARSET + 8 * index
+	; multiply by 8 (LSB)
+	asl
+	asl
+	asl
+	clc
+	adc #<__CHARSET_LOAD__
+	sta $f9
 
-                    ; multiply by 8 (MSB)
-                    ; 256 / 8 = 32
-                    ; 32 = %00100000
-                    txa
-                    lsr
-                    lsr
-                    lsr
-                    lsr
-                    lsr
+	; multiply by 8 (MSB)
+	; 256 / 8 = 32
+	; 32 = %00100000
+	txa
+	lsr
+	lsr
+	lsr
+	lsr
+	lsr
 
-                    clc
-                    adc #>__CHARSET_LOAD__
-                    sta $fa
+	clc
+	adc #>__CHARSET_LOAD__
+	sta $fa
 
-                    rts
+	rts
 
 ;--------------------------------------------------------------------------
 ; anim_char(void)
@@ -375,134 +374,140 @@ setup_charset:
 ; returns A: the character to print
 ;--------------------------------------------------------------------------
 anim_char:
-                    ; self modifying code
-                    lda anim_char_idx
-                    asl                             ; multiply by 8 (next char)
-                    asl
-                    asl
-                    tay
-                    clc
-                    adc #<anim_char_0
-                    sta @anim_address+1
-                    lda #>anim_char_0
-                    sta @anim_address+2
+	; self modifying code
+	lda anim_char_idx
+	asl			; multiply by 8 (next char)
+	asl
+	asl
+	tay
+	clc
+	adc #<anim_char_0
+	sta @anim_address+1
+	lda #>anim_char_0
+	sta @anim_address+2
 
-                    ldx #7
+	ldx #7
 @loop:
 
 @anim_address:
-                    lda anim_char_0,x
-                    sta __CHARSET_LOAD__ + 254 * 8,x
+	lda anim_char_0,x
+	sta __CHARSET_LOAD__ + 254 * 8,x
 
-                    dex
-                    cpx #$ff
-                    bne @loop
+	dex
+	cpx #$ff
+	bne @loop
 
-                    inc anim_char_idx
-                    lda anim_char_idx
-                    cmp #5
-                    bne :+
+	inc anim_char_idx
+	lda anim_char_idx
+	cmp #6
+	bne :+
 
-                    ; reset anim_char_idx
-                    lda #0
-                    sta anim_char_idx
+	; reset anim_char_idx
+	lda #0
+	sta anim_char_idx
 :
-                    rts
+	rts
 
 ; variables
-sync:               .byte 1
-scroll_left:        .byte 7
-label_index:        .byte 0
-chars_scrolled:     .byte 128
-current_char:       .byte 0
-anim_char_idx:      .byte 0
+sync:	.byte 1
+scroll_left:	.byte 7
+label_index:	.byte 0
+chars_scrolled:	.byte 128
+current_char:	.byte 0
+anim_char_idx:	.byte 0
 
 label:
-                    scrcode ". . . . . the race . . . . ."
-                    .byte $ff
+	scrcode ". . . . . the race . . . . ."
+	.byte $ff
 
 anim_char_0:
-                    .byte %11000110
-                    .byte %11000110
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %11000110
-                    .byte %11000110
-                    .byte %00000000
+	.byte %11000011
+	.byte %11000011
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %11000011
+	.byte %11000011
 
-anim_char_1:
-                    .byte %00001100
-                    .byte %11001100
-                    .byte %11000000
-                    .byte %00000000
-                    .byte %00000110
-                    .byte %01100110
-                    .byte %01100000
-                    .byte %00000000
+	.byte %00000110
+	.byte %11000110
+	.byte %11000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000011
+	.byte %01100011
+	.byte %01100000
 
-anim_char_2:
-                    .byte %00011000
-                    .byte %00011000
-                    .byte %11000000
-                    .byte %11000110
-                    .byte %00000110
-                    .byte %00110000
-                    .byte %00110000
-                    .byte %00000000
+	.byte %00001100
+	.byte %00001100
+	.byte %11000000
+	.byte %11000000
+	.byte %00000011
+	.byte %00000011
+	.byte %00110000
+	.byte %00110000
 
-anim_char_3:
-                    .byte %00110000
-                    .byte %00110000
-                    .byte %00000110
-                    .byte %11000110
-                    .byte %11000000
-                    .byte %00011000
-                    .byte %00011000
-                    .byte %00000000
+	.byte %00011000
+	.byte %00011000
+	.byte %00000000
+	.byte %11000011
+	.byte %11000011
+	.byte %00000000
+	.byte %00011000
+	.byte %00011000
 
-anim_char_4:
-                    .byte %01100000
-                    .byte %01100110
-                    .byte %00000110
-                    .byte %00000000
-                    .byte %11000000
-                    .byte %11001100
-                    .byte %00001100
-                    .byte %00000000
+	.byte %00110000
+	.byte %00110000
+	.byte %00000011
+	.byte %00000011
+	.byte %11000000
+	.byte %11000000
+	.byte %00001100
+	.byte %00001100
+
+	.byte %01100000
+	.byte %01100011
+	.byte %00000011
+	.byte %00000000
+	.byte %00000000
+	.byte %11000000
+	.byte %11000110
+	.byte %00000110
+
 
 .segment "CHARSET"
-                    ; last 3 chars reserved
-                    .incbin "fonts/scrap_writer_iii_16.64c",2,(2048-8*3)
+	; last 3 chars reserved
+	.incbin "fonts/scrap_writer_iii_16.64c",2,(2048-8*3)
 
 .segment "CHARSET254"
-                    .byte %11000110
-                    .byte %11000110
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %11000110
-                    .byte %11000110
-                    .byte %00000000
+	.byte %11000110
+	.byte %11000110
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %11000110
+	.byte %11000110
+	.byte %00000000
 
-                    .byte %11000110
-                    .byte %11000110
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %11000110
-                    .byte %11000110
-                    .byte %00000000
+	.byte %11000110
+	.byte %11000110
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %11000110
+	.byte %11000110
+	.byte %00000000
 
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %00000000
-                    .byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
 
 .segment "SIDMUSIC"
-         .incbin "music.sid",$7e
+	 .incbin "music.sid",$7e
 
