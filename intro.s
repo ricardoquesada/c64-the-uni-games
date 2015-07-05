@@ -40,46 +40,7 @@ SPEED = 2			; must be between 1 and 8
 ;--------------------------------------------------------------------------
 ; _main
 ;--------------------------------------------------------------------------
-	jsr $ff81		; init screen
-
-	; default is #$15  #00010101
-	lda #%00011110
-	sta $d018		; logo font at $3800
-
-	sei
-
-	; turn off cia interrups
-	lda #$7f
-	sta $dc0d
-	sta $dd0d
-
-	lda $d01a		; enable raster irq
-	ora #$01
-	sta $d01a
-
-	lda $d011		; clear high bit of raster line
-	and #$7f
-	sta $d011
-
-	; irq handler
-	lda #<irq1
-	sta $0314
-	lda #>irq1
-	sta $0315
-
-	; raster interrupt
-	lda #RASTER_START+SCROLL_1_AT_LINE*8
-	sta $d012
-
-	; clear interrupts and ACK irq
-	lda $dc0d
-	lda $dd0d
-	asl $d019
-
-	lda #0
-	jsr MUSIC_INIT
-
-	cli
+	jsr init
 
 
 mainloop:
@@ -102,12 +63,13 @@ irq1:
 	lda #RASTER_START+(SCROLL_1_AT_LINE+8)*8
 	sta $d012
 
-	lda #3
-	sta $d020
-
 	; scroll left, upper part
 	lda scroll_left
 	sta $d016
+
+	lda #12			; Grey 2
+	sta $d020
+	sta $d021
 
 	jmp $ea81
 
@@ -124,12 +86,14 @@ irq2:
 	lda #RASTER_START+(SCROLL_2_AT_LINE)*8-1
 	sta $d012
 
-	lda #1
-	sta $d020
-
 	; no scroll
 	lda #%00001000
 	sta $d016
+
+	; color
+	lda #0
+	sta $d020
+	sta $d021
 
 	jmp $ea81
 
@@ -145,14 +109,15 @@ irq3:
 	lda #RASTER_START+(SCROLL_2_AT_LINE+8)*8
 	sta $d012
 
-	lda #0
-	sta $d020
-
 	; scroll right, bottom part
 	lda scroll_left
 	eor #$07		; negate "scroll left" to simulate "scroll right"
 	and #$07
 	sta $d016
+
+	lda #12			; Grey 2
+	sta $d020
+	sta $d021
 
 	jmp $ea81
 
@@ -170,14 +135,15 @@ irq4:
 	lda #RASTER_START+SCROLL_1_AT_LINE*8-1
 	sta $d012
 
-	lda #1
-	sta $d020
-
 	; no scroll
 	lda #%00001000
 	sta $d016
 
 	inc sync
+
+	lda #0
+	sta $d020
+	sta $d021
 
 .if (DEBUG=1)
 	inc $d020
@@ -383,27 +349,21 @@ scroll:
 .proc anim_char
 
 .if 1
-	; self modifying code
+TOTAL_FRAMES = 14
 	lda anim_char_idx
 	asl			; multiply by 8 (next char)
 	asl
 	asl
 	tay
-	clc
-	adc #<anim_char_0
-	sta @anim_address+1
-	lda #>anim_char_0
-	sta @anim_address+2
-	bcc :+
-	inc @anim_address+2
-:
+
 	ldx #7			; 8 rows
 @loop:
+	lda anim_char_0,y
+	sta __CHARSET_LOAD__ + $fd * 8,x
+	eor #$ff
+	sta __CHARSET_LOAD__ + $fe * 8,x
 
-@anim_address:
-	lda anim_char_0,x
-	sta __CHARSET_LOAD__ + 254 * 8,x
-
+	iny
 	dex
 	bpl @loop
 
@@ -411,7 +371,7 @@ scroll:
 	bpl :+
 
 	; reset anim_char_idx
-	lda #9			; 10 frames
+	lda #TOTAL_FRAMES-1	; 10 frames
 	sta anim_char_idx
 :
 	rts
@@ -442,6 +402,61 @@ scroll:
 .endif
 .endproc
 
+;--------------------------------------------------------------------------
+; init(void)
+;--------------------------------------------------------------------------
+; Args: -
+; Clear screen, interrupts, charset and others
+;--------------------------------------------------------------------------
+.proc init
+	jsr $ff81		; clear screen
+
+	lda #0
+	sta $d020
+	sta $d021
+
+	; default is #$15  #00010101
+	lda #%00011110
+	sta $d018		; charset at $3800
+
+	sei
+
+	; turn off cia interrups
+	lda #$7f
+	sta $dc0d
+	sta $dd0d
+
+	lda $d01a		; enable raster irq
+	ora #$01
+	sta $d01a
+
+	lda $d011		; clear high bit of raster line
+	and #$7f
+	sta $d011
+
+	; irq handler
+	lda #<irq1
+	sta $0314
+	lda #>irq1
+	sta $0315
+
+	; raster interrupt
+	lda #RASTER_START+SCROLL_1_AT_LINE*8
+	sta $d012
+
+	; clear interrupts and ACK irq
+	lda $dc0d
+	lda $dd0d
+	asl $d019
+
+	lda #0
+	jsr MUSIC_INIT
+
+	cli
+
+	rts
+.endproc
+
 ; variables
 sync:	.byte 1
 scroll_left:	.byte 7
@@ -455,6 +470,15 @@ label:
 	.byte $ff
 
 anim_char_0:
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+
 	.byte %01111110
 	.byte %11111111
 	.byte %11111111
@@ -511,6 +535,24 @@ anim_char_0:
 
 	.byte %00000000
 	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00011000
+	.byte %00011000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+
+	.byte %00000000
+	.byte %00000000
 	.byte %00011000
 	.byte %00111100
 	.byte %00111100
@@ -544,6 +586,15 @@ anim_char_0:
 	.byte %11111111
 	.byte %01111110
 	.byte %00111100
+
+	.byte %01111110
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %01111110
 
 .segment "CHARSET"
 	; last 3 chars reserved
