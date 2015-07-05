@@ -116,7 +116,7 @@ irq2:
 
 irq3:
 	; XXX making an stable raster "manually"... argh
-.repeat 25
+.repeat 18
 	nop
 .endrepeat
 	asl $d019
@@ -129,16 +129,17 @@ irq3:
 	lda #RASTER_START+(SCROLL_2_AT_LINE+8)*8-1
 	sta $d012
 
+	lda #15			; Grey 2
+	sta $d020
+	lda #12			; Grey 2
+	sta $d021
+
 	; scroll right, bottom part
 	lda smooth_scroll_x
 	eor #$07		; negate "scroll left" to simulate "scroll right"
 	and #$07
 	sta $d016
 
-	lda #15			; Grey 2
-	sta $d020
-	lda #12			; Grey 2
-	sta $d021
 
 	jmp $ea81
 
@@ -491,7 +492,7 @@ ANIM_TOTAL_FRAMES = 14
 	sta $0315
 
 	; raster interrupt
-	lda #RASTER_START+SCROLL_1_AT_LINE*8
+	lda #RASTER_START+SCROLL_1_AT_LINE*8-1
 	sta $d012
 
 	; clear interrupts and ACK irq
