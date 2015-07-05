@@ -62,6 +62,10 @@ nmi_handler:
 	rti
 
 irq1:
+	; XXX making an stable raster "manually"... argh
+.repeat 25
+	nop
+.endrepeat
 	asl $d019
 
 	lda #<irq2
@@ -69,7 +73,7 @@ irq1:
 	lda #>irq2
 	sta $0315
 
-	lda #RASTER_START+(SCROLL_1_AT_LINE+8)*8
+	lda #RASTER_START+(SCROLL_1_AT_LINE+8)*8-1
 	sta $d012
 
 	; scroll left, upper part
@@ -84,6 +88,10 @@ irq1:
 	jmp $ea81
 
 irq2:
+	; XXX making an stable raster "manually"... argh
+.repeat 25
+	nop
+.endrepeat
 	asl $d019
 
 	lda #<irq3
@@ -91,8 +99,6 @@ irq2:
 	lda #>irq3
 	sta $0315
 
-	; FIXME If I don't add the -1 it won't scroll correctly.
-	; FIXME Raster is not stable.
 	lda #RASTER_START+(SCROLL_2_AT_LINE)*8-1
 	sta $d012
 
@@ -109,6 +115,10 @@ irq2:
 
 
 irq3:
+	; XXX making an stable raster "manually"... argh
+.repeat 25
+	nop
+.endrepeat
 	asl $d019
 
 	lda #<irq4
@@ -116,7 +126,7 @@ irq3:
 	lda #>irq4
 	sta $0315
 
-	lda #RASTER_START+(SCROLL_2_AT_LINE+8)*8
+	lda #RASTER_START+(SCROLL_2_AT_LINE+8)*8-1
 	sta $d012
 
 	; scroll right, bottom part
@@ -134,6 +144,10 @@ irq3:
 
 
 irq4:
+	; XXX making an stable raster "manually"... argh
+.repeat 25
+	nop
+.endrepeat
 	asl $d019
 
 	lda #<irq1
@@ -141,8 +155,6 @@ irq4:
 	lda #>irq1
 	sta $0315
 
-	; FIXME If I don't add the -1 it won't scroll correctly.
-	; FIXME Raster is not stable.
 	lda #RASTER_START+SCROLL_1_AT_LINE*8-1
 	sta $d012
 
@@ -516,7 +528,9 @@ anim_speed:		.byte 7
 anim_char_idx:		.byte ANIM_TOTAL_FRAMES-1
 
 label:
-	scrcode "    - - - - welcome to 'the race': a racing game. who would have guessed it, right? but there is no game for the moment... ha ha ha... just this lame intro screen. come back soon"
+	scrcode "    - - - - welcome to 'the race': a racing game. who would have guessed it, right?"
+	scrcode "but there is no game for the moment... ha ha ha... just this lame intro screen."
+	scrcode "come back soon"
 	.byte $ff
 
 anim_char_0:

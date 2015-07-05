@@ -9,7 +9,7 @@ X64 = /Applications/Vice/x64.app/Contents/MacOS/x64
 all: disk
 
 prg:
-	cl65 -d -Ln therace.sym -g -u __EXEHDR__ -t c64 -o therace.prg -C therace.cfg intro.s utils.s
+	cl65 -d -g -Ln therace.sym -u __EXEHDR__ -t c64 -o therace.prg -C therace.cfg intro.s utils.s
 
 disk: prg
 	$(C1541) -format "therace,rq" d64 therace.d64
