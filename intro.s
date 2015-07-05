@@ -58,6 +58,9 @@ mainloop:
 	jsr anim_char
 	jmp mainloop
 
+nmi_handler:
+	rti
+
 irq1:
 	asl $d019
 
@@ -457,8 +460,8 @@ ANIM_TOTAL_FRAMES = 14
 	sta $dc0d
 	sta $dd0d
 
-	lda $d01a		; enable raster irq
-	ora #$01
+	; enable raster irq
+	lda #01
 	sta $d01a
 
 
@@ -467,7 +470,9 @@ ANIM_TOTAL_FRAMES = 14
 	lda #%00011011
 	sta $d011
 
+	;
 	; irq handler
+	;
 	lda #<irq1
 	sta $0314
 	lda #>irq1
@@ -482,6 +487,17 @@ ANIM_TOTAL_FRAMES = 14
 	lda $dd0d
 	asl $d019
 
+	;
+	; nmi handler
+	;
+	lda #<nmi_handler
+	ldx #>nmi_handler
+	sta $318
+	stx $319
+
+	;
+	; init music
+	;
 	lda #0
 	jsr MUSIC_INIT
 
