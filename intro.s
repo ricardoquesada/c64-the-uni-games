@@ -15,8 +15,11 @@
 ; exported by the linker
 .import __CHARSET_LOAD__, __SIDMUSIC_LOAD__
 
+; from utils.s
+.import clear_screen, color_screen
+
 ; Use 1 to enable music-raster debug
-DEBUG = 1
+DEBUG = 0
 
 RASTER_START = 50
 
@@ -30,7 +33,9 @@ SCREEN_BOTTOM = $0400 + SCROLL_2_AT_LINE * 40
 MUSIC_INIT = __SIDMUSIC_LOAD__
 MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 
-SPEED = 2			; must be between 1 and 8
+; SPEED must be between 0 and 7. 0=Stop, 7=Max speed
+SCROLL_SPEED = 4
+ANIM_SPEED = 2
 
 
 .macpack cbm			; adds support for scrcode
@@ -50,6 +55,7 @@ mainloop:
 	beq :-
 
 	jsr scroll
+	jsr anim_char
 	jmp mainloop
 
 irq1:
@@ -64,11 +70,12 @@ irq1:
 	sta $d012
 
 	; scroll left, upper part
-	lda scroll_left
+	lda smooth_scroll_x
 	sta $d016
 
-	lda #12			; Grey 2
+	lda #15			; Grey 2
 	sta $d020
+	lda #12			; Grey 2
 	sta $d021
 
 	jmp $ea81
@@ -110,13 +117,14 @@ irq3:
 	sta $d012
 
 	; scroll right, bottom part
-	lda scroll_left
+	lda smooth_scroll_x
 	eor #$07		; negate "scroll left" to simulate "scroll right"
 	and #$07
 	sta $d016
 
-	lda #12			; Grey 2
+	lda #15			; Grey 2
 	sta $d020
+	lda #12			; Grey 2
 	sta $d021
 
 	jmp $ea81
@@ -160,26 +168,19 @@ irq4:
 ; scroll(void)
 ; main scroll function
 ;--------------------------------------------------------------------------
-scroll:
+.proc scroll
 	; speed control
 
-	ldx scroll_left		; save current value in X
-.repeat SPEED
-	dec scroll_left
-.endrepeat
-
-	lda scroll_left
+	sec
+	lda smooth_scroll_x
+	sbc #SCROLL_SPEED
 	and #07
-	sta scroll_left
-
-	cpx scroll_left		; new value is higher than the old one ? if so, then scroll
+	sta smooth_scroll_x
 	bcc :+
-
 	rts
 
 :
 	jsr scroll_screen
-	jsr anim_char
 
 	lda chars_scrolled
 	cmp #%10000000
@@ -256,6 +257,7 @@ scroll:
 
 @endscroll:
 	rts
+.endproc
 
 
 ;--------------------------------------------------------------------------
@@ -346,10 +348,21 @@ scroll:
 ; Modifies A, X, Status
 ; returns A: the character to print
 ;--------------------------------------------------------------------------
+ANIM_TOTAL_FRAMES = 14
 .proc anim_char
 
 .if 1
-TOTAL_FRAMES = 14
+
+	sec
+	lda anim_speed
+	sbc #ANIM_SPEED
+	and #07
+	sta anim_speed
+	bcc @animation
+
+	rts
+
+@animation:
 	lda anim_char_idx
 	asl			; multiply by 8 (next char)
 	asl
@@ -371,7 +384,7 @@ TOTAL_FRAMES = 14
 	bpl :+
 
 	; reset anim_char_idx
-	lda #TOTAL_FRAMES-1	; 10 frames
+	lda #ANIM_TOTAL_FRAMES-1; 10 frames
 	sta anim_char_idx
 :
 	rts
@@ -409,13 +422,31 @@ TOTAL_FRAMES = 14
 ; Clear screen, interrupts, charset and others
 ;--------------------------------------------------------------------------
 .proc init
-	jsr $ff81		; clear screen
+	lda #$ff
+	jsr clear_screen
+	lda #0
+	jsr color_screen
 
+	; foreground RAM color for scroll lines
+	ldx #0
+	lda #15
+	; 8 lines: 40 * 8 = 320. 256 + 64
+@loop:
+	sta $d800 + SCROLL_1_AT_LINE * 40,x
+	sta $d800 + SCROLL_1_AT_LINE * 40 + 64,x
+	sta $d800 + SCROLL_2_AT_LINE * 40,x
+	sta $d800 + SCROLL_2_AT_LINE * 40 + 64,x
+	inx
+	bne @loop
+
+
+	; colors
 	lda #0
 	sta $d020
 	sta $d021
 
-	; default is #$15  #00010101
+	; default is:
+	;    %00010101
 	lda #%00011110
 	sta $d018		; charset at $3800
 
@@ -430,8 +461,10 @@ TOTAL_FRAMES = 14
 	ora #$01
 	sta $d01a
 
-	lda $d011		; clear high bit of raster line
-	and #$7f
+
+	;default is:
+	;    %00011011
+	lda #%00011011
 	sta $d011
 
 	; irq handler
@@ -458,15 +491,16 @@ TOTAL_FRAMES = 14
 .endproc
 
 ; variables
-sync:	.byte 1
-scroll_left:	.byte 7
-label_index:	.byte 0
-chars_scrolled:	.byte 128
-current_char:	.byte 0
-anim_char_idx:	.byte 9
+sync:			.byte 1
+smooth_scroll_x:	.byte 7
+label_index:		.byte 0
+chars_scrolled:		.byte 128
+current_char:		.byte 0
+anim_speed:		.byte 7
+anim_char_idx:		.byte ANIM_TOTAL_FRAMES-1
 
 label:
-	scrcode "welcome to the race. one or two players. networking races. hello world."
+	scrcode "    - - - - welcome to 'the race': a racing game. who would have guessed it, right? but there is no game for the moment... ha ha ha... just this lame intro screen. come back soon"
 	.byte $ff
 
 anim_char_0:
