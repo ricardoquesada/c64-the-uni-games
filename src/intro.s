@@ -18,8 +18,11 @@
 ; from utils.s
 .import clear_screen, color_screen
 
-; Use 1 to enable music-raster debug
-DEBUG = 0
+;--------------------------------------------------------------------------
+; Constants
+;--------------------------------------------------------------------------
+
+DEBUG = 0			; Use 1 to enable music-raster debug
 
 RASTER_START = 50
 
@@ -38,7 +41,38 @@ SCROLL_SPEED = 4
 ANIM_SPEED = 2
 
 
+;--------------------------------------------------------------------------
+; Macros
+;--------------------------------------------------------------------------
 .macpack cbm			; adds support for scrcode
+
+; Double-IRQ Stable raster routine
+; taken from: http://codebase64.org/doku.php?id=base:stable_raster_routine
+.macro STABILIZE_RASTER
+	lda #<@irq_stable	; set IRQ Vector
+	ldx #>@irq_stable	; to point to the next part of the
+	sta $fffe		; Stable IRQ
+	stx $ffff		; ON NEXT LINE!
+	inc $d012
+	asl $d019		; Ack RASTER IRQ
+	tsx			; We want the IRQ
+	cli			; To return to our
+
+.repeat 8
+	nop
+.endrepeat
+
+@irq_stable:
+	txs			; Restore STACK Pointer
+	ldx #$08		; Wait exactly 1
+	dex			; lines worth of
+	bne *-1			; cycles for compare
+	bit $ea			; Minus compare
+
+	lda $d012		; RASTER change yet?
+	cmp $d012
+	beq *+2			; If no waste 1 more cycle
+.endmacro
 
 .segment "CODE"
 
@@ -59,57 +93,56 @@ mainloop:
 	jmp mainloop
 
 irq1:
-	pha        ;store register A in stack
+	pha			; saves A, X, Y
 	txa
-	pha        ;store register X in stack
+	pha
 	tya
-	pha        ;store register Y in stack
+	pha
 
-	; scroll left, upper part
+	STABILIZE_RASTER
+
+	ldx #15			; Grey 2
+	ldy #12			; Grey 2
+	stx $d020
+	sty $d021
+
 	lda smooth_scroll_x
 	sta $d016
-
-	lda #15			; Grey 2
-	sta $d020
-	lda #12			; Grey 2
-	sta $d021
-
 
 	lda #<irq2
 	sta $fffe
 	lda #>irq2
 	sta $ffff
 
-	lda #RASTER_START+(SCROLL_1_AT_LINE+8)*8
+	lda #RASTER_START+(SCROLL_1_AT_LINE+8)*8-1
 	sta $d012
 
 	asl $d019
 
+	pla			; restores A, X, Y
+	tay
 	pla
-	tay        ;restore register Y from stack (remember stack is FIFO: First In First Out)
+	tax
 	pla
-	tax        ;restore register X from stack
-	pla        ;restore register A from stack
-
-	rti        ;Return From Interrupt, this will load into the Program Counter register the address
-		   ;where the CPU was when the interrupt condition arised which will make the CPU continue
-		   ;the code it was interrupted at also restores the status register of the CPU
+	rti			; restores previous PC, status
 
 irq2:
-	pha        ;store register A in stack
+	pha			; saves A, X, Y
 	txa
-	pha        ;store register X in stack
+	pha
 	tya
-	pha        ;store register Y in stack
+	pha
 
-	; no scroll
-	lda #%00001000
-	sta $d016
+	STABILIZE_RASTER
 
 	; color
 	lda #0
 	sta $d020
 	sta $d021
+
+	; no scroll
+	lda #%00001000
+	sta $d016
 
 
 	lda #<irq3
@@ -117,33 +150,32 @@ irq2:
 	lda #>irq3
 	sta $ffff
 
-	lda #RASTER_START+(SCROLL_2_AT_LINE)*8-1
+	lda #RASTER_START+(SCROLL_2_AT_LINE)*8-2
 	sta $d012
 
 	asl $d019
 
+	pla			; restores A, X, Y
+	tay
 	pla
-	tay        ;restore register Y from stack (remember stack is FIFO: First In First Out)
+	tax
 	pla
-	tax        ;restore register X from stack
-	pla        ;restore register A from stack
-
-	rti        ;Return From Interrupt, this will load into the Program Counter register the address
-		   ;where the CPU was when the interrupt condition arised which will make the CPU continue
-		   ;the code it was interrupted at also restores the status register of the CPU
+	rti			; restores previous PC, status
 
 
 irq3:
-	pha        ;store register A in stack
+	pha			; saves A, X, Y
 	txa
-	pha        ;store register X in stack
+	pha
 	tya
-	pha        ;store register Y in stack
+	pha
 
-	lda #15			; Grey 2
-	sta $d020
-	lda #12			; Grey 2
-	sta $d021
+	STABILIZE_RASTER
+
+	ldx #15			; Grey 2
+	ldy #12			; Grey 2
+	stx $d020
+	sty $d021
 
 	; scroll right, bottom part
 	lda smooth_scroll_x
@@ -161,43 +193,32 @@ irq3:
 
 	asl $d019
 
+	pla			; restores A, X, Y
+	tay
 	pla
-	tay        ;restore register Y from stack (remember stack is FIFO: First In First Out)
+	tax
 	pla
-	tax        ;restore register X from stack
-	pla        ;restore register A from stack
-
-	rti        ;Return From Interrupt, this will load into the Program Counter register the address
-		   ;where the CPU was when the interrupt condition arised which will make the CPU continue
-		   ;the code it was interrupted at also restores the status register of the CPU
+	rti			; restores previous PC, status
 
 
 irq4:
-	pha        ;store register A in stack
+	pha			; saves A, X, Y
 	txa
-	pha        ;store register X in stack
+	pha
 	tya
-	pha        ;store register Y in stack
+	pha
+
+	STABILIZE_RASTER
+	
+	lda #0
+	sta $d020
+	sta $d021
 
 	; no scroll
 	lda #%00001000
 	sta $d016
 
 	inc sync
-
-	lda #0
-	sta $d020
-	sta $d021
-
-	lda #<irq1
-	sta $fffe
-	lda #>irq1
-	sta $ffff
-
-	lda #RASTER_START+SCROLL_1_AT_LINE*8
-	sta $d012
-
-	asl $d019
 
 .if (DEBUG=1)
 	inc $d020
@@ -207,15 +228,22 @@ irq4:
 	dec $d020
 .endif
 
-	pla
-	tay        ;restore register Y from stack (remember stack is FIFO: First In First Out)
-	pla
-	tax        ;restore register X from stack
-	pla        ;restore register A from stack
+	lda #<irq1
+	sta $fffe
+	lda #>irq1
+	sta $ffff
 
-	rti        ;Return From Interrupt, this will load into the Program Counter register the address
-		   ;where the CPU was when the interrupt condition arised which will make the CPU continue
-		   ;the code it was interrupted at also restores the status register of the CPU
+	lda #RASTER_START+SCROLL_1_AT_LINE*8-2
+	sta $d012
+
+	asl $d019
+
+	pla			; restores A, X, Y
+	tay
+	pla
+	tax
+	pla
+	rti			; restores previous PC, status
 
 
 ;--------------------------------------------------------------------------
