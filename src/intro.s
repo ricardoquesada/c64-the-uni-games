@@ -37,7 +37,7 @@ MUSIC_INIT = __SIDMUSIC_LOAD__
 MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 
 ; SPEED must be between 0 and 7. 0=Stop, 7=Max speed
-SCROLL_SPEED = 4
+SCROLL_SPEED = 5
 ANIM_SPEED = 2
 
 
@@ -59,23 +59,30 @@ ANIM_SPEED = 2
 	tsx			; +2, 26
 	cli			; +2, 28
 
-.repeat 8
-	nop			; +2 * 8, 44
+.repeat 10
+	; Next IRQ will be triggered while executing these nops
+	nop			; +2 * 8, 44.
 .endrepeat
 	; cycle count: 64~71. New raster already triggered at this point
 	
 @irq_stable:
 	; cycle count: 7~8 .7 cycles for the interrupt handler + 0~1 cycle Jitter for the NOP
-	txs
-	ldx #$08
-	dex
-	bne *-1
-	bit $00
+	txs			; +2, 9~10
 
-	lda $d012
-	cmp $d012
-	beq *+2
-	; cycle count: should be 63 here.
+	; 42 cycles
+	ldx #$08		; +2, 11~12
+	dex			; +2 * 8, 27~28
+	bne *-1			; +3 * 7, +2, 50~51
+	bit $00			; +3, 53~54
+
+;.repeat 21
+;	nop			; 2 * 21
+;.endrepeat
+
+	lda $d012		; +4, 57~58
+	cmp $d012		; +4, 61~62
+	beq *+2			; +2/+3, 64
+
 .endmacro
 
 .segment "CODE"
@@ -96,6 +103,8 @@ mainloop:
 	jsr anim_char
 	jmp mainloop
 
+;	jmp *
+
 irq1:
 	pha			; saves A, X, Y
 	txa
@@ -104,6 +113,18 @@ irq1:
 	pha
 
 	STABILIZE_RASTER
+
+	lda #4			; +2
+	sta $d020		; +4
+	sta $d021		; +4
+
+	; waste some cycles so we can change colors 
+	; at the correct time
+.repeat 52
+	nop
+.endrepeat
+
+	; paint 2 lines with different color
 
 	ldx #15			; Grey 2
 	ldy #12			; Grey 2
@@ -118,7 +139,7 @@ irq1:
 	lda #>irq2
 	sta $ffff
 
-	lda #RASTER_START+(SCROLL_1_AT_LINE+8)*8-1
+	lda #RASTER_START+(SCROLL_1_AT_LINE+9)*8-2
 	sta $d012
 
 	asl $d019
@@ -139,6 +160,21 @@ irq2:
 
 	STABILIZE_RASTER
 
+	; waste some cycles so we can change colors 
+	; at the correct time
+.repeat 30
+	nop
+.endrepeat
+	; paint 2 raster lines with different color
+	lda #4
+	sta $d020
+	sta $d021
+
+	; waste some cycles so we can change colors 
+	; at the correct time
+.repeat 34
+	nop
+.endrepeat
 	; color
 	lda #0
 	sta $d020
@@ -147,7 +183,6 @@ irq2:
 	; no scroll
 	lda #%00001000
 	sta $d016
-
 
 	lda #<irq3
 	sta $fffe
@@ -237,7 +272,7 @@ irq4:
 	lda #>irq1
 	sta $ffff
 
-	lda #RASTER_START+SCROLL_1_AT_LINE*8-2
+	lda #RASTER_START+SCROLL_1_AT_LINE*8-3
 	sta $d012
 
 	asl $d019
@@ -481,7 +516,7 @@ ANIM_TOTAL_FRAMES = 14
 ; Clear screen, interrupts, charset and others
 ;--------------------------------------------------------------------------
 .proc init
-	lda #$ff
+	lda #$20
 	jsr clear_screen
 	lda #0
 	jsr color_screen
@@ -489,12 +524,20 @@ ANIM_TOTAL_FRAMES = 14
 	; foreground RAM color for scroll lines
 	ldx #0
 	lda #15
-	; 8 lines: 40 * 8 = 320. 256 + 64
+	; 9 lines: 40 * 9 = 360. 256 + 104
 @loop:
 	sta $d800 + SCROLL_1_AT_LINE * 40,x
-	sta $d800 + SCROLL_1_AT_LINE * 40 + 64,x
+	sta $d800 + SCROLL_1_AT_LINE * 40 + 104,x
 	sta $d800 + SCROLL_2_AT_LINE * 40,x
-	sta $d800 + SCROLL_2_AT_LINE * 40 + 64,x
+	sta $d800 + SCROLL_2_AT_LINE * 40 + 104,x
+
+	; clear color
+	lda #$ff
+	sta $0400 + SCROLL_1_AT_LINE * 40,x
+	sta $0400 + SCROLL_1_AT_LINE * 40 + 104,x
+	sta $0400 + SCROLL_2_AT_LINE * 40,x
+	sta $0400 + SCROLL_2_AT_LINE * 40 + 104,x
+
 	inx
 	bne @loop
 
@@ -540,7 +583,7 @@ ANIM_TOTAL_FRAMES = 14
 	sta $ffff
 
 	; raster interrupt
-	lda #RASTER_START+SCROLL_1_AT_LINE*8-1
+	lda #RASTER_START+SCROLL_1_AT_LINE*8-3
 	sta $d012
 
 	; clear interrupts and ACK irq
@@ -570,7 +613,7 @@ anim_speed:		.byte 7
 anim_char_idx:		.byte ANIM_TOTAL_FRAMES-1
 
 label:
-	scrcode "    - - - - welcome to 'the race': a racing game. who would have guessed it, right?"
+	scrcode "   - - - - welcome to 'the race': a racing game. who would have guessed it, right? "
 	scrcode "but there is no game for the moment... ha ha ha... just this lame intro screen."
 	scrcode "come back soon"
 	.byte $ff
