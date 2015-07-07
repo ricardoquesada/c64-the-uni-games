@@ -663,7 +663,7 @@ anim_char_0:
 
 .segment "CHARSET"
 	; last 3 chars reserved
-	.incbin "fonts/scrap_writer_iii_16.64c",2,(2048-8*3)
+        .incbin "res/scrap_writer_iii_16.64c",2,(2048-8*3)
 
 .segment "CHARSET254"
 	.byte %00010000
@@ -694,5 +694,5 @@ anim_char_0:
 	.byte %11111111
 
 .segment "SIDMUSIC"
-	 .incbin "music.sid",$7e
+         .incbin "res/music.sid",$7e
 
