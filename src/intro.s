@@ -114,18 +114,20 @@ irq1:
 
 	STABILIZE_RASTER
 
+	; two lines of colors
 	lda #4			; +2
 	sta $d020		; +4
 	sta $d021		; +4
 
 	; waste some cycles so we can change colors 
-	; at the correct time
+	; and horizontal scroll at the correct time
+	; and with enough time that we can do it
+	; when the cycles are invisible
 .repeat 52
 	nop
 .endrepeat
 
 	; paint 2 lines with different color
-
 	ldx #15			; Grey 2
 	ldy #12			; Grey 2
 	stx $d020
