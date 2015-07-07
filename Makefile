@@ -27,4 +27,4 @@ test: disk
 	$(X64) -moncommands therace.sym therace.d64
 
 clean: 
-	rm -f *~ intro.o therace.prg therace_exo.prg therace.d64 therace.sym $(IMAGE)
+	rm -f *~ *.o therace.prg therace_exo.prg therace.d64 therace.sym $(IMAGE)
