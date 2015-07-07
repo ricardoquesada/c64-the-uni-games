@@ -49,29 +49,33 @@ ANIM_SPEED = 2
 ; Double-IRQ Stable raster routine
 ; taken from: http://codebase64.org/doku.php?id=base:stable_raster_routine
 .macro STABILIZE_RASTER
-	lda #<@irq_stable	; set IRQ Vector
-	ldx #>@irq_stable	; to point to the next part of the
-	sta $fffe		; Stable IRQ
-	stx $ffff		; ON NEXT LINE!
-	inc $d012
-	asl $d019		; Ack RASTER IRQ
-	tsx			; We want the IRQ
-	cli			; To return to our
+	; prev cycle count: 20~27
+	lda #<@irq_stable	; +2, 2
+	ldx #>@irq_stable	; +2, 4
+	sta $fffe		; +4, 8
+	stx $ffff		; +4, 12
+	inc $d012		; +6, 18
+	asl $d019		; +6, 24
+	tsx			; +2, 26
+	cli			; +2, 28
 
 .repeat 8
-	nop
+	nop			; +2 * 8, 44
 .endrepeat
-
+	; cycle count: 64~71. New raster already triggered at this point
+	
 @irq_stable:
-	txs			; Restore STACK Pointer
-	ldx #$08		; Wait exactly 1
-	dex			; lines worth of
-	bne *-1			; cycles for compare
-	bit $ea			; Minus compare
+	; cycle count: 7~8 .7 cycles for the interrupt handler + 0~1 cycle Jitter for the NOP
+	txs
+	ldx #$08
+	dex
+	bne *-1
+	bit $00
 
-	lda $d012		; RASTER change yet?
+	lda $d012
 	cmp $d012
-	beq *+2			; If no waste 1 more cycle
+	beq *+2
+	; cycle count: should be 63 here.
 .endmacro
 
 .segment "CODE"
