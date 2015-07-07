@@ -58,23 +58,12 @@ mainloop:
 	jsr anim_char
 	jmp mainloop
 
-nmi_handler:
-	rti
-
 irq1:
-	; XXX making an stable raster "manually"... argh
-.repeat 25
-	nop
-.endrepeat
-	asl $d019
-
-	lda #<irq2
-	sta $0314
-	lda #>irq2
-	sta $0315
-
-	lda #RASTER_START+(SCROLL_1_AT_LINE+8)*8-1
-	sta $d012
+	pha        ;store register A in stack
+	txa
+	pha        ;store register X in stack
+	tya
+	pha        ;store register Y in stack
 
 	; scroll left, upper part
 	lda smooth_scroll_x
@@ -85,22 +74,33 @@ irq1:
 	lda #12			; Grey 2
 	sta $d021
 
-	jmp $ea81
 
-irq2:
-	; XXX making an stable raster "manually"... argh
-.repeat 25
-	nop
-.endrepeat
+	lda #<irq2
+	sta $fffe
+	lda #>irq2
+	sta $ffff
+
+	lda #RASTER_START+(SCROLL_1_AT_LINE+8)*8
+	sta $d012
+
 	asl $d019
 
-	lda #<irq3
-	sta $0314
-	lda #>irq3
-	sta $0315
+	pla
+	tay        ;restore register Y from stack (remember stack is FIFO: First In First Out)
+	pla
+	tax        ;restore register X from stack
+	pla        ;restore register A from stack
 
-	lda #RASTER_START+(SCROLL_2_AT_LINE)*8-1
-	sta $d012
+	rti        ;Return From Interrupt, this will load into the Program Counter register the address
+		   ;where the CPU was when the interrupt condition arised which will make the CPU continue
+		   ;the code it was interrupted at also restores the status register of the CPU
+
+irq2:
+	pha        ;store register A in stack
+	txa
+	pha        ;store register X in stack
+	tya
+	pha        ;store register Y in stack
 
 	; no scroll
 	lda #%00001000
@@ -111,23 +111,34 @@ irq2:
 	sta $d020
 	sta $d021
 
-	jmp $ea81
+
+	lda #<irq3
+	sta $fffe
+	lda #>irq3
+	sta $ffff
+
+	lda #RASTER_START+(SCROLL_2_AT_LINE)*8-1
+	sta $d012
+
+	asl $d019
+
+	pla
+	tay        ;restore register Y from stack (remember stack is FIFO: First In First Out)
+	pla
+	tax        ;restore register X from stack
+	pla        ;restore register A from stack
+
+	rti        ;Return From Interrupt, this will load into the Program Counter register the address
+		   ;where the CPU was when the interrupt condition arised which will make the CPU continue
+		   ;the code it was interrupted at also restores the status register of the CPU
 
 
 irq3:
-	; XXX making an stable raster "manually"... argh
-.repeat 18
-	nop
-.endrepeat
-	asl $d019
-
-	lda #<irq4
-	sta $0314
-	lda #>irq4
-	sta $0315
-
-	lda #RASTER_START+(SCROLL_2_AT_LINE+8)*8-1
-	sta $d012
+	pha        ;store register A in stack
+	txa
+	pha        ;store register X in stack
+	tya
+	pha        ;store register Y in stack
 
 	lda #15			; Grey 2
 	sta $d020
@@ -140,24 +151,33 @@ irq3:
 	and #$07
 	sta $d016
 
+	lda #<irq4
+	sta $fffe
+	lda #>irq4
+	sta $ffff
 
-	jmp $ea81
+	lda #RASTER_START+(SCROLL_2_AT_LINE+8)*8-1
+	sta $d012
+
+	asl $d019
+
+	pla
+	tay        ;restore register Y from stack (remember stack is FIFO: First In First Out)
+	pla
+	tax        ;restore register X from stack
+	pla        ;restore register A from stack
+
+	rti        ;Return From Interrupt, this will load into the Program Counter register the address
+		   ;where the CPU was when the interrupt condition arised which will make the CPU continue
+		   ;the code it was interrupted at also restores the status register of the CPU
 
 
 irq4:
-	; XXX making an stable raster "manually"... argh
-.repeat 25
-	nop
-.endrepeat
-	asl $d019
-
-	lda #<irq1
-	sta $0314
-	lda #>irq1
-	sta $0315
-
-	lda #RASTER_START+SCROLL_1_AT_LINE*8-1
-	sta $d012
+	pha        ;store register A in stack
+	txa
+	pha        ;store register X in stack
+	tya
+	pha        ;store register Y in stack
 
 	; no scroll
 	lda #%00001000
@@ -169,6 +189,16 @@ irq4:
 	sta $d020
 	sta $d021
 
+	lda #<irq1
+	sta $fffe
+	lda #>irq1
+	sta $ffff
+
+	lda #RASTER_START+SCROLL_1_AT_LINE*8
+	sta $d012
+
+	asl $d019
+
 .if (DEBUG=1)
 	inc $d020
 .endif
@@ -177,7 +207,15 @@ irq4:
 	dec $d020
 .endif
 
-	jmp $ea31
+	pla
+	tay        ;restore register Y from stack (remember stack is FIFO: First In First Out)
+	pla
+	tax        ;restore register X from stack
+	pla        ;restore register A from stack
+
+	rti        ;Return From Interrupt, this will load into the Program Counter register the address
+		   ;where the CPU was when the interrupt condition arised which will make the CPU continue
+		   ;the code it was interrupted at also restores the status register of the CPU
 
 
 ;--------------------------------------------------------------------------
@@ -320,7 +358,7 @@ irq4:
 	cmp #$ff
 	bne :+
 
-	; reached $ff ? Then start from the beginning
+        ; reached $ff. Then start from the beginning
 	lda #%10000000
 	sta chars_scrolled
 	lda #0
@@ -367,8 +405,6 @@ irq4:
 ANIM_TOTAL_FRAMES = 14
 .proc anim_char
 
-.if 1
-
 	sec
 	lda anim_speed
 	sbc #ANIM_SPEED
@@ -404,31 +440,6 @@ ANIM_TOTAL_FRAMES = 14
 	sta anim_char_idx
 :
 	rts
-
-.else
-	ldx #7
-@loop:
-	; ror
-	clc
-	lda #%00000001
-	and __CHARSET_LOAD__ + $fd * 8,x
-	beq :+
-	sec
-:
-	ror __CHARSET_LOAD__ + $fd * 8,x
-
-	; rol
-	clc
-	lda #%10000000
-	and __CHARSET_LOAD__ + $fe * 8,x
-	beq :+
-	sec
-:
-	rol __CHARSET_LOAD__ + $fe * 8,x
-	dex
-	bpl @loop
-	rts
-.endif
 .endproc
 
 ;--------------------------------------------------------------------------
@@ -483,13 +494,18 @@ ANIM_TOTAL_FRAMES = 14
 	lda #%00011011
 	sta $d011
 
+	; turn off BASIC and KERNAL
+	; but $d000-$e000 visible to SID/VIC
+	lda #$35
+	sta $01
+
 	;
 	; irq handler
 	;
 	lda #<irq1
-	sta $0314
+	sta $fffe
 	lda #>irq1
-	sta $0315
+	sta $ffff
 
 	; raster interrupt
 	lda #RASTER_START+SCROLL_1_AT_LINE*8-1
@@ -500,13 +516,6 @@ ANIM_TOTAL_FRAMES = 14
 	lda $dd0d
 	asl $d019
 
-	;
-	; nmi handler
-	;
-	lda #<nmi_handler
-	ldx #>nmi_handler
-	sta $318
-	stx $319
 
 	;
 	; init music
