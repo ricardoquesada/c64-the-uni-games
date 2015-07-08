@@ -13,7 +13,7 @@
 
 
 ; exported by the linker
-.import __CHARSET_LOAD__, __SIDMUSIC_LOAD__
+.import __CHARSET_LOAD__, __SIDMUSIC_LOAD__, __CODEINTRO_LOAD__
 
 ; from utils.s
 .import clear_screen, color_screen
@@ -96,6 +96,9 @@ ANIM_SPEED = 3
 
 
 .segment "CODE"
+	jmp __CODEINTRO_LOAD__
+
+.segment "CODEINTRO"
 
 ;--------------------------------------------------------------------------
 ; _main
@@ -146,22 +149,29 @@ irq1:
 	sta $d016
 
 	; raster bars
-	ldx #0
-:	lda $d012		; +4
-	clc			; +2
-	adc #$02		; +2
-	cmp $d012		; +4
-	bne *-3			; +2
-	; wait for new raster line, change color then
-	lda raster_colors,x	; +4
-	sta $d021		; +4
-	inx			; +2
-	cmp #$ff		; +2
-	bne :-			; +3
+	ldx #$00		; +2
 
-	lda $d012		; +4
-	cmp $d012
-	beq *-3
+	; 9 lines per char
+	.repeat 9
+		; 7 "Good" lines: I must consume 63 cycles
+		.repeat 7
+			inx			; +2
+			lda raster_colors,x	; +4
+			sta $d021		; +4
+			.repeat 25
+				nop		; +2 * 30
+			.endrepeat
+			bit $00			; +3 = 63 cycles
+		.endrepeat
+		; 1 "Bad lines": I must consume ~20 cycles
+		inx				; +2
+		lda raster_colors,x		; +4
+		sta $d021			; +4
+		.repeat 5
+			nop			; +2 * 5
+		.endrepeat
+	;	bit $00				; +3 = 23 cycles
+	.endrepeat
 
 	; paint 2 raster lines with different color
 	lda #4
@@ -491,7 +501,7 @@ ANIM_TOTAL_FRAMES = 18
 
 	ldx #7			; 8 rows
 @loop:
-	lda anim_char_0,y
+	lda char_frames,y
 	sta __CHARSET_LOAD__ + $fd * 8,x
 	eor #$ff
 	sta __CHARSET_LOAD__ + $fe * 8,x
@@ -524,15 +534,16 @@ ANIM_TOTAL_FRAMES = 18
 
 	; foreground RAM color for scroll lines
 	ldx #0
-	lda #15
 	; 9 lines: 40 * 9 = 360. 256 + 104
 @loop:
+	; clear color
+	lda #15
 	sta $d800 + SCROLL_1_AT_LINE * 40,x
 	sta $d800 + SCROLL_1_AT_LINE * 40 + 104,x
 	sta $d800 + SCROLL_2_AT_LINE * 40,x
 	sta $d800 + SCROLL_2_AT_LINE * 40 + 104,x
 
-	; clear color
+	; clear char
 	lda #$ff
 	sta $0400 + SCROLL_1_AT_LINE * 40,x
 	sta $0400 + SCROLL_1_AT_LINE * 40 + 104,x
@@ -623,6 +634,17 @@ label:
 	.byte $ff
 
 raster_colors:
+	.byte $00,$01,$02,$03,$04,$05,$06,$07
+	.byte $08,$09,$0a,$0b,$0c,$0d,$0e,$0f
+	.byte $00,$01,$02,$03,$04,$05,$06,$07
+	.byte $08,$09,$0a,$0b,$0c,$0d,$0e,$0f
+	.byte $00,$01,$02,$03,$04,$05,$06,$07
+	.byte $08,$09,$0a,$0b,$0c,$0d,$0e,$0f
+	.byte $00,$01,$02,$03,$04,$05,$06,$07
+	.byte $08,$09,$0a,$0b,$0c,$0d,$0e,$0f
+	.byte $00,$01,$02,$03,$04,$05,$06,$07
+	.byte $ff
+
 	.byte $01,$01,$01,$01
 	.byte $01,$01,$01,$01
 	.byte $01,$01,$01,$01
@@ -634,7 +656,7 @@ raster_colors:
 	.byte $01,$01,$0f
 	.byte $ff
 
-anim_char_0:
+char_frames:
 	.byte %11111111
 	.byte %11111111
 	.byte %11111111
