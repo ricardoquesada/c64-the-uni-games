@@ -687,10 +687,8 @@ raster_colors_bottom:
 	.byte $08,$08,$0a,$0a,$0f,$0f,$07,$07
 	.byte $01,$01,$01,$01,$01,$01,$01,$01
 	.byte $01,$01,$01,$01,$07,$07,$0f,$0f
-	.byte $0a,$0a,$08,$08,$02,$02,$09
-	; FIXME: should be a $09, everything is displaced one raster line
-	.byte $09
-	; ignore, for overflow
+	.byte $0a,$0a,$08,$08,$02,$02,$09,$09
+	; FIXME: ignore, for overflow
 	.byte 0
 
 sync:			.byte 1
