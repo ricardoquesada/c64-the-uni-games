@@ -38,7 +38,7 @@ MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 
 ; SPEED must be between 0 and 7. 0=Stop, 7=Max speed
 SCROLL_SPEED = 5
-ANIM_SPEED = 3
+ANIM_SPEED = 1
 
 
 ;--------------------------------------------------------------------------
@@ -114,6 +114,7 @@ mainloop:
 
 	jsr scroll
 	jsr anim_char
+	jsr anim_rasterbar
 	jmp mainloop
 
 ;	jmp *
@@ -128,7 +129,7 @@ irq1:
 	STABILIZE_RASTER
 
 	; two lines of colors
-	lda #4			; +2
+	lda #$08		; +2
 	sta $d020		; +4
 	sta $d021		; +4
 
@@ -151,40 +152,48 @@ irq1:
 	; raster bars
 	ldx #$00
 
-	; 9 lines per char
-	.repeat 9
-		; 7 "Good" lines: I must consume 63 cycles
-		.repeat 7
-			lda raster_colors,x	; +4
-			sta $d021		; +4
-			inx			; +2
-			.repeat 25
-				nop		; +2 * 30
-			.endrepeat
-			bit $00			; +3 = 63 cycles
+	; 8 chars of 8 raster lines
+.repeat 8
+	; 7 "Good" lines: I must consume 63 cycles
+	.repeat 7
+		lda raster_colors,x	; +4
+		sta $d021		; +4
+		inx			; +2
+		.repeat 25
+			nop		; +2 * 25
 		.endrepeat
-		; 1 "Bad lines": I must consume ~20 cycles
-		lda raster_colors,x		; +4
-		sta $d021			; +4
-		inx				; +2
-		.repeat 5
-			nop			; +2 * 5
-		.endrepeat
-	;	bit $00				; +3 = 23 cycles
+		bit $00			; +3 = 63 cycles
 	.endrepeat
+	; 1 "Bad lines": I must consume ~20 cycles
+	lda raster_colors,x		; +4
+	sta $d021			; +4
+	inx				; +2
+	.repeat 5
+		nop			; +2 * 5 = 20 cycles
+	.endrepeat
+.endrepeat
+	; 1 char of 7 raster lines
+.repeat 7
+	lda raster_colors,x	; +4
+	sta $d021		; +4
+	inx			; +2
+	.repeat 25
+		nop		; +2 * 25
+	.endrepeat
+	bit $00			; +3 = 63 cycles
+.endrepeat
 
 	; paint 2 raster lines with different color
-	lda #4
+	lda #$08
 	sta $d020
 	sta $d021
 
 	; skip 2 lines
-	lda $d012		; +4
+	lda $d012
+	clc
+	adc #$02
 	cmp $d012
-	beq *-3
-	lda $d012		; +4
-	cmp $d012
-	beq *-3
+	bne *-3
 
 	; color
 	lda #0
@@ -480,7 +489,7 @@ irq4:
 ; Modifies A, X, Status
 ; returns A: the character to print
 ;--------------------------------------------------------------------------
-ANIM_TOTAL_FRAMES = 18
+ANIM_TOTAL_FRAMES = 4
 .proc anim_char
 
 	sec
@@ -514,9 +523,48 @@ ANIM_TOTAL_FRAMES = 18
 	bpl :+
 
 	; reset anim_char_idx
-	lda #ANIM_TOTAL_FRAMES-1; 10 frames
+	lda #ANIM_TOTAL_FRAMES-1
 	sta anim_char_idx
 :
+	rts
+.endproc
+
+;--------------------------------------------------------------------------
+; anim_rasterbar(void)
+;--------------------------------------------------------------------------
+; Args: -
+; A Color washer routine
+;--------------------------------------------------------------------------
+.proc anim_rasterbar
+
+	; washer top
+	lda raster_colors_top
+	sta save_color_top
+
+	ldx #0
+:	lda raster_colors_top+1,x
+	sta raster_colors_top,x
+	inx
+	cpx #36
+	bne :-
+
+save_color_top = *+1
+	lda #00			; This value will be overwritten
+	sta raster_colors_top+35
+
+	; washer bottom
+	lda raster_colors_bottom+35
+	sta save_color_bottom
+
+	ldx #35
+:	lda raster_colors_bottom,x
+	sta raster_colors_bottom+1,x
+	dex
+	bpl :-
+
+save_color_bottom = *+1
+	lda #00			; This value will be overwritten
+	sta raster_colors_bottom
 	rts
 .endproc
 
@@ -618,7 +666,33 @@ ANIM_TOTAL_FRAMES = 18
 	rts
 .endproc
 
+;--------------------------------------------------------------------------
 ; variables
+;--------------------------------------------------------------------------
+
+; IMPORTANT: raster_colors must be at the beginning of the page in order to avoid extra cycles.
+.segment "DATAINTRO"
+raster_colors:
+raster_colors_top:
+	; Color washer. Palette taken from:
+	; Dustlayer intro: https://github.com/actraiser/dust-tutorial-c64-first-intro/blob/master/code/data_colorwash.asm
+	.byte $09,$09,$02,$02,$08,$08,$0a,$0a
+	.byte $0f,$0f,$07,$07,$01,$01,$01,$01
+	.byte $01,$01,$01,$01,$01,$01,$01,$01
+	.byte $07,$07,$0f,$0f,$0a,$0a,$08,$08
+	.byte $02,$02,$09,$09
+
+raster_colors_bottom:
+	.byte $09,$09,$02,$02
+	.byte $08,$08,$0a,$0a,$0f,$0f,$07,$07
+	.byte $01,$01,$01,$01,$01,$01,$01,$01
+	.byte $01,$01,$01,$01,$07,$07,$0f,$0f
+	.byte $0a,$0a,$08,$08,$02,$02,$09
+	; FIXME: should be a $09, everything is displaced one raster line
+	.byte $09
+	; ignore, for overflow
+	.byte 0
+
 sync:			.byte 1
 smooth_scroll_x:	.byte 7
 label_index:		.byte 0
@@ -633,141 +707,7 @@ label:
 	scrcode "come back soon..."
 	.byte $ff
 
-raster_colors:
-	; Color washer. Palette taken from:
-	; Dustlayer intro: https://github.com/actraiser/dust-tutorial-c64-first-intro/blob/master/code/data_colorwash.asm
-	.byte $09,$09,$02,$02,$08,$08,$0a,$0a
-	.byte $0f,$0f,$07,$07,$01,$01,$01,$01
-	.byte $01,$01,$01,$01,$01,$01,$01,$01
-	.byte $07,$07,$0f,$0f,$0a,$0a,$08,$08
-	.byte $02,$02,$09,$09
-
-	.byte $09,$09,$02,$02
-	.byte $08,$08,$0a,$0a,$0f,$0f,$07,$07
-	.byte $01,$01,$01,$01,$01,$01,$01,$01
-	.byte $01,$01,$01,$01,$07,$07,$0f,$0f
-	.byte $0a,$0a,$08,$08,$02,$02,$09
-	; FIXME: should be a $09, everything is displaced one raster line
-	.byte $0f
-
 char_frames:
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-
-	.byte %01111110
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %01111110
-
-	.byte %00111100
-	.byte %01111110
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %01111110
-	.byte %00111100
-
-	.byte %00011000
-	.byte %00111100
-	.byte %01111110
-	.byte %11111111
-	.byte %11111111
-	.byte %01111110
-	.byte %00111100
-	.byte %00011000
-
-	.byte %00000000
-	.byte %00011000
-	.byte %00111100
-	.byte %01111110
-	.byte %01111110
-	.byte %00111100
-	.byte %00011000
-	.byte %00000000
-
-	.byte %00000000
-	.byte %00000000
-	.byte %00011000
-	.byte %00111100
-	.byte %00111100
-	.byte %00011000
-	.byte %00000000
-	.byte %00000000
-
-	.byte %00000000
-	.byte %00000000
-	.byte %00011000
-	.byte %00111100
-	.byte %00111100
-	.byte %00011000
-	.byte %00000000
-	.byte %00000000
-
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00011000
-	.byte %00011000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-	.byte %00000000
-
 	.byte %00000000
 	.byte %00000000
 	.byte %00000000
@@ -786,41 +726,24 @@ char_frames:
 	.byte %00000000
 	.byte %00000000
 
+
+	.byte %00000000
+	.byte %00000000
 	.byte %00000000
 	.byte %00011000
-	.byte %00111100
-	.byte %01111110
-	.byte %01111110
-	.byte %00111100
 	.byte %00011000
 	.byte %00000000
+	.byte %00000000
+	.byte %00000000
 
-	.byte %00011000
-	.byte %00111100
-	.byte %01111110
-	.byte %11111111
-	.byte %11111111
-	.byte %01111110
-	.byte %00111100
-	.byte %00011000
-
-	.byte %00111100
-	.byte %01111110
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %01111110
-	.byte %00111100
-
-	.byte %01111110
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %01111110
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
 
 .segment "CHARSET"
 	; last 3 chars reserved
@@ -829,18 +752,18 @@ char_frames:
 .segment "CHARSET254"
 	.byte %00010000
 	.byte %00010000
-	.byte %00010000
+	.byte %00111000
 	.byte %11111111
-	.byte %00010000
+	.byte %00111000
 	.byte %00010000
 	.byte %00010000
 	.byte %00010000
 
 	.byte %00010000
 	.byte %00010000
-	.byte %00010000
+	.byte %00111000
 	.byte %11111111
-	.byte %00010000
+	.byte %00111000
 	.byte %00010000
 	.byte %00010000
 	.byte %00010000
