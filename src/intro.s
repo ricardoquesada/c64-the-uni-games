@@ -148,15 +148,15 @@ irq1:
 	; raster bars
 	ldx #0
 :	lda $d012		; +4
-	clc
-	adc #$02
+	clc			; +2
+	adc #$02		; +2
 	cmp $d012		; +4
 	bne *-3			; +2
 	; wait for new raster line, change color then
 	lda raster_colors,x	; +4
 	sta $d021		; +4
-	inx
-	cmp #$ff
+	inx			; +2
+	cmp #$ff		; +2
 	bne :-			; +3
 
 	lda $d012		; +4
