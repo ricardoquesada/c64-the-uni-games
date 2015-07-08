@@ -38,7 +38,7 @@ MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 
 ; SPEED must be between 0 and 7. 0=Stop, 7=Max speed
 SCROLL_SPEED = 5
-ANIM_SPEED = 2
+ANIM_SPEED = 3
 
 
 ;--------------------------------------------------------------------------
@@ -46,9 +46,18 @@ ANIM_SPEED = 2
 ;--------------------------------------------------------------------------
 .macpack cbm			; adds support for scrcode
 
+;--------------------------------------------------------------------------
+; STABILIZE_RASTER
 ; Double-IRQ Stable raster routine
-; taken from: http://codebase64.org/doku.php?id=base:stable_raster_routine
+; code and comments taken from: http://codebase64.org/doku.php?id=base:stable_raster_routine
+;--------------------------------------------------------------------------
 .macro STABILIZE_RASTER
+	; A Raster Compare IRQ is triggered on cycle 0 on the current $d012 line
+	; The MPU needs to finish it's current OP code before starting the Interrupt Handler,
+	; meaning a 0 -> 7 cycles delay depending on OP code.
+	; Then a 7 cycle delay is spent invoking the Interrupt Handler (Push SR/PC to stack++)
+	; Then 13 cycles for storing registers (pha, txa, pha, tya, pha)
+	
 	; prev cycle count: 20~27
 	lda #<@irq_stable	; +2, 2
 	ldx #>@irq_stable	; +2, 4
@@ -84,6 +93,7 @@ ANIM_SPEED = 2
 	beq *+2			; +2/+3, 64
 
 .endmacro
+
 
 .segment "CODE"
 
@@ -123,60 +133,49 @@ irq1:
 	; and horizontal scroll at the correct time
 	; and with enough time that we can do it
 	; when the cycles are invisible
-.repeat 52
+.repeat 53
 	nop
 .endrepeat
 
 	; paint 2 lines with different color
 	ldx #15			; Grey 2
-	ldy #12			; Grey 2
 	stx $d020
-	sty $d021
+	stx $d021
 
 	lda smooth_scroll_x
 	sta $d016
 
-	lda #<irq2
-	sta $fffe
-	lda #>irq2
-	sta $ffff
+	; raster bars
+	ldx #0
+:	lda $d012		; +4
+	clc
+	adc #$02
+	cmp $d012		; +4
+	bne *-3			; +2
+	; wait for new raster line, change color then
+	lda raster_colors,x	; +4
+	sta $d021		; +4
+	inx
+	cmp #$ff
+	bne :-			; +3
 
-	lda #RASTER_START+(SCROLL_1_AT_LINE+9)*8-2
-	sta $d012
+	lda $d012		; +4
+	cmp $d012
+	beq *-3
 
-	asl $d019
-
-	pla			; restores A, X, Y
-	tay
-	pla
-	tax
-	pla
-	rti			; restores previous PC, status
-
-irq2:
-	pha			; saves A, X, Y
-	txa
-	pha
-	tya
-	pha
-
-	STABILIZE_RASTER
-
-	; waste some cycles so we can change colors 
-	; at the correct time
-.repeat 30
-	nop
-.endrepeat
 	; paint 2 raster lines with different color
 	lda #4
 	sta $d020
 	sta $d021
 
-	; waste some cycles so we can change colors 
-	; at the correct time
-.repeat 34
-	nop
-.endrepeat
+	; skip 2 lines
+	lda $d012		; +4
+	cmp $d012
+	beq *-3
+	lda $d012		; +4
+	cmp $d012
+	beq *-3
+
 	; color
 	lda #0
 	sta $d020
@@ -471,7 +470,7 @@ irq4:
 ; Modifies A, X, Status
 ; returns A: the character to print
 ;--------------------------------------------------------------------------
-ANIM_TOTAL_FRAMES = 14
+ANIM_TOTAL_FRAMES = 18
 .proc anim_char
 
 	sec
@@ -616,8 +615,20 @@ anim_char_idx:		.byte ANIM_TOTAL_FRAMES-1
 
 label:
 	scrcode "   - - - - welcome to 'the race': a racing game. who would have guessed it, right? "
-	scrcode "but there is no game for the moment... ha ha ha... just this lame intro screen."
-	scrcode "come back soon"
+	scrcode "but there is no game for the moment... ha ha ha... just this lame intro screen. "
+	scrcode "come back soon..."
+	.byte $ff
+
+raster_colors:
+	.byte $01,$01,$01,$01
+	.byte $01,$01,$01,$01
+	.byte $01,$01,$01,$01
+	.byte $03,$0b,$0b,$0b
+	.byte $0b,$0b,$0b,$0b
+	.byte $03,$00,$00,$00
+	.byte $00,$00,$00,$00
+	.byte $00,$00,$00,$00
+	.byte $01,$01,$0f
 	.byte $ff
 
 anim_char_0:
@@ -630,6 +641,24 @@ anim_char_0:
 	.byte %11111111
 	.byte %11111111
 
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+
 	.byte %01111110
 	.byte %11111111
 	.byte %11111111
@@ -677,9 +706,36 @@ anim_char_0:
 
 	.byte %00000000
 	.byte %00000000
+	.byte %00011000
+	.byte %00111100
+	.byte %00111100
+	.byte %00011000
+	.byte %00000000
+	.byte %00000000
+
+	.byte %00000000
+	.byte %00000000
 	.byte %00000000
 	.byte %00011000
 	.byte %00011000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
+	.byte %00000000
 	.byte %00000000
 	.byte %00000000
 	.byte %00000000
