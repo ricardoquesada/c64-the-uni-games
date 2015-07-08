@@ -553,6 +553,7 @@ ANIM_TOTAL_FRAMES = 18
 	lda #%00011110
 	sta $d018		; charset at $3800
 
+	; no interrups
 	sei
 
 	; turn off cia interrups
@@ -592,13 +593,15 @@ ANIM_TOTAL_FRAMES = 18
 	lda $dd0d
 	asl $d019
 
+	; no sprites please
+	lda #$00
+	sta $d015
 
-	;
 	; init music
-	;
 	lda #0
 	jsr MUSIC_INIT
 
+	; enable interrups again
 	cli
 
 	rts
