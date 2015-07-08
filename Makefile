@@ -27,5 +27,8 @@ dist: prg
 test: disk
 	$(X64) -moncommands therace.sym therace.d64
 
+testdist: disk
+	$(X64) -moncommands therace.sym therace_dist.d64
+
 clean: 
 	rm -f *~ *.o therace.prg therace_exo.prg therace.d64 therace.sym $(IMAGE)
