@@ -149,24 +149,24 @@ irq1:
 	sta $d016
 
 	; raster bars
-	ldx #$00		; +2
+	ldx #$00
 
 	; 9 lines per char
 	.repeat 9
 		; 7 "Good" lines: I must consume 63 cycles
 		.repeat 7
-			inx			; +2
 			lda raster_colors,x	; +4
 			sta $d021		; +4
+			inx			; +2
 			.repeat 25
 				nop		; +2 * 30
 			.endrepeat
 			bit $00			; +3 = 63 cycles
 		.endrepeat
 		; 1 "Bad lines": I must consume ~20 cycles
-		inx				; +2
 		lda raster_colors,x		; +4
 		sta $d021			; +4
+		inx				; +2
 		.repeat 5
 			nop			; +2 * 5
 		.endrepeat
@@ -634,27 +634,21 @@ label:
 	.byte $ff
 
 raster_colors:
-	.byte $00,$01,$02,$03,$04,$05,$06,$07
-	.byte $08,$09,$0a,$0b,$0c,$0d,$0e,$0f
-	.byte $00,$01,$02,$03,$04,$05,$06,$07
-	.byte $08,$09,$0a,$0b,$0c,$0d,$0e,$0f
-	.byte $00,$01,$02,$03,$04,$05,$06,$07
-	.byte $08,$09,$0a,$0b,$0c,$0d,$0e,$0f
-	.byte $00,$01,$02,$03,$04,$05,$06,$07
-	.byte $08,$09,$0a,$0b,$0c,$0d,$0e,$0f
-	.byte $00,$01,$02,$03,$04,$05,$06,$07
-	.byte $ff
+	; Color washer. Palette taken from:
+	; Dustlayer intro: https://github.com/actraiser/dust-tutorial-c64-first-intro/blob/master/code/data_colorwash.asm
+	.byte $09,$09,$02,$02,$08,$08,$0a,$0a
+	.byte $0f,$0f,$07,$07,$01,$01,$01,$01
+	.byte $01,$01,$01,$01,$01,$01,$01,$01
+	.byte $07,$07,$0f,$0f,$0a,$0a,$08,$08
+	.byte $02,$02,$09,$09
 
-	.byte $01,$01,$01,$01
-	.byte $01,$01,$01,$01
-	.byte $01,$01,$01,$01
-	.byte $03,$0b,$0b,$0b
-	.byte $0b,$0b,$0b,$0b
-	.byte $03,$00,$00,$00
-	.byte $00,$00,$00,$00
-	.byte $00,$00,$00,$00
-	.byte $01,$01,$0f
-	.byte $ff
+	.byte $09,$09,$02,$02
+	.byte $08,$08,$0a,$0a,$0f,$0f,$07,$07
+	.byte $01,$01,$01,$01,$01,$01,$01,$01
+	.byte $01,$01,$01,$01,$07,$07,$0f,$0f
+	.byte $0a,$0a,$08,$08,$02,$02,$09
+	; FIXME: should be a $09, everything is displaced one raster line
+	.byte $0f
 
 char_frames:
 	.byte %11111111
