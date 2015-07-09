@@ -1,5 +1,5 @@
 ;
-; The Race
+; The Uni Race
 ; Intro file
 ;
 ; Zero Page global registers:
@@ -9,7 +9,6 @@
 ;
 ; Zero Page: modified by the program, but can be modified by other functions
 ;   $fb/$fc -> screen pointer (upper)
-;   $fd/$fe -> screen pointer (bottom)
 
 
 ; exported by the linker
@@ -27,10 +26,8 @@ DEBUG = 0			; Use 1 to enable music-raster debug
 RASTER_START = 50
 
 SCROLL_1_AT_LINE = 0
-SCROLL_2_AT_LINE = 17
 
 SCREEN_TOP = $0400 + SCROLL_1_AT_LINE * 40
-SCREEN_BOTTOM = $0400 + SCROLL_2_AT_LINE * 40
 
 
 MUSIC_INIT = __SIDMUSIC_LOAD__
@@ -204,78 +201,6 @@ irq1:
 	lda #%00001000
 	sta $d016
 
-	lda #<irq3
-	sta $fffe
-	lda #>irq3
-	sta $ffff
-
-	lda #RASTER_START+(SCROLL_2_AT_LINE)*8-2
-	sta $d012
-
-	asl $d019
-
-	pla			; restores A, X, Y
-	tay
-	pla
-	tax
-	pla
-	rti			; restores previous PC, status
-
-
-irq3:
-	pha			; saves A, X, Y
-	txa
-	pha
-	tya
-	pha
-
-	STABILIZE_RASTER
-
-	ldx #15			; Grey 2
-	ldy #12			; Grey 2
-	stx $d020
-	sty $d021
-
-	; scroll right, bottom part
-	lda smooth_scroll_x
-	eor #$07		; negate "scroll left" to simulate "scroll right"
-	and #$07
-	sta $d016
-
-	lda #<irq4
-	sta $fffe
-	lda #>irq4
-	sta $ffff
-
-	lda #RASTER_START+(SCROLL_2_AT_LINE+8)*8-1
-	sta $d012
-
-	asl $d019
-
-	pla			; restores A, X, Y
-	tay
-	pla
-	tax
-	pla
-	rti			; restores previous PC, status
-
-
-irq4:
-	pha			; saves A, X, Y
-	txa
-	pha
-	tya
-	pha
-
-	STABILIZE_RASTER
-	
-	lda #0
-	sta $d020
-	sta $d021
-
-	; no scroll
-	lda #%00001000
-	sta $d016
 
 	inc sync
 
@@ -287,6 +212,8 @@ irq4:
 	dec $d020
 .endif
 
+	; we have to re-schedule irq1 from irq1 basically because
+	; we are using a double IRQ
 	lda #<irq1
 	sta $fffe
 	lda #>irq1
@@ -337,10 +264,6 @@ irq4:
 	ldy #>(SCREEN_TOP+7*40+39)
 	stx $fb
 	sty $fc
-	ldx #<(SCREEN_BOTTOM)
-	ldy #>(SCREEN_BOTTOM)
-	stx $fd
-	sty $fe
 
 	ldy #7			; 8 rows
 
@@ -353,18 +276,15 @@ irq4:
 	beq @empty_char
 
 ;	 lda current_char
-	; different chars for top and bottom
+	; char to display
 	lda #$fd
 	sta ($fb,x)
-	lda #$fe
-	sta ($fd,x)
 
 	bne :+
 
 @empty_char:
 	lda #$ff		; empty char
 	sta ($fb,x)
-	sta ($fd,x)
 
 :
 	; next line for top scroller
@@ -376,15 +296,7 @@ irq4:
 	dec $fc
 
 :
-	; next line for bottom scroller
-	clc
-	lda $fd
-	adc #40
-	sta $fd
-	bcc :+
-	inc $fe
 
-:
 	dey			; next charset definition
 	bpl @loop
 
@@ -394,7 +306,12 @@ irq4:
 	lda #128
 	sta chars_scrolled
 
-	inc label_index
+	clc
+	lda scroller_text_ptr_low
+	adc #1
+	sta scroller_text_ptr_low
+	bcc @endscroll
+	inc scroller_text_ptr_hi
 
 @endscroll:
 	rts
@@ -420,11 +337,6 @@ irq4:
 	sta SCREEN_TOP+40*i+0,x
 .endrepeat
 
-.repeat 8,i
-	lda SCREEN_BOTTOM+40*i+0,y
-	sta SCREEN_BOTTOM+40*i+1,y
-.endrepeat
-
 	inx
 	dey
 	bpl @loop
@@ -440,8 +352,19 @@ irq4:
 ;--------------------------------------------------------------------------
 .proc setup_charset
 	; put next char in column 40
-	ldx label_index
-	lda label,x
+
+	; supports a scroller with more than 255 chars
+	clc
+	lda #<scroller_text
+	adc scroller_text_ptr_low
+	sta address
+	lda #>scroller_text
+	adc scroller_text_ptr_hi
+	sta address+1
+
+address = *+1
+	; self changing value
+	lda scroller_text
 	cmp #$ff
 	bne :+
 
@@ -449,8 +372,9 @@ irq4:
 	lda #%10000000
 	sta chars_scrolled
 	lda #0
-	sta label_index
-	lda label
+	sta scroller_text_ptr_low
+	sta scroller_text_ptr_hi
+	lda scroller_text
 :
 	sta current_char
 
@@ -588,15 +512,11 @@ save_color_bottom = *+1
 	lda #15
 	sta $d800 + SCROLL_1_AT_LINE * 40,x
 	sta $d800 + SCROLL_1_AT_LINE * 40 + 104,x
-	sta $d800 + SCROLL_2_AT_LINE * 40,x
-	sta $d800 + SCROLL_2_AT_LINE * 40 + 104,x
 
 	; clear char
 	lda #$ff
 	sta $0400 + SCROLL_1_AT_LINE * 40,x
 	sta $0400 + SCROLL_1_AT_LINE * 40 + 104,x
-	sta $0400 + SCROLL_2_AT_LINE * 40,x
-	sta $0400 + SCROLL_2_AT_LINE * 40 + 104,x
 
 	inx
 	bne @loop
@@ -693,16 +613,20 @@ raster_colors_bottom:
 
 sync:			.byte 1
 smooth_scroll_x:	.byte 7
-label_index:		.byte 0
 chars_scrolled:		.byte 128
 current_char:		.byte 0
 anim_speed:		.byte 7
 anim_char_idx:		.byte ANIM_TOTAL_FRAMES-1
+scroller_text_ptr_low:	.byte 0
+scroller_text_ptr_hi:	.byte 0
 
-label:
-	scrcode "   - - - - welcome to 'the race': a racing game. who would have guessed it, right? "
-	scrcode "but there is no game for the moment... ha ha ha... just this lame intro screen. "
-	scrcode "come back soon..."
+scroller_text:
+	scrcode "   'the uni race': the best unicycle racing game for the commodore 64... "
+	scrcode "in fact it is the best unicycle racing game for any 8-bit computer! "
+	scrcode "people said about this game: 'awesome graphics', 'impressive physics', "
+	scrcode "'best sound ever', 'i want to ride a real unicycle now', "
+	scrcode "'i love empanadas', 'bikes, what a waste of resources', and much more! "
+	scrcode "what are you waiting for? just press f1 to start the game!!!...      "
 	.byte $ff
 
 char_frames:
