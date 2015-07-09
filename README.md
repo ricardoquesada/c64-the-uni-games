@@ -1,6 +1,6 @@
-# The Race
+# The Uni Race
 
-A Commodore 64 game. WIP.
+A Unicycle Racing game for the Commodore 64!
 
 ## How to compile it
 
@@ -9,8 +9,8 @@ A Commodore 64 game. WIP.
 - Clone this project and `make`:
 
 ```sh
-$ git clone https://github.com/ricardoquesada/c64-the-race.git
-$ cd c64-the-race
+$ git clone https://github.com/ricardoquesada/c64-the-uni-race.git
+$ cd c64-the-uni-race
 $ make
 ```
 
