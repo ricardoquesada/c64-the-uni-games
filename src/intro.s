@@ -594,8 +594,8 @@ save_color_bottom = *+1
 .segment "DATAINTRO"
 raster_colors:
 raster_colors_top:
-	; Color washer. Palette taken from:
-	; Dustlayer intro: https://github.com/actraiser/dust-tutorial-c64-first-intro/blob/master/code/data_colorwash.asm
+	; Color washer palette taken from: Dustlayer intro
+	; https://github.com/actraiser/dust-tutorial-c64-first-intro/blob/master/code/data_colorwash.asm
 	.byte $09,$09,$02,$02,$08,$08,$0a,$0a
 	.byte $0f,$0f,$07,$07,$01,$01,$01,$01
 	.byte $01,$01,$01,$01,$01,$01,$01,$01
@@ -623,9 +623,10 @@ scroller_text_ptr_hi:	.byte 0
 scroller_text:
 	scrcode "   'the uni race': the best unicycle racing game for the commodore 64... "
 	scrcode "in fact it is the best unicycle racing game for any 8-bit computer! "
-	scrcode "people said about this game: 'awesome graphics', 'impressive physics', "
+	scrcode "people said about this game: 'awesome 3d graphics', 'impressive physics', "
 	scrcode "'best sound ever', 'i want to ride a real unicycle now', "
-	scrcode "'i love empanadas', 'bikes, what a waste of resources', and much more! "
+	scrcode "'i love empanadas', 'bikes, what a waste of resources!', 'are you using cocos2d?' "
+	scrcode "and much more! "
 	scrcode "what are you waiting for? just press f1 to start the game!!!...      "
 	.byte $ff
 
