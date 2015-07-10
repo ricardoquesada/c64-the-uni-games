@@ -25,7 +25,8 @@ DEBUG = 0			; Use 1 to enable music-raster debug
 
 RASTER_START = 50
 
-SCROLL_1_AT_LINE = 0
+SCROLL_1_AT_LINE = 18
+ROWS_PER_CHAR = 7
 
 SCREEN_TOP = $0400 + SCROLL_1_AT_LINE * 40
 
@@ -34,7 +35,7 @@ MUSIC_INIT = __SIDMUSIC_LOAD__
 MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 
 ; SPEED must be between 0 and 7. 0=Stop, 7=Max speed
-SCROLL_SPEED = 5
+SCROLL_SPEED = 6
 ANIM_SPEED = 1
 
 
@@ -150,7 +151,7 @@ irq1:
 	ldx #$00
 
 	; 8 chars of 8 raster lines
-.repeat 8
+.repeat ROWS_PER_CHAR-1
 	; 7 "Good" lines: I must consume 63 cycles
 	.repeat 7
 		lda raster_colors,x	; +4
@@ -265,7 +266,8 @@ irq1:
 	stx $fb
 	sty $fc
 
-	ldy #7			; 8 rows
+	; should not be bigger than 7 (8 rows)
+	ldy #.min(ROWS_PER_CHAR,7)
 
 
 @loop:
@@ -324,7 +326,7 @@ irq1:
 ; args: -
 ; modifies: A, X, Status
 ;--------------------------------------------------------------------------
-.proc scroll_screen
+scroll_screen:
 	; move the chars to the left and right
 	ldx #0
 
@@ -332,7 +334,7 @@ irq1:
 	ldy #38
 
 @loop:
-.repeat 8,i
+.repeat ROWS_PER_CHAR,i
 	lda SCREEN_TOP+40*i+1,x
 	sta SCREEN_TOP+40*i+0,x
 .endrepeat
@@ -341,7 +343,6 @@ irq1:
 	dey
 	bpl @loop
 	rts
-.endproc
 
 ;--------------------------------------------------------------------------
 ; setup_charset(void)
@@ -469,18 +470,18 @@ ANIM_TOTAL_FRAMES = 4
 :	lda raster_colors_top+1,x
 	sta raster_colors_top,x
 	inx
-	cpx #36
+	cpx #TOTAL_RASTER_LINES
 	bne :-
 
 save_color_top = *+1
 	lda #00			; This value will be overwritten
-	sta raster_colors_top+35
+	sta raster_colors_top+TOTAL_RASTER_LINES-1
 
 	; washer bottom
-	lda raster_colors_bottom+35
+	lda raster_colors_bottom+TOTAL_RASTER_LINES-1
 	sta save_color_bottom
 
-	ldx #35
+	cpx #TOTAL_RASTER_LINES-1
 :	lda raster_colors_bottom,x
 	sta raster_colors_bottom+1,x
 	dex
@@ -511,12 +512,12 @@ save_color_bottom = *+1
 	; clear color
 	lda #15
 	sta $d800 + SCROLL_1_AT_LINE * 40,x
-	sta $d800 + SCROLL_1_AT_LINE * 40 + 104,x
+	sta $d800 + SCROLL_1_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
 
 	; clear char
 	lda #$ff
 	sta $0400 + SCROLL_1_AT_LINE * 40,x
-	sta $0400 + SCROLL_1_AT_LINE * 40 + 104,x
+	sta $0400 + SCROLL_1_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
 
 	inx
 	bne @loop
@@ -611,6 +612,8 @@ raster_colors_bottom:
 	; FIXME: ignore, for overflow
 	.byte 0
 
+TOTAL_RASTER_LINES = raster_colors_bottom-raster_colors_top
+
 sync:			.byte 1
 smooth_scroll_x:	.byte 7
 chars_scrolled:		.byte 128
@@ -621,11 +624,12 @@ scroller_text_ptr_low:	.byte 0
 scroller_text_ptr_hi:	.byte 0
 
 scroller_text:
-	scrcode "   'the muni race': the best mountain unicycle racing game for the commodore 64... "
-	scrcode "in fact it is the best mountain unicycle racing game ever, including all platforms. "
+	scrcode "   'the muni race': the best mountain unicycle racing game for the "
+	.byte 64
+	scrcode "64. in fact it is the best mountain unicycle racing game ever written!!!"
 	scrcode "people said about this game: 'awesome graphics', 'impressive physics', "
-	scrcode "'best dolby surround sound ever', 'i want to ride a real unicycle now', "
-	scrcode "'bikes? what a waste of resources!', "
+	scrcode "'best sound ever', 'i want to ride a real unicycle now', "
+	scrcode "'bikes? what a waste of resources!', 'can i play basketball on unicycles?' "
 	scrcode "and much more! "
 	scrcode "what are you waiting for? just press f1 to start riding!!!...      "
 	.byte $ff
@@ -670,7 +674,10 @@ char_frames:
 
 .segment "CHARSET"
 	; last 3 chars reserved
-        .incbin "res/scrap_writer_iii_16.64c",2,(2048-8*3)
+;        .incbin "res/scrap_writer_iii_16.64c",2,(2048-8*3)
+	.incbin "res/1-writer.64c",2,(2048-8*3)
+;	.incbin "res/blue_max.64c",2
+;	.incbin "res/combat_leader.64c",2
 
 .segment "CHARSET254"
 	.byte %00010000
