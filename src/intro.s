@@ -1,5 +1,5 @@
 ;
-; The Uni Race
+; The MUni Race
 ; Intro file
 ;
 ; Zero Page global registers:
@@ -621,13 +621,13 @@ scroller_text_ptr_low:	.byte 0
 scroller_text_ptr_hi:	.byte 0
 
 scroller_text:
-	scrcode "   'the uni race': the best unicycle racing game for the commodore 64... "
-	scrcode "in fact it is the best unicycle racing game for any 8-bit computer! "
-	scrcode "people said about this game: 'awesome 3d graphics', 'impressive physics', "
-	scrcode "'best sound ever', 'i want to ride a real unicycle now', "
-	scrcode "'i love empanadas', 'bikes, what a waste of resources!', 'are you using cocos2d?' "
+	scrcode "   'the muni race': the best mountain unicycle racing game for the commodore 64... "
+	scrcode "in fact it is the best mountain unicycle racing game ever, including all platforms. "
+	scrcode "people said about this game: 'awesome graphics', 'impressive physics', "
+	scrcode "'best dolby surround sound ever', 'i want to ride a real unicycle now', "
+	scrcode "'bikes? what a waste of resources!', "
 	scrcode "and much more! "
-	scrcode "what are you waiting for? just press f1 to start the game!!!...      "
+	scrcode "what are you waiting for? just press f1 to start riding!!!...      "
 	.byte $ff
 
 char_frames:
