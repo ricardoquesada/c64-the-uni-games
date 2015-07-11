@@ -126,16 +126,25 @@ irq1:
 
 	STABILIZE_RASTER
 
+	; char mode
+	lda #%00011011		; +2
+	sta $d011		; +4
+
+.repeat 23
+	nop
+.endrepeat
+
 	; two lines of colors
 	lda #$08		; +2
 	sta $d020		; +4
 	sta $d021		; +4
 
+
 	; waste some cycles so we can change colors 
 	; and horizontal scroll at the correct time
 	; and with enough time that we can do it
 	; when the cycles are invisible
-.repeat 53
+.repeat 58
 	nop
 .endrepeat
 
@@ -186,22 +195,22 @@ irq1:
 	sta $d020
 	sta $d021
 
-	; skip 2 lines
-	lda $d012
-	clc
-	adc #$02
-	cmp $d012
-	bne *-3
+.repeat 58
+	nop
+.endrepeat
 
 	; color
 	lda #0
 	sta $d020
 	sta $d021
 
-	; no scroll
-	lda #%00001000
+	; no scroll, multi-color
+	lda #%00011000
 	sta $d016
 
+	; hires bitmap mode
+	lda #%00111011
+	sta $d011
 
 	inc sync
 
@@ -220,7 +229,7 @@ irq1:
 	lda #>irq1
 	sta $ffff
 
-	lda #RASTER_START+SCROLL_1_AT_LINE*8-3
+	lda #RASTER_START+SCROLL_1_AT_LINE*8-4
 	sta $d012
 
 	asl $d019
@@ -500,9 +509,9 @@ save_color_bottom = *+1
 ; Clear screen, interrupts, charset and others
 ;--------------------------------------------------------------------------
 .proc init
-	lda #$20
+	lda #$07
 	jsr clear_screen
-	lda #0
+	lda #3
 	jsr color_screen
 
 	; foreground RAM color for scroll lines
@@ -551,10 +560,15 @@ save_color_bottom = *+1
 	lda #%00011011
 	sta $d011
 
-	; turn off BASIC and KERNAL
-	; but $d000-$e000 visible to SID/VIC
+	; turn off BASIC + Kernal. More RAM
 	lda #$35
 	sta $01
+
+	; bank 0
+;	lda $dd00
+;	and #$fc
+;	ora #3
+;	sta $dd00
 
 	;
 	; irq handler
