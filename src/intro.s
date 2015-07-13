@@ -12,7 +12,7 @@
 
 
 ; exported by the linker
-.import __CHARSET_LOAD__, __SIDMUSIC_LOAD__, __CODEINTRO_LOAD__
+.import __CHARSET_LOAD__, __SIDMUSIC_LOAD__, __CODEINTRO_LOAD__, __GFX_LOAD__
 
 ; from utils.s
 .import clear_screen, color_screen
@@ -38,6 +38,10 @@ MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 SCROLL_SPEED = 6
 ANIM_SPEED = 1
 
+BITMAP_DATA = __GFX_LOAD__
+CHARMEM_DATA = BITMAP_DATA + $1f40
+COLORMEM_DATA = BITMAP_DATA + $2328
+BACKGROUND_DATA = BITMAP_DATA + $2710
 
 ;--------------------------------------------------------------------------
 ; Macros
@@ -200,7 +204,7 @@ irq1:
 .endrepeat
 
 	; color
-	lda #0
+	lda BACKGROUND_DATA
 	sta $d020
 	sta $d021
 
@@ -445,9 +449,9 @@ ANIM_TOTAL_FRAMES = 4
 	ldx #7			; 8 rows
 @loop:
 	lda char_frames,y
-	sta __CHARSET_LOAD__ + $fd * 8,x
+	sta $3800 + $fd * 8,x
 	eor #$ff
-	sta __CHARSET_LOAD__ + $fe * 8,x
+	sta $3800 + $fe * 8,x
 
 	iny
 	dex
@@ -514,23 +518,20 @@ save_color_bottom = *+1
 	lda #3
 	jsr color_screen
 
-	; foreground RAM color for scroll lines
-	ldx #0
-	; 9 lines: 40 * 9 = 360. 256 + 104
-@loop:
-	; clear color
-	lda #15
-	sta $d800 + SCROLL_1_AT_LINE * 40,x
-	sta $d800 + SCROLL_1_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
+	; init koala colors
+	jsr init_koala_colors
 
-	; clear char
-	lda #$ff
-	sta $0400 + SCROLL_1_AT_LINE * 40,x
-	sta $0400 + SCROLL_1_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
+	jsr init_scroll_colors
 
-	inx
-	bne @loop
+	jsr init_charset
 
+	; no sprites please
+	lda #$00
+	sta $d015
+
+	; init music
+	lda #0
+	jsr MUSIC_INIT
 
 	; colors
 	lda #0
@@ -587,17 +588,87 @@ save_color_bottom = *+1
 	lda $dd0d
 	asl $d019
 
-	; no sprites please
-	lda #$00
-	sta $d015
-
-	; init music
-	lda #0
-	jsr MUSIC_INIT
 
 	; enable interrups again
 	cli
 
+	rts
+.endproc
+
+;--------------------------------------------------------------------------
+; init_koala_colors(void)
+;--------------------------------------------------------------------------
+; Args: -
+; puts the koala colors in the correct address
+; Assumes that bimap data is already in the correct position
+;--------------------------------------------------------------------------
+.proc init_koala_colors
+
+	ldx #$00
+@loop:
+	; $0400
+	lda CHARMEM_DATA,x
+	sta $0400,x
+	lda CHARMEM_DATA+$0100,x
+	sta $0400+$0100,x
+	lda CHARMEM_DATA+$0200,x
+	sta $0400+$0200,x
+	lda CHARMEM_DATA+$02e8,x
+	sta $0400+$02e8,x
+
+	; $d800
+	lda COLORMEM_DATA,x
+	sta $d800,x
+	lda COLORMEM_DATA+$0100,x
+	sta $d800+$100,x
+	lda COLORMEM_DATA+$0200,x
+	sta $d800+$200,x
+	lda COLORMEM_DATA+$02e8,x
+	sta $d800+$02e8,x
+
+	inx
+	bne @loop
+	rts
+.endproc
+
+;--------------------------------------------------------------------------
+; init_scroll_colors(void)
+;--------------------------------------------------------------------------
+; Args: -
+;--------------------------------------------------------------------------
+.proc init_scroll_colors
+	; foreground RAM color for scroll lines
+	ldx #0
+	; 9 lines: 40 * 9 = 360. 256 + 104
+@loop:
+	; clear color
+	lda #15
+	sta $d800 + SCROLL_1_AT_LINE * 40,x
+	sta $d800 + SCROLL_1_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
+
+	; clear char
+	lda #$ff
+	sta $0400 + SCROLL_1_AT_LINE * 40,x
+	sta $0400 + SCROLL_1_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
+
+	inx
+	bne @loop
+	rts
+.endproc
+
+;--------------------------------------------------------------------------
+; init_charset(void)
+;--------------------------------------------------------------------------
+; Args: -
+; copies 3 custom chars to the correct address
+;--------------------------------------------------------------------------
+.proc init_charset
+	ldx #$07
+@loop:
+	lda #$ff
+	sta $3ff8,x
+	dex
+	bpl @loop
 	rts
 .endproc
 
@@ -693,34 +764,8 @@ char_frames:
 ;	.incbin "res/blue_max.64c",2
 ;	.incbin "res/combat_leader.64c",2
 
-.segment "CHARSET254"
-	.byte %00010000
-	.byte %00010000
-	.byte %00111000
-	.byte %11111111
-	.byte %00111000
-	.byte %00010000
-	.byte %00010000
-	.byte %00010000
-
-	.byte %00010000
-	.byte %00010000
-	.byte %00111000
-	.byte %11111111
-	.byte %00111000
-	.byte %00010000
-	.byte %00010000
-	.byte %00010000
-
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-	.byte %11111111
-
 .segment "SIDMUSIC"
          .incbin "res/music.sid",$7e
 
+.segment "GFX"
+	 .incbin "res/muni-320x200x16.prg"
