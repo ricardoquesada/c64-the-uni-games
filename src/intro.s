@@ -38,10 +38,10 @@ MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 SCROLL_SPEED = 6
 ANIM_SPEED = 1
 
-BITMAP_DATA = __GFX_LOAD__
-CHARMEM_DATA = BITMAP_DATA + $1f40
-COLORMEM_DATA = BITMAP_DATA + $2328
-BACKGROUND_DATA = BITMAP_DATA + $2710
+KOALA_BITMAP_DATA = __GFX_LOAD__
+KOALA_CHARMEM_DATA = KOALA_BITMAP_DATA + $1f40
+KOALA_COLORMEM_DATA = KOALA_BITMAP_DATA + $2328
+KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 
 ;--------------------------------------------------------------------------
 ; Macros
@@ -204,7 +204,7 @@ irq1:
 .endrepeat
 
 	; color
-	lda BACKGROUND_DATA
+	lda KOALA_BACKGROUND_DATA
 	sta $d020
 	sta $d021
 
@@ -513,17 +513,20 @@ save_color_bottom = *+1
 ; Clear screen, interrupts, charset and others
 ;--------------------------------------------------------------------------
 .proc init
+	; must be BEFORE any screen-related function
 	lda #$07
 	jsr clear_screen
 	lda #3
 	jsr color_screen
 
-	; init koala colors
+	; must be BEFORE init_charset / init_scroll_colors
 	jsr init_koala_colors
 
-	jsr init_scroll_colors
-
+	; must be AFTER koala colors
 	jsr init_charset
+
+	; must be AFTER koala colors
+	jsr init_scroll_colors
 
 	; no sprites please
 	lda #$00
@@ -613,24 +616,24 @@ save_color_bottom = *+1
 
 	ldx #$00
 @loop:
-	; $0400
-	lda CHARMEM_DATA,x
+	; $0400: colors %01, %10
+	lda KOALA_CHARMEM_DATA,x
 	sta $0400,x
-	lda CHARMEM_DATA+$0100,x
+	lda KOALA_CHARMEM_DATA+$0100,x
 	sta $0400+$0100,x
-	lda CHARMEM_DATA+$0200,x
+	lda KOALA_CHARMEM_DATA+$0200,x
 	sta $0400+$0200,x
-	lda CHARMEM_DATA+$02e8,x
+	lda KOALA_CHARMEM_DATA+$02e8,x
 	sta $0400+$02e8,x
 
-	; $d800
-	lda COLORMEM_DATA,x
+	; $d800: color %11
+	lda KOALA_COLORMEM_DATA,x
 	sta $d800,x
-	lda COLORMEM_DATA+$0100,x
+	lda KOALA_COLORMEM_DATA+$0100,x
 	sta $d800+$100,x
-	lda COLORMEM_DATA+$0200,x
+	lda KOALA_COLORMEM_DATA+$0200,x
 	sta $d800+$200,x
-	lda COLORMEM_DATA+$02e8,x
+	lda KOALA_COLORMEM_DATA+$02e8,x
 	sta $d800+$02e8,x
 
 	inx
