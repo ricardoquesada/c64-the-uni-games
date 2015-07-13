@@ -600,15 +600,15 @@ save_color_bottom = *+1
 ;--------------------------------------------------------------------------
 ; Args: -
 ; puts the koala colors in the correct address
-; Assumes that bimap data is already in the correct position
+; Assumes that bimap data was loaded in the correct position
 ;--------------------------------------------------------------------------
 .proc init_koala_colors
 
 	; Koala format
-	; bitmap:   $0000 - $1f3f = $1f40 ( 8000) bytes
-	; charmem:  $1f40 - $2327 = $03e8 ( 1000) bytes
-	; colormem: $2328 - $270f = $03e8 ( 1000) bytes
-	; bg color: $2710         =     1 (    1) byte
+	; bitmap:           $0000 - $1f3f = $1f40 ( 8000) bytes
+	; color %01 - %10:  $1f40 - $2327 = $03e8 ( 1000) bytes
+	; color %11:        $2328 - $270f = $03e8 ( 1000) bytes
+	; color %00:        $2710         =     1 (    1) byte
 	; total:                    $2710 (10001) bytes
 
 	ldx #$00
