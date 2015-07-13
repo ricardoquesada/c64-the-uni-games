@@ -130,13 +130,13 @@ irq1:
 
 	STABILIZE_RASTER
 
-	; char mode
-	lda #%00011011		; +2
-	sta $d011		; +4
-
 .repeat 23
 	nop
 .endrepeat
+
+	; char mode
+	lda #%00011011		; +2
+	sta $d011		; +4
 
 	; two lines of colors
 	lda #$08		; +2
@@ -604,6 +604,13 @@ save_color_bottom = *+1
 ;--------------------------------------------------------------------------
 .proc init_koala_colors
 
+	; Koala format
+	; bitmap:   $0000 - $1f3f = $1f40 ( 8000) bytes
+	; charmem:  $1f40 - $2327 = $03e8 ( 1000) bytes
+	; colormem: $2328 - $270f = $03e8 ( 1000) bytes
+	; bg color: $2710         =     1 (    1) byte
+	; total:                    $2710 (10001) bytes
+
 	ldx #$00
 @loop:
 	; $0400
@@ -665,8 +672,10 @@ save_color_bottom = *+1
 .proc init_charset
 	ldx #$07
 @loop:
-	lda #$ff
-	sta $3ff8,x
+	; all bits turned on
+	lda #%11111111
+	; char '$ff'
+	sta $3800 + $ff*8,x
 	dex
 	bpl @loop
 	rts
