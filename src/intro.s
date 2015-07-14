@@ -135,25 +135,24 @@ irq1:
 	lda #%00011011		; +2
 	sta $d011		; +4
 
-	; two lines of colors
-	lda #$08		; +2
-	sta $d020		; +4
-	sta $d021		; +4
-
+;	; two lines of colors
+;	lda #$08		; +2
+;	sta $d020		; +4
+;	sta $d021		; +4
 
 	; waste some cycles so we can change colors 
 	; and horizontal scroll at the correct time
 	; and with enough time that we can do it
 	; when the cycles are invisible
-.repeat 58
-	nop
-.endrepeat
+;.repeat 58
+;	nop
+;.endrepeat
 
-	; paint 2 lines with different color
+;	; paint 2 lines with different color
 	ldx #15			; Grey 2
 	stx $d020
 	stx $d021
-
+;
 	lda smooth_scroll_x
 	sta $d016
 
@@ -192,13 +191,13 @@ irq1:
 .endrepeat
 
 	; paint 2 raster lines with different color
-	lda #$08
-	sta $d020
-	sta $d021
+;	lda #$08
+;	sta $d020
+;	sta $d021
 
-.repeat 58
-	nop
-.endrepeat
+;.repeat 58
+;	nop
+;.endrepeat
 
 	; color
 	lda KOALA_BACKGROUND_DATA
@@ -230,7 +229,7 @@ irq1:
 	lda #>irq1
 	sta $ffff
 
-	lda #RASTER_START+SCROLL_1_AT_LINE*8-4
+	lda #RASTER_START+SCROLL_1_AT_LINE*8-2
 	sta $d012
 
 	asl $d019
@@ -579,7 +578,7 @@ save_color_bottom = *+1
 	sta $ffff
 
 	; raster interrupt
-	lda #RASTER_START+SCROLL_1_AT_LINE*8-3
+	lda #RASTER_START+SCROLL_1_AT_LINE*8-2
 	sta $d012
 
 	; clear interrupts and ACK irq
