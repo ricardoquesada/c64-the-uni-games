@@ -6,9 +6,6 @@
 ;     ** MUST NOT be modifed by any other functions **
 ;   $f9/$fa -> charset
 ;
-;
-; Zero Page: modified by the program, but can be modified by other functions
-;   $fb/$fc -> screen pointer (upper)
 
 
 ; exported by the linker
@@ -276,16 +273,14 @@ irq1:
 	; basic setup
 	ldx #<(SCREEN_TOP+7*40+39)
 	ldy #>(SCREEN_TOP+7*40+39)
-	stx $fb
-	sty $fc
+	stx @screen_address
+	sty @screen_address+1
 
 	; should not be bigger than 7 (8 rows)
 	ldy #.min(ROWS_PER_CHAR,7)
 
 
 @loop:
-	ldx #0
-
 	lda ($f9),y
 	and chars_scrolled
 	beq @empty_char
@@ -293,23 +288,24 @@ irq1:
 ;	 lda current_char
 	; char to display
 	lda #$fd
-	sta ($fb,x)
-
 	bne :+
 
 @empty_char:
 	lda #$ff		; empty char
-	sta ($fb,x)
 
 :
+	; self-changing value
+	; this value will be overwritten with the address of the screen
+@screen_address = *+1
+	sta $caca
+
 	; next line for top scroller
 	sec
-	lda $fb
+	lda @screen_address
 	sbc #40
-	sta $fb
+	sta @screen_address
 	bcs :+
-	dec $fc
-
+	dec @screen_address+1
 :
 
 	dey			; next charset definition
@@ -371,13 +367,13 @@ scroll_screen:
 	clc
 	lda #<scroller_text
 	adc scroller_text_ptr_low
-	sta address
+	sta @address
 	lda #>scroller_text
 	adc scroller_text_ptr_hi
-	sta address+1
+	sta @address+1
 
-address = *+1
-	; self changing value
+	; self-changing value
+@address = *+1
 	lda scroller_text
 	cmp #$ff
 	bne :+
