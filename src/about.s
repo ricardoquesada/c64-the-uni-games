@@ -536,8 +536,9 @@ save_color_bottom = *+1
 
 	; default is:
 	;    %00010101
+        ; charset at $3800
 	lda #%00011110
-	sta $d018		; charset at $3800
+	sta $d018		
 
 	; no interrups
 	sei
@@ -554,6 +555,10 @@ save_color_bottom = *+1
 
 	;default is:
 	;    %00011011
+        ; disable bitmap mode
+        ; 25 rows
+        ; disable extended color
+        ; vertical scroll: default position
 	lda #%00011011
 	sta $d011
 
