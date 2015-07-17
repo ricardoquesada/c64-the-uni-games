@@ -8,7 +8,7 @@ X64 = /Applications/Vice/x64.app/Contents/MacOS/x64
 
 all: disk
 
-SRC=src/intro.s src/utils.s
+SRC=src/main.s src/about.s src/utils.s
 prg:
 	cl65 -d -g -Ln therace.sym -u __EXEHDR__ -t c64 -o therace.prg -C therace.cfg ${SRC}
 
@@ -30,5 +30,5 @@ test: disk
 testdist: disk
 	$(X64) -moncommands therace.sym therace_dist.d64
 
-clean: 
+clean:
 	rm -f *~ *.o therace.prg therace_exo.prg therace.d64 therace.sym $(IMAGE)

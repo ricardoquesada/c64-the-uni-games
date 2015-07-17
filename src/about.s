@@ -9,10 +9,10 @@
 
 
 ; exported by the linker
-.import __CHARSET_LOAD__, __SIDMUSIC_LOAD__, __CODEINTRO_LOAD__, __GFX_LOAD__
+.import __ABOUT_CHARSET_LOAD__, __SIDMUSIC_LOAD__, __ABOUT_CODE_LOAD__, __ABOUT_GFX_LOAD__
 
 ; from utils.s
-.import clear_screen, color_screen
+.import clear_screen, clear_color
 
 ;--------------------------------------------------------------------------
 ; Constants
@@ -35,7 +35,7 @@ MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 SCROLL_SPEED = 6
 ANIM_SPEED = 1
 
-KOALA_BITMAP_DATA = __GFX_LOAD__
+KOALA_BITMAP_DATA = __ABOUT_GFX_LOAD__
 KOALA_CHARMEM_DATA = KOALA_BITMAP_DATA + $1f40
 KOALA_COLORMEM_DATA = KOALA_BITMAP_DATA + $2328
 KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
@@ -94,10 +94,8 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 .endmacro
 
 
-.segment "CODE"
-	jmp __CODEINTRO_LOAD__
 
-.segment "CODEINTRO"
+.segment "ABOUT_CODE"
 
 ;--------------------------------------------------------------------------
 ; _main
@@ -395,7 +393,7 @@ scroll_screen:
 	asl
 	asl
 	clc
-	adc #<__CHARSET_LOAD__
+	adc #<__ABOUT_CHARSET_LOAD__
 	sta $f9
 
 	; multiply by 8 (MSB)
@@ -409,7 +407,7 @@ scroll_screen:
 	lsr
 
 	clc
-	adc #>__CHARSET_LOAD__
+	adc #>__ABOUT_CHARSET_LOAD__
 	sta $fa
 
 	rts
@@ -512,7 +510,7 @@ save_color_bottom = *+1
 	lda #$07
 	jsr clear_screen
 	lda #3
-	jsr color_screen
+	jsr clear_color
 
 	; must be BEFORE init_charset / init_scroll_colors
 	jsr init_koala_colors
@@ -563,11 +561,11 @@ save_color_bottom = *+1
 	lda #$35
 	sta $01
 
-	; bank 0
-;	lda $dd00
-;	and #$fc
-;	ora #3
-;	sta $dd00
+        ; Vic bank 0: $0000-$3FFF
+	lda $dd00
+        and #$fc
+	ora #3
+        sta $dd00
 
 	;
 	; irq handler
@@ -684,7 +682,7 @@ save_color_bottom = *+1
 ;--------------------------------------------------------------------------
 
 ; IMPORTANT: raster_colors must be at the beginning of the page in order to avoid extra cycles.
-.segment "DATAINTRO"
+.segment "ABOUT_DATA"
 raster_colors:
 raster_colors_top:
 	; Color washer palette taken from: Dustlayer intro
@@ -764,15 +762,12 @@ char_frames:
 	.byte %00000000
 	.byte %00000000
 
-.segment "CHARSET"
+.segment "ABOUT_CHARSET"
 	; last 3 chars reserved
-;        .incbin "res/scrap_writer_iii_16.64c",2,(2048-8*3)
 	.incbin "res/1-writer.64c",2,(2048-8*3)
-;	.incbin "res/blue_max.64c",2
-;	.incbin "res/combat_leader.64c",2
 
 .segment "SIDMUSIC"
          .incbin "res/music.sid",$7e
 
-.segment "GFX"
+.segment "ABOUT_GFX"
 	 .incbin "res/muni-320x200x16.prg"

@@ -26,13 +26,13 @@
 
 
 ;--------------------------------------------------------------------------
-; color_screen(int foreground_color)
+; clear_color(int foreground_color)
 ;--------------------------------------------------------------------------
 ; Args: A color to be used. Only lower 3 bits are used.
 ; Changes foreground RAM color
 ;--------------------------------------------------------------------------
-.export color_screen
-.proc color_screen
+.export clear_color
+.proc clear_color
 	ldx #0
 :
 	sta $d800,x
