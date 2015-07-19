@@ -102,6 +102,7 @@
 	jsr get_key
 	bcc @main_loop
 
+	sta $0400
 	cmp #$40                ; F1
 	beq @jump_start
 	cmp #$30                ; F7
@@ -119,6 +120,7 @@
 	; scroll the colors
 	ldx #0
 @loop:
+	; 9 lines to scroll, starting from line 2
 	.repeat 9,i
 		lda $d800+40*(i+2)+1,x
 		sta $d800+40*(i+2),x
@@ -145,7 +147,6 @@
 	tya
 	and #$3f		; 64 colors
 	sta color_idx
-:
 	rts
 
 no_irq:

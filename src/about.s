@@ -116,6 +116,8 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 	; key pressed ?
 	jsr get_key
 	bcc @mainloop
+	cmp #$47		; space
+	bne @mainloop
 
 	jmp __MAIN_CODE_LOAD__
 
@@ -729,7 +731,10 @@ scroller_text:
 	scrcode "'best sound ever', 'i want to ride a real unicycle now', "
 	scrcode "'bikes? what a waste of resources!', 'can i play basketball on unicycles?' "
 	scrcode "and much more! "
-	scrcode "what are you waiting for? just press f1 to start riding!!!...      "
+	scrcode "credits: code and some gfx by riq, music taken from somewhere, fonts taken from somewhere... "
+	scrcode "tools used: cc65, vim, gimp, vchar64, spritepad, timanthes, vice... "
+	scrcode "download the source code from https://github.com/ricardoquesada/c64-the-uni-race "
+	scrcode "press 'space' key to return to the main screen... "
 	.byte $ff
 
 char_frames:
