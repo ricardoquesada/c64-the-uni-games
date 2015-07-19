@@ -9,10 +9,10 @@
 
 
 ; exported by the linker
-.import __ABOUT_CHARSET_LOAD__, __SIDMUSIC_LOAD__, __ABOUT_CODE_LOAD__, __ABOUT_GFX_LOAD__
+.import __ABOUT_CHARSET_LOAD__, __SIDMUSIC_LOAD__, __ABOUT_CODE_LOAD__, __ABOUT_GFX_LOAD__, __MAIN_CODE_LOAD__
 
 ; from utils.s
-.import clear_screen, clear_color
+.import clear_screen, clear_color, get_key
 
 ;--------------------------------------------------------------------------
 ; Constants
@@ -103,7 +103,7 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 	jsr init
 
 
-mainloop:
+@mainloop:
 	lda #0
 	sta sync
 :	cmp sync
@@ -112,9 +112,13 @@ mainloop:
 	jsr scroll
 	jsr anim_char
 	jsr anim_rasterbar
-	jmp mainloop
 
-;	jmp *
+	; key pressed ?
+	jsr get_key
+	bcc @mainloop
+
+	jmp __MAIN_CODE_LOAD__
+
 
 irq1:
 	pha			; saves A, X, Y
@@ -552,13 +556,12 @@ save_color_bottom = *+1
 	lda #01
 	sta $d01a
 
-
 	;default is:
 	;    %00011011
-        ; disable bitmap mode
-        ; 25 rows
-        ; disable extended color
-        ; vertical scroll: default position
+	; disable bitmap mode
+	; 25 rows
+	; disable extended color
+	; vertical scroll: default position
 	lda #%00011011
 	sta $d011
 
