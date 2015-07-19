@@ -22,9 +22,6 @@
 
 	sei
 
-	; init music
-	jsr __SIDMUSIC_LOAD__
-
 	lda #$20
 	jsr clear_screen
 	lda #$01
@@ -33,6 +30,11 @@
 	lda #$00
 	sta $d020
 	sta $d021
+
+	; no scroll,single-color,40-cols
+	; default: %00001000
+	lda #%00001000
+	sta $d016
 
 	; Vic bank 2: $8000-$BFFF
 	lda $dd00
@@ -79,17 +81,21 @@
 	lda $dd0d
 	asl $d019
 
+	; init music
+	jsr __SIDMUSIC_LOAD__
+
 	cli
 
 @main_loop:
 	jsr @color_wash
 
-	; delay loop
-	ldy #$f0
+	; delay loop to make the color
+	; washer slower
+	ldy #$08
 :	ldx #$00
-:	inx
+:	dex
 	bne :-
-	iny
+	dey	
 	bne :--
 
 
@@ -104,65 +110,40 @@
 
 
 @jump_start:
-	jmp $caca
+	brk
 @jump_about:
 	jmp __ABOUT_CODE_LOAD__
 
 
 @color_wash:
+	; scroll the colors
 	ldx #0
 @loop:
-	lda $d800+40*2+1,x
-	sta $d800+40*2,x
-	lda $d800+40*3+1,x
-	sta $d800+40*3,x
-	lda $d800+40*4+1,x
-	sta $d800+40*4,x
-	lda $d800+40*5+1,x
-	sta $d800+40*5,x
-	lda $d800+40*6+1,x
-	sta $d800+40*6,x
-	lda $d800+40*7+1,x
-	sta $d800+40*7,x
-	lda $d800+40*8+1,x
-	sta $d800+40*8,x
-	lda $d800+40*9+1,x
-	sta $d800+40*9,x
-	lda $d800+40*10+1,x
-	sta $d800+40*10,x
-	lda $d800+40*11+1,x
-	sta $d800+40*11,x
+	.repeat 9,i
+		lda $d800+40*(i+2)+1,x
+		sta $d800+40*(i+2),x
+	.endrepeat
 	inx
-	cpx #40
+	cpx #40			; 40 columns
 	bne @loop
 
-	; new color
+	; set the new colors at row 39
 	ldy color_idx
-	lda colors,y
-	sta $d800+40*3+39
-	lda colors+1,y
-	sta $d800+40*4+39
-	lda colors+2,y
-	sta $d800+40*5+39
-	lda colors+3,y
-	sta $d800+40*6+39
-	lda colors+4,y
-	sta $d800+40*7+39
-	lda colors+5,y
-	sta $d800+40*8+39
-	lda colors+6,y
-	sta $d800+40*9+39
-	lda colors+7,y
-	sta $d800+40*10+39
-	lda colors+8,y
-	sta $d800+40*11+39
 
-	; next color
-	inc color_idx
-	lda color_idx
-	cmp #40
-	bne :+
-	lda #$00
+	.repeat 9,i
+		lda colors,y
+		sta $d800+40*(i+2)+39
+		iny
+		tya
+		and #$3f	; 64 colors
+		tay
+	.endrepeat
+
+	; set the new index color for the next iteration
+	ldy color_idx
+	iny
+	tya
+	and #$3f		; 64 colors
 	sta color_idx
 :
 	rts
@@ -185,20 +166,16 @@ no_irq:
 
 color_idx: .byte $00
 colors:
-	; Color washer palette taken from: Dustlayer intro
+	; Color washer palette based on Dustlayer intro
 	; https://github.com/actraiser/dust-tutorial-c64-first-intro/blob/master/code/data_colorwash.asm
-	.byte $09,$09,$02,$02,$08
-	.byte $08,$0a,$0a,$0f,$0f
-	.byte $07,$07,$01,$01,$01
-	.byte $01,$01,$01,$01,$01
-	.byte $01,$01,$01,$01,$01
-	.byte $01,$01,$01,$07,$07
-	.byte $0f,$0f,$0a,$0a,$08
-	.byte $08,$02,$02,$09,$09
-
-	.repeat 10
-		.byte $00
-	.endrepeat
+	.byte $09,$09,$09,$09,$02,$02,$02,$02
+	.byte $08,$08,$08,$08,$0a,$0a,$02,$02
+	.byte $0f,$0f,$0f,$0f,$07,$07,$07,$07
+	.byte $01,$01,$01,$01,$01,$01,$01,$01
+	.byte $01,$01,$01,$01,$01,$01,$01,$01
+	.byte $07,$07,$07,$07,$0f,$0f,$0f,$0f
+	.byte $0a,$0a,$0a,$0a,$08,$08,$08,$08
+	.byte $02,$02,$02,$02,$09,$09,$09,$09
 
 screen:
 

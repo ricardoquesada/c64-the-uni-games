@@ -110,7 +110,7 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 	beq :-
 
 	jsr scroll
-	jsr anim_char
+;	jsr anim_char
 	jsr anim_rasterbar
 
 	; key pressed ?
