@@ -44,56 +44,7 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 ; Macros
 ;--------------------------------------------------------------------------
 .macpack cbm			; adds support for scrcode
-
-;--------------------------------------------------------------------------
-; STABILIZE_RASTER
-; Double-IRQ Stable raster routine
-; code and comments taken from: http://codebase64.org/doku.php?id=base:stable_raster_routine
-;--------------------------------------------------------------------------
-.macro STABILIZE_RASTER
-	; A Raster Compare IRQ is triggered on cycle 0 on the current $d012 line
-	; The MPU needs to finish it's current OP code before starting the Interrupt Handler,
-	; meaning a 0 -> 7 cycles delay depending on OP code.
-	; Then a 7 cycle delay is spent invoking the Interrupt Handler (Push SR/PC to stack++)
-	; Then 13 cycles for storing registers (pha, txa, pha, tya, pha)
-	
-	; prev cycle count: 20~27
-	lda #<@irq_stable	; +2, 2
-	ldx #>@irq_stable	; +2, 4
-	sta $fffe		; +4, 8
-	stx $ffff		; +4, 12
-	inc $d012		; +6, 18
-	asl $d019		; +6, 24
-	tsx			; +2, 26
-	cli			; +2, 28
-
-.repeat 10
-	; Next IRQ will be triggered while executing these nops
-	nop			; +2 * 8, 44.
-.endrepeat
-	; cycle count: 64~71. New raster already triggered at this point
-	
-@irq_stable:
-	; cycle count: 7~8 .7 cycles for the interrupt handler + 0~1 cycle Jitter for the NOP
-	txs			; +2, 9~10
-
-	; 42 cycles
-	ldx #$08		; +2, 11~12
-	dex			; +2 * 8, 27~28
-	bne *-1			; +3 * 7, +2, 50~51
-	bit $00			; +3, 53~54
-
-;.repeat 21
-;	nop			; 2 * 21
-;.endrepeat
-
-	lda $d012		; +4, 57~58
-	cmp $d012		; +4, 61~62
-	beq *+2			; +2/+3, 64
-
-.endmacro
-
-
+.macpack mymacros
 
 .segment "ABOUT_CODE"
 
@@ -724,17 +675,17 @@ scroller_text_ptr_low:	.byte 0
 scroller_text_ptr_hi:	.byte 0
 
 scroller_text:
-	scrcode "   'the muni race': the best mountain unicycle racing game for the "
+	scrcode "   rq progs presents 'the muni race': the best mountain unicycle racing game for the "
 	.byte 64
-	scrcode "64. in fact it is the best mountain unicycle racing game ever written!!!"
+	scrcode "64. "
 	scrcode "people said about this game: 'awesome graphics', 'impressive physics', "
 	scrcode "'best sound ever', 'i want to ride a real unicycle now', "
 	scrcode "'bikes? what a waste of resources!', 'can i play basketball on unicycles?' "
 	scrcode "and much more! "
 	scrcode "credits: code and some gfx by riq, music taken from somewhere, fonts taken from somewhere... "
-	scrcode "tools used: cc65, vim, gimp, vchar64, spritepad, timanthes, vice... "
+	scrcode "tools used: ca65, vim, gimp, vchar64, spritepad, timanthes, vice... "
 	scrcode "download the source code from https://github.com/ricardoquesada/c64-the-uni-race "
-	scrcode "press 'space' key to return to the main screen... "
+	scrcode "press 'space' to return to the main screen... "
 	.byte $ff
 
 char_frames:
