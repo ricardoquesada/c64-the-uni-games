@@ -478,6 +478,9 @@ save_color_bottom = *+1
 	; must be AFTER koala colors
 	jsr init_scroll_colors
 
+	; default values for scroll variables
+	jsr init_scroll_vars
+
 	; no sprites please
 	lda #$00
 	sta $d015
@@ -617,6 +620,30 @@ save_color_bottom = *+1
 
 	inx
 	bne @loop
+	rts
+.endproc
+
+;--------------------------------------------------------------------------
+; init_scroll_vars(void)
+;--------------------------------------------------------------------------
+; Args: -
+;--------------------------------------------------------------------------
+.proc init_scroll_vars
+	lda #$01
+	sta sync
+	lda #$07
+	sta smooth_scroll_x
+	lda #$80
+	sta chars_scrolled
+	lda #$00
+	sta current_char
+	lda #$07
+	sta anim_speed
+	lda #ANIM_TOTAL_FRAMES-1
+	sta anim_char_idx
+	lda #$00
+	sta scroller_text_ptr_low
+	sta scroller_text_ptr_hi
 	rts
 .endproc
 

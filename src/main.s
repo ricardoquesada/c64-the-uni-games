@@ -22,14 +22,9 @@
 
 	sei
 
-	lda #$20
 	jsr clear_screen
 	lda #$01
 	jsr clear_color
-
-	lda #$00
-	sta $d020
-	sta $d021
 
 	; no scroll,single-color,40-cols
 	; default: %00001000
@@ -41,6 +36,7 @@
 	and #$fc
 	ora #1
 	sta $dd00
+	lda #$20
 
 	; charset at $8800 (equal to $0800 for bank 0)
 	; default is:
@@ -56,6 +52,22 @@
 	; vertical scroll: default position
 	lda #%00011011
 	sta $d011
+
+	; color wash 40 times before showing the screen
+	; so that the colors are in the correct position
+	; FIXME: 40 times faster is to just colorify the screen
+	; with the correct colors instead of iterating 40
+	; times over color_wash
+	lda #40
+	sta $ff
+:	jsr @color_wash
+	dec $ff
+	bne :-
+
+	lda #$00
+	sta $d020
+	sta $d021
+
 
 	; turn off BASIC + Kernal. More RAM
 	lda #$35
@@ -85,6 +97,7 @@
 	jsr __SIDMUSIC_LOAD__
 
 	cli
+
 
 @main_loop:
 	jsr @color_wash
