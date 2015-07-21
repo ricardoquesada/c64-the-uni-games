@@ -91,7 +91,7 @@
 
 	; delay loop to make the color
 	; washer slower
-	ldy #$0b
+	ldy #$0a
 :	ldx #$00
 :	dex
 	bne :-
@@ -214,9 +214,9 @@ screen:
 	scrcode "                                        "
 	scrcode "                                        "
 	; splitting the macro in 3 since it has too many parameters
-	scrcode "       ",64,96,"2",178,"0"
+	scrcode "     ",64,96,"2",178,"0"
 	scrcode          176,"1",177,"5",181
-	scrcode                 " rReEtTrRoO mMoOeE     "
+	scrcode                 "  rReEtTrRoO  mMoOeE     "
 ;	scrcode                 " rRqQ pPrRoOgGsS       "
 
 

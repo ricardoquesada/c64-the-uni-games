@@ -675,7 +675,7 @@ scroller_text_ptr_low:	.byte 0
 scroller_text_ptr_hi:	.byte 0
 
 scroller_text:
-	scrcode "   rq progs presents 'the muni race': the best mountain unicycle racing game for the "
+	scrcode "   retro moe presents 'the muni race': the best mountain unicycle racing game for the "
 	.byte 64
 	scrcode "64. "
 	scrcode "people said about this game: 'awesome graphics', 'impressive physics', "
