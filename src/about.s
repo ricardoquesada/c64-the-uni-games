@@ -22,10 +22,10 @@ DEBUG = 0			; Use 1 to enable music-raster debug
 
 RASTER_START = 50
 
-SCROLL_1_AT_LINE = 18
+SCROLL_AT_LINE = 18
 ROWS_PER_CHAR = 7
 
-SCREEN_TOP = $0400 + SCROLL_1_AT_LINE * 40
+SCREEN_TOP = $0400 + SCROLL_AT_LINE * 40
 
 
 MUSIC_INIT = __SIDMUSIC_LOAD__
@@ -44,7 +44,7 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 ; Macros
 ;--------------------------------------------------------------------------
 .macpack cbm			; adds support for scrcode
-.macpack mymacros
+.macpack mymacros		; my own macros
 
 .segment "ABOUT_CODE"
 
@@ -184,7 +184,7 @@ irq1:
 	lda #>irq1
 	sta $ffff
 
-	lda #RASTER_START+SCROLL_1_AT_LINE*8-2
+	lda #RASTER_START+SCROLL_AT_LINE*8-2
 	sta $d012
 
 	asl $d019
@@ -494,8 +494,8 @@ save_color_bottom = *+1
 	; default is:
 	;    %00010101
         ; charset at $3800
-	lda #%00011110
-	sta $d018		
+	lda #%00011111
+	sta $d018
 
 	; no interrups
 	sei
@@ -537,7 +537,7 @@ save_color_bottom = *+1
 	sta $ffff
 
 	; raster interrupt
-	lda #RASTER_START+SCROLL_1_AT_LINE*8-2
+	lda #RASTER_START+SCROLL_AT_LINE*8-2
 	sta $d012
 
 	; clear interrupts and ACK irq
@@ -607,13 +607,13 @@ save_color_bottom = *+1
 @loop:
 	; clear color
 	lda #15
-	sta $d800 + SCROLL_1_AT_LINE * 40,x
-	sta $d800 + SCROLL_1_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
+	sta $d800 + SCROLL_AT_LINE * 40,x
+	sta $d800 + SCROLL_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
 
 	; clear char
 	lda #$ff
-	sta $0400 + SCROLL_1_AT_LINE * 40,x
-	sta $0400 + SCROLL_1_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
+	sta $0400 + SCROLL_AT_LINE * 40,x
+	sta $0400 + SCROLL_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
 
 	inx
 	bne @loop
@@ -706,7 +706,6 @@ char_frames:
 	.byte %00011000
 	.byte %00000000
 	.byte %00000000
-
 
 	.byte %00000000
 	.byte %00000000

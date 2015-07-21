@@ -23,9 +23,9 @@
 
 .repeat 10
 	; Next IRQ will be triggered while executing these nops
-	nop			; +2 * 8, 44.
+	nop			; +2 * 10, 48.
 .endrepeat
-	; cycle count: 64~71. New raster already triggered at this point
+	; cycle count: 68~75. New raster already triggered at this point
 	
 @irq_stable:
 	; cycle count: 7~8 .7 cycles for the interrupt handler + 0~1 cycle Jitter for the NOP

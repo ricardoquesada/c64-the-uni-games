@@ -3,7 +3,7 @@
 ;--------------------------------------------------------------------------
 
 ; exported by the linker
-.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__
+.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __GAME_CODE_LOAD__, __SIDMUSIC_LOAD__
 
 ; from utils.s
 .import clear_screen, clear_color, get_key
@@ -91,7 +91,7 @@
 
 	; delay loop to make the color
 	; washer slower
-	ldy #$08
+	ldy #$0b
 :	ldx #$00
 :	dex
 	bne :-
@@ -111,7 +111,7 @@
 
 
 @jump_start:
-	brk
+	jmp __GAME_CODE_LOAD__
 @jump_about:
 	jmp __ABOUT_CODE_LOAD__
 
@@ -120,10 +120,10 @@
 	; scroll the colors
 	ldx #0
 @loop:
-	; 9 lines to scroll, starting from line 2
+	; 9 lines to scroll, starting from line 1
 	.repeat 9,i
-		lda $d800+40*(i+2)+1,x
-		sta $d800+40*(i+2),x
+		lda $d800+40*(i+1)+1,x
+		sta $d800+40*(i+1),x
 	.endrepeat
 	inx
 	cpx #40			; 40 columns
@@ -134,7 +134,8 @@
 
 	.repeat 9,i
 		lda colors,y
-		sta $d800+40*(i+2)+39
+		sta $d800+40*(i+1)+39
+		iny
 		iny
 		tya
 		and #$3f	; 64 colors
@@ -166,51 +167,59 @@ no_irq:
 	rti			; restores previous PC, status
 
 color_idx: .byte $00
+	.byte $00
 colors:
 	; Color washer palette based on Dustlayer intro
 	; https://github.com/actraiser/dust-tutorial-c64-first-intro/blob/master/code/data_colorwash.asm
 	.byte $09,$09,$09,$09,$02,$02,$02,$02
-	.byte $08,$08,$08,$08,$0a,$0a,$02,$02
+	.byte $08,$08,$08,$08,$0a,$0a,$0a,$0a
 	.byte $0f,$0f,$0f,$0f,$07,$07,$07,$07
 	.byte $01,$01,$01,$01,$01,$01,$01,$01
 	.byte $01,$01,$01,$01,$01,$01,$01,$01
 	.byte $07,$07,$07,$07,$0f,$0f,$0f,$0f
 	.byte $0a,$0a,$0a,$0a,$08,$08,$08,$08
 	.byte $02,$02,$02,$02,$09,$09,$09,$09
+	.byte $00
 
 screen:
 
 .segment "MAIN_SCREEN"
 		;0123456789|123456789|123456789|123456789|
 	scrcode "                                        "
+	.repeat 20
+	.byte $2a,$6a
+	.endrepeat
+	scrcode "*",170,"                                    *",170
+	scrcode "*",170,"                                    *",170
+	scrcode "*",170,"                                    *",170
+	scrcode "*",170,"     tThHeE  mMuUnNiI  rRaAcCeE     *",170
+	scrcode "*",170,"                                    *",170
+	scrcode "*",170,"                                    *",170
+	scrcode "*",170,"                                    *",170
+	.repeat 20
+	.byte $2a,$6a
+	.endrepeat
 	scrcode "                                        "
-	scrcode " * * * * * * * * * * * * * * * * * * * *"
-	scrcode "                                        "
-	scrcode " *                                     *"
-	scrcode "                                        "
-	scrcode " *      tThHeE  mMuUnNiI  rRaAcCeE     *"
-	scrcode "                                        "
-	scrcode " *                                     *"
-	scrcode "                                        "
-	scrcode " * * * * * * * * * * * * * * * * * * * *"
 	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "
+	scrcode "      fF1",177," -      sStTaArRtT            "
 	scrcode "                                        "
-	scrcode "          fF1",177," - sStTaArRtT             "
+	scrcode "      fF3",179," - hHiIgGhH sScCoOrReEsS      "
 	scrcode "                                        "
-	scrcode "          fF7",183," - aAbBoOuUtT             "
-	scrcode "                                        "
+	scrcode "      fF7",183," -      aAbBoOuUtT            "
 	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "
 	; splitting the macro in 3 since it has too many parameters
-	scrcode "      ",64,96,"2",178,"0"
+	scrcode "       ",64,96,"2",178,"0"
 	scrcode          176,"1",177,"5",181
-	scrcode                 " - rRqQ pPrRoOgGsS      "
+	scrcode                 " rReEtTrRoO mMoOeE     "
+;	scrcode                 " rRqQ pPrRoOgGsS       "
 
 
 .segment "MAIN_CHARSET"
-	.incbin "res/shared_font.bin"
+;	.incbin "res/shared_font.bin"
+	.incbin "res/boulderdash-font.bin"
