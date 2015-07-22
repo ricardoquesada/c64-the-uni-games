@@ -472,11 +472,15 @@ save_color_bottom = *+1
 	; must be BEFORE init_charset / init_scroll_colors
 	jsr init_koala_colors
 
+
 	; must be AFTER koala colors
 	jsr init_charset
 
 	; must be AFTER koala colors
 	jsr init_scroll_colors
+
+	;default values for scroll variables
+	jsr init_scroll_vars
 
 	; no sprites please
 	lda #$00
@@ -621,6 +625,30 @@ save_color_bottom = *+1
 .endproc
 
 ;--------------------------------------------------------------------------
+; init_scroll_vars(void)
+;--------------------------------------------------------------------------
+; Args: -
+;--------------------------------------------------------------------------
+.proc init_scroll_vars
+	lda #$01
+	sta sync
+	lda #$07
+	sta smooth_scroll_x
+	lda #$80
+	sta chars_scrolled
+	lda #$00
+	sta current_char
+	lda #$07
+	sta anim_speed
+	lda #ANIM_TOTAL_FRAMES-1
+	sta anim_char_idx
+	lda #$00
+	sta scroller_text_ptr_low
+	sta scroller_text_ptr_hi
+	rts
+.endproc
+
+;--------------------------------------------------------------------------
 ; init_charset(void)
 ;--------------------------------------------------------------------------
 ; Args: -
@@ -675,15 +703,15 @@ scroller_text_ptr_low:	.byte 0
 scroller_text_ptr_hi:	.byte 0
 
 scroller_text:
-	scrcode "   rq progs presents 'the muni race': the best mountain unicycle racing game for the "
+	scrcode "   retro moe presents 'the muni race': the best mountain unicycle racing game for the "
 	.byte 64
 	scrcode "64. "
 	scrcode "people said about this game: 'awesome graphics', 'impressive physics', "
 	scrcode "'best sound ever', 'i want to ride a real unicycle now', "
 	scrcode "'bikes? what a waste of resources!', 'can i play basketball on unicycles?' "
 	scrcode "and much more! "
-	scrcode "credits: code and some gfx by riq, music taken from somewhere, fonts taken from somewhere... "
-	scrcode "tools used: ca65, vim, gimp, vchar64, spritepad, timanthes, vice... "
+	scrcode "credits: code and some gfx by riq, music and fronts taken from somewhere... "
+	scrcode "tools used: ca65, vim, gimp, project one, timanthes, vchar64, spritepad, vice... "
 	scrcode "download the source code from https://github.com/ricardoquesada/c64-the-uni-race "
 	scrcode "press 'space' to return to the main screen... "
 	.byte $ff
