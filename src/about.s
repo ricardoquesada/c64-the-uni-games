@@ -61,7 +61,7 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 	beq :-
 
 	jsr scroll
-;	jsr anim_char
+	jsr anim_char
 	jsr anim_rasterbar
 
 	; key pressed ?
@@ -472,7 +472,6 @@ save_color_bottom = *+1
 	; must be BEFORE init_charset / init_scroll_colors
 	jsr init_koala_colors
 
-
 	; must be AFTER koala colors
 	jsr init_charset
 
@@ -703,7 +702,11 @@ scroller_text_ptr_low:	.byte 0
 scroller_text_ptr_hi:	.byte 0
 
 scroller_text:
-	scrcode "   retro moe presents 'the muni race': the best mountain unicycle racing game for the "
+	scrcode "   retro moe presents "
+	.byte 65
+	scrcode "the muni race"
+	.byte 66
+	scrcode " the best mountain unicycle racing game for the "
 	.byte 64
 	scrcode "64. "
 	scrcode "people said about this game: 'awesome graphics', 'impressive physics', "
@@ -754,8 +757,7 @@ char_frames:
 	.byte %00000000
 
 .segment "ABOUT_CHARSET"
-	; last 3 chars reserved
-	.incbin "res/1-writer.64c",2,(2048-8*3)
+	.incbin "res/1-writer.64c",2
 
 .segment "SIDMUSIC"
          .incbin "res/music.sid",$7e
