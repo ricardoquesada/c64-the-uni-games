@@ -1,11 +1,13 @@
+;--------------------------------------------------------------------------
 ;
-; The MUni Race
-; Intro file
+; The MUni Race: https://github.com/ricardoquesada/c64-the-uni-race
+;
+; About file
 ;
 ; Zero Page global registers:
-;     ** MUST NOT be modifed by any other functions **
-;   $f9/$fa -> charset
+;   $f9/$fa -> charset:  ** MUST NOT be modifed by any other functions **
 ;
+;--------------------------------------------------------------------------
 
 
 ; exported by the linker
@@ -82,9 +84,9 @@ irq1:
 
 	STABILIZE_RASTER
 
-.repeat 23
-	nop
-.endrepeat
+	.repeat 23
+		nop
+	.endrepeat
 
 	; char mode
 	lda #%00011011		; +2
@@ -99,9 +101,9 @@ irq1:
 	; and horizontal scroll at the correct time
 	; and with enough time that we can do it
 	; when the cycles are invisible
-;.repeat 58
-;	nop
-;.endrepeat
+;	.repeat 58
+;		nop
+;	.endrepeat
 
 ;	; paint 2 lines with different color
 	ldx #15			; Grey 2
@@ -115,8 +117,27 @@ irq1:
 	ldx #$00
 
 	; 8 chars of 8 raster lines
-.repeat ROWS_PER_CHAR-1
-	; 7 "Good" lines: I must consume 63 cycles
+	.repeat ROWS_PER_CHAR-1
+		; 7 "Good" lines: I must consume 63 cycles
+		.repeat 7
+			lda raster_colors,x	; +4
+			sta $d021		; +4
+			inx			; +2
+			.repeat 25
+				nop		; +2 * 25
+			.endrepeat
+			bit $00			; +3 = 63 cycles
+		.endrepeat
+		; 1 "Bad lines": I must consume ~20 cycles
+		lda raster_colors,x		; +4
+		sta $d021			; +4
+		inx				; +2
+		.repeat 5
+			nop			; +2 * 5 = 20 cycles
+		.endrepeat
+	.endrepeat
+
+	; 1 char of 7 raster lines
 	.repeat 7
 		lda raster_colors,x	; +4
 		sta $d021		; +4
@@ -126,33 +147,15 @@ irq1:
 		.endrepeat
 		bit $00			; +3 = 63 cycles
 	.endrepeat
-	; 1 "Bad lines": I must consume ~20 cycles
-	lda raster_colors,x		; +4
-	sta $d021			; +4
-	inx				; +2
-	.repeat 5
-		nop			; +2 * 5 = 20 cycles
-	.endrepeat
-.endrepeat
-	; 1 char of 7 raster lines
-.repeat 7
-	lda raster_colors,x	; +4
-	sta $d021		; +4
-	inx			; +2
-	.repeat 25
-		nop		; +2 * 25
-	.endrepeat
-	bit $00			; +3 = 63 cycles
-.endrepeat
 
 	; paint 2 raster lines with different color
 ;	lda #$08
 ;	sta $d020
 ;	sta $d021
 
-;.repeat 58
-;	nop
-;.endrepeat
+;	.repeat 58
+;		nop
+;	.endrepeat
 
 	; color
 	lda #$00
@@ -298,10 +301,10 @@ scroll_screen:
 	ldy #38
 
 @loop:
-.repeat ROWS_PER_CHAR,i
-	lda SCREEN_TOP+40*i+1,x
-	sta SCREEN_TOP+40*i+0,x
-.endrepeat
+	.repeat ROWS_PER_CHAR,i
+		lda SCREEN_TOP+40*i+1,x
+		sta SCREEN_TOP+40*i+0,x
+	.endrepeat
 
 	inx
 	dey
@@ -714,10 +717,10 @@ scroller_text:
 	scrcode "'best sound ever', 'i want to ride a real unicycle now', "
 	scrcode "'bikes? what a waste of resources!', 'can i play basketball on unicycles?' "
 	scrcode "and much more! "
-	scrcode "credits: code and some gfx by riq, music and fronts taken from somewhere... "
+	scrcode "credits: code and some gfx by riq, the rest was taken from somewhere... "
 	scrcode "tools used: ca65, vim, gimp, project one, wine, vchar64, spritepad, vice... "
 	scrcode "download the source code from https://github.com/ricardoquesada/c64-the-uni-race "
-	scrcode "press 'space' to return to the main screen... "
+	scrcode "  press 'space' to return to the main screen...   "
 	.byte $ff
 
 char_frames:

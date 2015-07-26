@@ -1,6 +1,10 @@
+;--------------------------------------------------------------------------
+;
+; The MUni Race: https://github.com/ricardoquesada/c64-the-uni-race
 ;
 ; Collection of utils functions
 ;
+;--------------------------------------------------------------------------
 
 .segment "CODE"
 

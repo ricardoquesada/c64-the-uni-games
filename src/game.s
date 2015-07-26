@@ -1,5 +1,8 @@
 ;--------------------------------------------------------------------------
-; game
+;
+; The MUni Race: https://github.com/ricardoquesada/c64-the-uni-race
+;
+; game file
 ;--------------------------------------------------------------------------
 
 ; exported by the linker
