@@ -20,3 +20,8 @@
 	jsr clear_screen
 
 	jmp *
+
+
+@screen:
+		;0123456789|123456789|123456789|123456789|
+	scrcode "                                        "

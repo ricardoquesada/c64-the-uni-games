@@ -155,8 +155,9 @@ irq1:
 ;.endrepeat
 
 	; color
-	lda KOALA_BACKGROUND_DATA
+	lda #$00
 	sta $d020
+	lda KOALA_BACKGROUND_DATA
 	sta $d021
 
 	; no scroll, multi-color
