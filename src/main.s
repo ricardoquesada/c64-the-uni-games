@@ -53,16 +53,7 @@
 	lda #%00011011
 	sta $d011
 
-	; color wash 40 times before showing the screen
-	; so that the colors are in the correct position
-	; FIXME: 40 times faster is to just colorify the screen
-	; with the correct colors instead of iterating 40
-	; times over color_wash
-	lda #40
-	sta $ff
-:	jsr @color_wash
-	dec $ff
-	bne :-
+	jsr init_color_wash
 
 	lda #$00
 	sta $d020
@@ -100,7 +91,7 @@
 
 
 @main_loop:
-	jsr @color_wash
+	jsr color_wash
 
 	; delay loop to make the color
 	; washer slower
@@ -129,7 +120,55 @@
 	jmp __ABOUT_CODE_LOAD__
 
 
-@color_wash:
+no_irq:
+	pha			; saves A, X, Y
+	txa
+	pha
+	tya
+	pha
+
+	asl $d019
+
+	pla			; restores A, X, Y
+	tay
+	pla
+	tax
+	pla
+	rti			; restores previous PC, status
+
+;--------------------------------------------------------------------------
+; init_color_wash(void)
+;--------------------------------------------------------------------------
+; sets the screen color already 40 "washed" colors, so that the scrolls
+; starts at the right position.
+; This code is similar to call `jsr color_wash` for 40 times faster
+;--------------------------------------------------------------------------
+.proc init_color_wash
+	; set color screen
+	ldx #00
+	ldy #00
+@loop:
+	; 9 lines to scroll, starting from line 1
+	.repeat 9,i
+		lda colors+(i*2),y
+		sta $d800+40*(i+1),x
+	.endrepeat
+	iny
+	inx
+	cpx #40
+	bne @loop
+
+	stx color_idx
+
+	rts
+.endproc
+
+;--------------------------------------------------------------------------
+; color_wash(void)
+;--------------------------------------------------------------------------
+; Scrolls the screen colors creating a kind of "rainbow" effect
+;--------------------------------------------------------------------------
+.proc color_wash
 	; scroll the colors
 	ldx #0
 @loop:
@@ -162,22 +201,7 @@
 	and #$3f		; 64 colors
 	sta color_idx
 	rts
-
-no_irq:
-	pha			; saves A, X, Y
-	txa
-	pha
-	tya
-	pha
-
-	asl $d019
-
-	pla			; restores A, X, Y
-	tay
-	pla
-	tax
-	pla
-	rti			; restores previous PC, status
+.endproc
 
 color_idx: .byte $00
 	.byte $00
