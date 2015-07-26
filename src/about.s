@@ -715,7 +715,7 @@ scroller_text:
 	scrcode "'bikes? what a waste of resources!', 'can i play basketball on unicycles?' "
 	scrcode "and much more! "
 	scrcode "credits: code and some gfx by riq, music and fronts taken from somewhere... "
-	scrcode "tools used: ca65, vim, gimp, project one, timanthes, vchar64, spritepad, vice... "
+	scrcode "tools used: ca65, vim, gimp, project one, wine, vchar64, spritepad, vice... "
 	scrcode "download the source code from https://github.com/ricardoquesada/c64-the-uni-race "
 	scrcode "press 'space' to return to the main screen... "
 	.byte $ff
