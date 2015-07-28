@@ -26,9 +26,9 @@
 
 	sei
 
-	jsr clear_screen
 	lda #$01
 	jsr clear_color
+	jsr init_screen
 
 	; no scroll,single-color,40-cols
 	; default: %00001000
@@ -141,6 +141,32 @@ no_irq:
 	rti			; restores previous PC, status
 
 ;--------------------------------------------------------------------------
+; init_screen
+;--------------------------------------------------------------------------
+.proc init_screen
+	ldx #$00
+@loop:
+	lda screen,x
+	sta $8400,x
+	lda screen+$0100,x
+	sta $8400+$0100,x
+	lda screen+$0200,x
+	sta $8400+$0200,x
+	lda screen+$02e8,x
+	sta $8400+$02e8,x
+	inx
+	bne @loop
+	rts
+.endproc
+
+;--------------------------------------------------------------------------
+; init_color_wash(void)
+;--------------------------------------------------------------------------
+; sets the screen color already 40 "washed" colors, so that the scrolls
+; starts at the right position.
+; This code is similar to call `jsr color_wash` for 40 times faster
+;--------------------------------------------------------------------------
+;--------------------------------------------------------------------------
 ; init_color_wash(void)
 ;--------------------------------------------------------------------------
 ; sets the screen color already 40 "washed" colors, so that the scrolls
@@ -223,8 +249,6 @@ colors:
 	.byte $00
 
 screen:
-
-.segment "MAIN_SCREEN"
 		;0123456789|123456789|123456789|123456789|
 	scrcode "                                        "
 	.repeat 20
