@@ -1,6 +1,6 @@
-# The Uni Race
+# The Muni Race
 
-A Unicycle Racing game for the Commodore 64!
+A Mountain Unicycle (Muni) Racing game for the Commodore 64!
 
 ## How to compile it
 
