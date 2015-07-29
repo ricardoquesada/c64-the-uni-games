@@ -1,6 +1,6 @@
 ;--------------------------------------------------------------------------
 ;
-; The MUni Race: https://github.com/ricardoquesada/c64-the-uni-race
+; The MUni Race: https://github.com/ricardoquesada/c64-the-muni-race
 ;
 ; Collection of utils functions
 ;
@@ -123,5 +123,17 @@
 		.endif
 	.endrepeat
 
+.endproc
+
+
+;--------------------------------------------------------------------------
+; char read_joy2(void)
+;--------------------------------------------------------------------------
+; reads the joystick in port2
+;--------------------------------------------------------------------------
+.export read_joy2
+.proc read_joy2
+	lda $dc00
+	rts
 .endproc
 

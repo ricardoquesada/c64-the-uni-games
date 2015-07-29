@@ -1,6 +1,6 @@
 ;--------------------------------------------------------------------------
 ;
-; The MUni Race: https://github.com/ricardoquesada/c64-the-uni-race
+; The MUni Race: https://github.com/ricardoquesada/c64-the-muni-race
 ;
 ; About file
 ;

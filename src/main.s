@@ -1,6 +1,6 @@
 ;--------------------------------------------------------------------------
 ;
-; The MUni Race: https://github.com/ricardoquesada/c64-the-uni-race
+; The MUni Race: https://github.com/ricardoquesada/c64-the-muni-race
 ;
 ; main screen
 ;
@@ -10,7 +10,7 @@
 .import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__
 
 ; from utils.s
-.import clear_screen, clear_color, get_key
+.import clear_screen, clear_color, get_key, read_joy2
 
 
 ;--------------------------------------------------------------------------
@@ -108,20 +108,30 @@
 	bne :--
 
 
+	lda menu_mode
+	beq @main_menu_mode
+	
+	; choose rider mode
+	jsr read_joy2
+	jmp @main_loop
+
+@main_menu_mode:
 	jsr get_key
 	bcc @main_loop
 
-	sta $0400
 	cmp #$40                ; F1
-	beq @jump_start
+	beq @active_choose_rider_mode
 	cmp #$30                ; F7
 	beq @jump_about
 	jmp @main_loop
 
 
-@jump_start:
+@active_choose_rider_mode:
         jsr init_choose_rider_screen
+	lda #$01
+	sta menu_mode
         jmp @main_loop
+
 @jump_about:
 	jmp __ABOUT_CODE_LOAD__
 
@@ -270,6 +280,12 @@ no_irq:
 .endproc
 
 
+	; mode:
+	; $00: main menu
+	; $01: choose rider menu
+menu_mode:
+	.byte $00
+
 color_idx: .byte $00
 colors:
 	; Color washer palette based on Dustlayer intro
@@ -330,7 +346,7 @@ choose_rider_screen:
 	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "
-	scrcode "    kKrRiIsS               cChHrRiIsS   "
+	scrcode "    cCrRiIsS               kKhHrRiIsS   "
         scrcode "    hHoOlLmM             lLaAbBoOnNtTeE "
 
 
