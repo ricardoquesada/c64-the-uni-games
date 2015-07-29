@@ -12,11 +12,15 @@
 ; from utils.s
 .import clear_screen, clear_color, get_key, read_joy2
 
-
 ;--------------------------------------------------------------------------
 ; Macros
 ;--------------------------------------------------------------------------
 .macpack cbm			; adds support for scrcode
+
+;--------------------------------------------------------------------------
+; Constants
+;--------------------------------------------------------------------------
+SPRITE_ANIMATION_SPEED = 8
 
 .segment "CODE"
 	jmp __MAIN_CODE_LOAD__
@@ -60,6 +64,7 @@
 
 	jsr init_color_wash
 
+	; background & border color
 	lda #$00
 	sta $d020
 	sta $d021
@@ -89,8 +94,16 @@
 	lda $dd0d
 	asl $d019
 
-	; init music
-	jsr __SIDMUSIC_LOAD__
+	; turn off volume
+	lda #$00
+	sta $d418
+
+	; default menu mode: main menu
+	lda #$00
+	sta menu_mode
+	sta selected_rider
+	lda #SPRITE_ANIMATION_SPEED
+	sta animation_delay
 
 	cli
 
@@ -102,19 +115,25 @@
 	; washer slower
 	ldy #$0a
 :	ldx #$00
-:	dex
+:	
+	dex
 	bne :-
 	dey	
 	bne :--
 
-
 	lda menu_mode
 	beq @main_menu_mode
 	
-	; choose rider mode
+	; "choose rider" mode
+	jsr animate_rider
 	jsr read_joy2
+	eor #$ff
+	and #%00001100
 	beq @main_loop
-	inc $d029
+
+	; joystick moved to the left or right.
+	; choose a new rider
+	jsr choose_new_rider
 	jmp @main_loop
 
 @main_menu_mode:
@@ -256,7 +275,7 @@ no_irq:
 	sta $d028
 
 	; sprite #2
-	lda #$44		; position x
+	lda #$43		; position x
 	sta $d004
 	lda #$a0		; position y
 	sta $d005
@@ -316,7 +335,6 @@ no_irq:
 ;--------------------------------------------------------------------------
 ; Scrolls the screen colors creating a kind of "rainbow" effect
 ;--------------------------------------------------------------------------
-.export color_wash
 .proc color_wash
 	; scroll the colors
 	ldx #0
@@ -349,15 +367,73 @@ no_irq:
 	tya
 	and #$3f		; 64 colors
 	sta color_idx
+
+	; sprite #2 color
+	lda colors,y
+	sta $d029
+
 	rts
 .endproc
 
+;--------------------------------------------------------------------------
+; void animate_rider(void)
+;--------------------------------------------------------------------------
+; animates the selected rider
+;--------------------------------------------------------------------------
+.proc animate_rider
+	dec animation_delay
+	beq @animate
+	rts
 
-	; mode:
-	; $00: main menu
-	; $01: choose rider menu
-menu_mode:
-	.byte $00
+@animate:
+	lda #SPRITE_ANIMATION_SPEED
+	sta animation_delay
+
+	ldx selected_rider
+	lda $87f8,x
+	eor #%00000001
+	sta $87f8,x
+	rts
+.endproc
+
+;--------------------------------------------------------------------------
+; void choose_new_rider(joystick)
+;--------------------------------------------------------------------------
+; chooses a new rider
+;--------------------------------------------------------------------------
+.proc choose_new_rider
+	cmp #%00001000
+	beq @right
+
+@left:
+	ldx #$00
+	beq :+
+
+@right:
+	ldx #$01
+:
+	lda @position_x,x
+	sta $d004		; set position X
+	lda @position_9,x
+	sta $d010		; set 9th for position X
+	lda @selected,x
+	sta selected_rider
+	rts
+
+	; positions for the "select" sprite
+	; based on which rider is selected
+@position_x: .byte $43, $03
+@position_9: .byte %00000010, %00000110
+@selected:   .byte $00, $01
+.endproc
+	
+
+
+	; modes: $00: main menu, $01: choose rider menu
+menu_mode: .byte $00
+	; $00: cris holm, $01: krish labonte
+selected_rider: .byte $00
+animation_delay: .byte SPRITE_ANIMATION_SPEED
 
 color_idx: .byte $00
 colors:
