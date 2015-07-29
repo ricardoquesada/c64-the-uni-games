@@ -9,8 +9,8 @@ A Mountain Unicycle (Muni) Racing game for the Commodore 64!
 - Clone this project and `make`:
 
 ```sh
-$ git clone https://github.com/ricardoquesada/c64-the-uni-race.git
-$ cd c64-the-uni-race
+$ git clone https://github.com/ricardoquesada/c64-the-muni-race.git
+$ cd c64-the-muni-race
 $ make test
 ```
 
