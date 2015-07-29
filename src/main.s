@@ -7,7 +7,7 @@
 ;--------------------------------------------------------------------------
 
 ; exported by the linker
-.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__
+.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__
 
 ; from utils.s
 .import clear_screen, clear_color, get_key, read_joy2
@@ -113,6 +113,8 @@
 	
 	; choose rider mode
 	jsr read_joy2
+	beq @main_loop
+	inc $d029
 	jmp @main_loop
 
 @main_menu_mode:
@@ -120,14 +122,15 @@
 	bcc @main_loop
 
 	cmp #$40                ; F1
-	beq @active_choose_rider_mode
+	beq @set_choose_rider_mode
 	cmp #$30                ; F7
 	beq @jump_about
 	jmp @main_loop
 
 
-@active_choose_rider_mode:
-        jsr init_choose_rider_screen
+@set_choose_rider_mode:
+	jsr init_choose_rider_screen
+	jsr init_choose_rider_sprites
 	lda #$01
 	sta menu_mode
         jmp @main_loop
@@ -202,6 +205,76 @@ no_irq:
         bpl @loop
 	rts
 .endproc
+
+;--------------------------------------------------------------------------
+; init_choose_rider_sprites(void)
+;--------------------------------------------------------------------------
+; displays the sprite riders
+;--------------------------------------------------------------------------
+.proc init_choose_rider_sprites
+
+
+	lda #%00000111		; enable 3 sprites
+	sta $d015
+
+	; sprites 0,1: multicolor
+	; sprites 2: hi res
+	lda #%00000011
+	sta $d01c
+
+	; sprite 2 expanded in X and Y
+	lda #%00000100
+	sta $d01d		; expand X
+	sta $d017		; expand Y
+
+	; multicolor values
+	lda #$0a
+	sta $d025
+	lda #$0b
+	sta $d026
+
+	; 9th bit
+	lda #%00000010
+	sta $d010
+	
+	; sprite #0
+	lda #$48		; position x
+	sta $d000
+	lda #$a4		; position y
+	sta $d001
+	lda __MAIN_SPRITES_LOAD__ + 64 * 0 + 63; sprite color
+	and #$0f
+	sta $d027
+
+	; sprite #1
+	lda #$08		; position x
+	sta $d002
+	lda #$a4		; position y
+	sta $d003
+	lda __MAIN_SPRITES_LOAD__ + 64 * 1 + 63 ; sprite color
+	and #$0f
+	sta $d028
+
+	; sprite #2
+	lda #$44		; position x
+	sta $d004
+	lda #$a0		; position y
+	sta $d005
+	lda __MAIN_SPRITES_LOAD__ + 64 * 2 + 63 ; sprite color
+	and #$0f
+	sta $d029
+
+	; sprite pointers
+	; sprites are located at $9000... that's $1000 / $40 = $40 (first sprite)
+	lda #$80
+	sta $87f8
+	sta $87f9
+	lda #$82
+	sta $87fa
+
+	rts
+.endproc
+
 
 
 ;--------------------------------------------------------------------------
@@ -340,8 +413,8 @@ choose_rider_screen:
 		;0123456789|123456789|123456789|123456789|
 	scrcode "                                        "
 	scrcode "                                        "
-	scrcode "                                        "
 	scrcode "        cChHoOoOsSeE   rRiIdDeErR       "
+	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "
@@ -353,3 +426,6 @@ choose_rider_screen:
 .segment "MAIN_CHARSET"
 ;	.incbin "res/shared_font.bin"
 	.incbin "res/boulderdash-font.bin"
+
+.segment "MAIN_SPRITES"
+	.incbin "res/sprites.prg",2
