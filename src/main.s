@@ -20,7 +20,9 @@
 ;--------------------------------------------------------------------------
 ; Constants
 ;--------------------------------------------------------------------------
+.include "c64.inc"		; c64 constants
 SPRITE_ANIMATION_SPEED = 8
+
 
 .segment "CODE"
 	jmp __MAIN_CODE_LOAD__
@@ -45,7 +47,6 @@ SPRITE_ANIMATION_SPEED = 8
 	and #$fc
 	ora #1
 	sta $dd00
-	lda #$20
 
 	; charset at $8800 (equal to $0800 for bank 0)
 	; default is:
@@ -96,7 +97,7 @@ SPRITE_ANIMATION_SPEED = 8
 
 	; turn off volume
 	lda #$00
-	sta $d418
+	sta SID_Amp
 
 	; default menu mode: main menu
 	lda #$00
@@ -234,23 +235,23 @@ no_irq:
 
 
 	lda #%00000111		; enable 3 sprites
-	sta $d015
+	sta VIC_SPR_ENA
 
 	; sprites 0,1: multicolor
 	; sprites 2: hi res
 	lda #%00000011
-	sta $d01c
+	sta VIC_SPR_MCOLOR
 
 	; sprite 2 expanded in X and Y
 	lda #%00000100
-	sta $d01d		; expand X
-	sta $d017		; expand Y
+	sta VIC_SPR_EXP_X	; expand X
+	sta VIC_SPR_EXP_Y	; expand Y
 
 	; multicolor values
 	lda #$0a
-	sta $d025
+	sta VIC_SPR_MCOLOR0
 	lda #$0b
-	sta $d026
+	sta VIC_SPR_MCOLOR1
 
 	; 9th bit
 	lda #%00000010
@@ -258,30 +259,30 @@ no_irq:
 	
 	; sprite #0
 	lda #$48		; position x
-	sta $d000
+	sta VIC_SPR0_X
 	lda #$a4		; position y
-	sta $d001
+	sta VIC_SPR0_Y
 	lda __MAIN_SPRITES_LOAD__ + 64 * 0 + 63; sprite color
 	and #$0f
-	sta $d027
+	sta VIC_SPR0_COLOR
 
 	; sprite #1
 	lda #$08		; position x
-	sta $d002
+	sta VIC_SPR1_X
 	lda #$a4		; position y
-	sta $d003
+	sta VIC_SPR1_Y
 	lda __MAIN_SPRITES_LOAD__ + 64 * 1 + 63 ; sprite color
 	and #$0f
-	sta $d028
+	sta VIC_SPR1_COLOR
 
 	; sprite #2
 	lda #$43		; position x
-	sta $d004
+	sta VIC_SPR2_X
 	lda #$a0		; position y
-	sta $d005
+	sta VIC_SPR2_Y
 	lda __MAIN_SPRITES_LOAD__ + 64 * 2 + 63 ; sprite color
 	and #$0f
-	sta $d029
+	sta VIC_SPR2_COLOR
 
 	; sprite pointers
 	; sprites are located at $9000... that's $1000 / $40 = $40 (first sprite)
@@ -351,6 +352,12 @@ no_irq:
 	; set the new colors at row 39
 	ldy color_idx
 
+	; sprite #2 color
+	; change color at this moment, in order to avoid
+	; doing "ldy color_idx" again
+	lda colors,y
+	sta VIC_SPR2_COLOR
+
 	.repeat 9,i
 		lda colors,y
 		sta $d800+40*(i+1)+39
@@ -368,9 +375,6 @@ no_irq:
 	and #$3f		; 64 colors
 	sta color_idx
 
-	; sprite #2 color
-	lda colors,y
-	sta $d029
 
 	rts
 .endproc
