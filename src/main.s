@@ -499,7 +499,7 @@ choose_rider_screen:
 	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "
-	scrcode "    cCrRiIsS               kKhHrRiIsS   "
+	scrcode "   cChHrRiIsS               kKrRiIsS    "
         scrcode "    hHoOlLmM             lLaAbBoOnNtTeE "
 
 
