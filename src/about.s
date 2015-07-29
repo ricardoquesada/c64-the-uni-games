@@ -764,7 +764,8 @@ char_frames:
 	.incbin "res/1-writer.64c",2
 
 .segment "SIDMUSIC"
-         .incbin "res/music.sid",$7e
+;         .incbin "res/music.sid",$7e
+         .incbin "res/1_45_Tune.sid",$7e
 
 .segment "ABOUT_GFX"
 ;	 .incbin "res/muni-320x200x16.prg"
