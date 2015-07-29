@@ -7,10 +7,11 @@
 ;--------------------------------------------------------------------------
 
 ; exported by the linker
-.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __GAME_CODE_LOAD__, __SIDMUSIC_LOAD__
+.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__
 
 ; from utils.s
 .import clear_screen, clear_color, get_key
+
 
 ;--------------------------------------------------------------------------
 ; Macros
@@ -28,7 +29,7 @@
 
 	lda #$01
 	jsr clear_color
-	jsr init_screen
+        jsr init_main_menu_screen
 
 	; no scroll,single-color,40-cols
 	; default: %00001000
@@ -119,7 +120,8 @@
 
 
 @jump_start:
-	jmp __GAME_CODE_LOAD__
+        jsr init_choose_rider_screen
+        jmp @main_loop
 @jump_about:
 	jmp __ABOUT_CODE_LOAD__
 
@@ -141,23 +143,56 @@ no_irq:
 	rti			; restores previous PC, status
 
 ;--------------------------------------------------------------------------
-; init_screen
+; init_main_menu_screen
 ;--------------------------------------------------------------------------
-.proc init_screen
+.proc init_main_menu_screen
 	ldx #$00
 @loop:
-	lda screen,x
+        lda main_menu_screen,x
 	sta $8400,x
-	lda screen+$0100,x
+        lda main_menu_screen+$0100,x
 	sta $8400+$0100,x
-	lda screen+$0200,x
+        lda main_menu_screen+$0200,x
 	sta $8400+$0200,x
-	lda screen+$02e8,x
+        lda main_menu_screen+$02e8,x
 	sta $8400+$02e8,x
 	inx
 	bne @loop
 	rts
 .endproc
+
+;--------------------------------------------------------------------------
+; init_choose_rider_screen(void)
+;--------------------------------------------------------------------------
+; displays the "choose rider" message
+;--------------------------------------------------------------------------
+.proc init_choose_rider_screen
+	ldx #39
+@loop:
+        ; overwrite starting from line 10. Lines 0-9 are still used: 10*40 = 400 = $0190
+        ; total lines to write: 10
+        .repeat 10,i
+                lda choose_rider_screen + (40*i),x
+                sta $8590 + (40*i),x		; start screen: $8400 (vic bank 2). offset = $0190
+        .endrepeat
+
+        ; small delay to create a "sweeping" effect
+        txa
+        pha
+        ldx #$05                ; start of delay
+:       ldy #$00
+:       iny
+        bne :-
+        dex
+        bne :--                 ; end of delay
+        pla
+        tax
+
+        dex
+        bpl @loop
+	rts
+.endproc
+
 
 ;--------------------------------------------------------------------------
 ; init_color_wash(void)
@@ -198,6 +233,7 @@ no_irq:
 ;--------------------------------------------------------------------------
 ; Scrolls the screen colors creating a kind of "rainbow" effect
 ;--------------------------------------------------------------------------
+.export color_wash
 .proc color_wash
 	; scroll the colors
 	ldx #0
@@ -233,8 +269,8 @@ no_irq:
 	rts
 .endproc
 
+
 color_idx: .byte $00
-	.byte $00
 colors:
 	; Color washer palette based on Dustlayer intro
 	; https://github.com/actraiser/dust-tutorial-c64-first-intro/blob/master/code/data_colorwash.asm
@@ -248,7 +284,7 @@ colors:
 	.byte $02,$02,$02,$02,$09,$09,$09,$09
 	.byte $00
 
-screen:
+main_menu_screen:
 		;0123456789|123456789|123456789|123456789|
 	scrcode "                                        "
 	.repeat 20
@@ -283,6 +319,19 @@ screen:
 	scrcode          176,"1",177,"5",181
 	scrcode                 "  rReEtTrRoO  mMoOeE     "
 ;	scrcode                 " rRqQ pPrRoOgGsS       "
+
+choose_rider_screen:
+		;0123456789|123456789|123456789|123456789|
+	scrcode "                                        "
+	scrcode "                                        "
+	scrcode "                                        "
+	scrcode "        cChHoOoOsSeE   rRiIdDeErR       "
+	scrcode "                                        "
+	scrcode "                                        "
+	scrcode "                                        "
+	scrcode "                                        "
+	scrcode "    kKrRiIsS               cChHrRiIsS   "
+        scrcode "    hHoOlLmM             lLaAbBoOnNtTeE "
 
 
 .segment "MAIN_CHARSET"
