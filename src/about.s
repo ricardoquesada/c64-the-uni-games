@@ -715,12 +715,14 @@ scroller_text:
 	scrcode "64. "
 	scrcode "people said about this game: 'awesome graphics', 'impressive physics', "
 	scrcode "'best sound ever', 'i want to ride a real unicycle now', "
-	scrcode "'bikes? what a waste of resources!', 'can i play basketball on unicycles?' "
+        scrcode "'bikes? what a waste of resources!', "
 	scrcode "and much more! "
 	scrcode "credits: code and some gfx by riq, the rest was taken from somewhere... "
 	scrcode "tools used: ca65, vim, gimp, project one, wine, vchar64, spritepad, vice... "
-	scrcode "download the source code from https://github.com/ricardoquesada/c64-the-uni-race "
-	scrcode "  press 'space' to return to the main screen...   "
+        scrcode "download the source code from https://github.com/ricardoquesada/c64-the-muni-race "
+        scrcode "  come and join us in a muni ride: http://berkeleyunicycling.org/ "
+        scrcode "      contact me: http://retro.moe "
+        scrcode "      press 'space' to return to the main menu...   "
 	.byte $ff
 
 char_frames:
