@@ -35,6 +35,10 @@ MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 
 ; SPEED must be between 0 and 7. 0=Stop, 7=Max speed
 SCROLL_SPEED = 6
+
+; SPEED of colorwasher: 1=Max speed
+COLORWASH_SPEED = 1
+
 ANIM_SPEED = 1
 
 KOALA_BITMAP_DATA = __ABOUT_GFX_LOAD__
@@ -64,7 +68,7 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 
 	jsr scroll
 	jsr anim_char
-	jsr anim_rasterbar
+	jsr anim_colorwash
 
 	; key pressed ?
 	jsr get_key
@@ -116,11 +120,14 @@ irq1:
 	; raster bars
 	ldx #$00
 
-	; 8 chars of 8 raster lines
-	.repeat ROWS_PER_CHAR-1
+	; 7 chars of 8 raster lines
+	; the "+8" in "raster_colors+8" is needed
+	; in order to center the washer effect.
+	; the washer colors has 64 colors, but here we are using only 56 lines (7 rows of 8 lines each)
+	.repeat ROWS_PER_CHAR
 		; 7 "Good" lines: I must consume 63 cycles
 		.repeat 7
-			lda raster_colors,x	; +4
+			lda raster_colors+8,x	; +4
 			sta $d021		; +4
 			inx			; +2
 			.repeat 25
@@ -129,7 +136,7 @@ irq1:
 			bit $00			; +3 = 63 cycles
 		.endrepeat
 		; 1 "Bad lines": I must consume ~20 cycles
-		lda raster_colors,x		; +4
+		lda raster_colors+8,x		; +4
 		sta $d021			; +4
 		inx				; +2
 		.repeat 5
@@ -137,25 +144,9 @@ irq1:
 		.endrepeat
 	.endrepeat
 
-	; 1 char of 7 raster lines
-	.repeat 7
-		lda raster_colors,x	; +4
-		sta $d021		; +4
-		inx			; +2
-		.repeat 25
-			nop		; +2 * 25
-		.endrepeat
-		bit $00			; +3 = 63 cycles
+	.repeat 23
+		nop
 	.endrepeat
-
-	; paint 2 raster lines with different color
-;	lda #$08
-;	sta $d020
-;	sta $d021
-
-;	.repeat 58
-;		nop
-;	.endrepeat
 
 	; color
 	lda #$00
@@ -245,7 +236,7 @@ irq1:
 
 ;	 lda current_char
 	; char to display
-	lda #$fd
+	lda #$fe		; full char
 	bne :+
 
 @empty_char:
@@ -403,8 +394,6 @@ ANIM_TOTAL_FRAMES = 4
 	ldx #7			; 8 rows
 @loop:
 	lda char_frames,y
-	sta $3800 + $fd * 8,x
-	eor #$ff
 	sta $3800 + $fe * 8,x
 
 	iny
@@ -419,15 +408,24 @@ ANIM_TOTAL_FRAMES = 4
 	sta anim_char_idx
 :
 	rts
+
 .endproc
 
 ;--------------------------------------------------------------------------
-; anim_rasterbar(void)
+; anim_colorwash(void)
 ;--------------------------------------------------------------------------
 ; Args: -
 ; A Color washer routine
 ;--------------------------------------------------------------------------
-.proc anim_rasterbar
+.proc anim_colorwash
+
+	dec colorwash_delay
+	beq :+
+	rts
+
+:
+	lda #COLORWASH_SPEED
+	sta colorwash_delay
 
 	; washer top
 	lda raster_colors_top
@@ -660,10 +658,10 @@ save_color_bottom = *+1
 .proc init_charset
 	ldx #$07
 @loop:
-	; all bits turned on
-	lda #%11111111
-	; char '$ff'
+        lda empty_char,x
 	sta $3800 + $ff*8,x
+	eor #$ff
+	sta $3800 + $fe*8,x
 	dex
 	bpl @loop
 	rts
@@ -704,6 +702,7 @@ anim_speed:		.byte 7
 anim_char_idx:		.byte ANIM_TOTAL_FRAMES-1
 scroller_text_ptr_low:	.byte 0
 scroller_text_ptr_hi:	.byte 0
+colorwash_delay:        .byte COLORWASH_SPEED
 
 scroller_text:
 	scrcode "   retro moe presents "
@@ -761,6 +760,16 @@ char_frames:
 	.byte %00000000
 	.byte %00000000
 	.byte %00000000
+
+empty_char:
+        .byte %11111111
+        .byte %11111111
+        .byte %11111111
+        .byte %11111111
+        .byte %11111111
+        .byte %11111111
+        .byte %11111111
+        .byte %11111111
 
 .segment "ABOUT_CHARSET"
 	.incbin "res/1-writer.64c",2
