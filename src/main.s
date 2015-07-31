@@ -7,7 +7,7 @@
 ;--------------------------------------------------------------------------
 
 ; exported by the linker
-.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__
+.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__
 
 ; from utils.s
 .import clear_screen, clear_color, get_key, read_joy2
@@ -129,9 +129,14 @@ SPRITE_ANIMATION_SPEED = 8
 	jsr animate_rider
 	jsr read_joy2
 	eor #$ff
-	and #%00001100
+	and #%00011100 ;	; only care about left,right,fire
 	beq @main_loop
 
+	cmp #%00010000		; fire ?
+	bne :+
+	jmp __GAME_CODE_LOAD__
+
+:
 	; joystick moved to the left or right.
 	; choose a new rider
 	jsr choose_new_rider
@@ -505,3 +510,4 @@ choose_rider_screen:
 
 .segment "MAIN_SPRITES"
 	.incbin "res/sprites.prg",2
+
