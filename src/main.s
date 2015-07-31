@@ -233,7 +233,6 @@ no_irq:
 ;--------------------------------------------------------------------------
 .proc init_choose_rider_sprites
 
-
 	lda #%00000111		; enable 3 sprites
 	sta VIC_SPR_ENA
 
@@ -267,7 +266,7 @@ no_irq:
 	sta VIC_SPR0_COLOR
 
 	; sprite #1
-	lda #$08		; position x
+	lda #$0b		; position x
 	sta VIC_SPR1_X
 	lda #$a4		; position y
 	sta VIC_SPR1_Y
@@ -417,18 +416,16 @@ no_irq:
 	ldx #$01
 :
 	lda @position_x,x
-	sta $d004		; set position X
+	sta VIC_SPR2_X		; set position X
 	lda @position_9,x
 	sta $d010		; set 9th for position X
-	lda @selected,x
-	sta selected_rider
+	stx selected_rider
 	rts
 
 	; positions for the "select" sprite
 	; based on which rider is selected
-@position_x: .byte $43, $03
+@position_x: .byte $43, $07
 @position_9: .byte %00000010, %00000110
-@selected:   .byte $00, $01
 .endproc
 	
 
@@ -493,7 +490,7 @@ choose_rider_screen:
 		;0123456789|123456789|123456789|123456789|
 	scrcode "                                        "
 	scrcode "                                        "
-	scrcode "        cChHoOoOsSeE   rRiIdDeErR       "
+	scrcode "        cChHoOoOsSeE  rRiIdDeErR        "
 	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "
