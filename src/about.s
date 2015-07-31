@@ -69,9 +69,15 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 :	cmp sync
 	beq :-
 
+.if (DEBUG=1)
+	dec $d020
+.endif
 	jsr scroll
 	jsr anim_char
 	jsr anim_colorwash
+.if (DEBUG=1)
+	inc $d020
+.endif
 
 	; key pressed ?
 	jsr get_key
@@ -316,7 +322,7 @@ scroll_screen:
 	cmp #$ff
 	bne :+
 
-        ; reached $ff. Then start from the beginning
+	; reached $ff. Then start from the beginning
 	lda #%10000000
 	sta chars_scrolled
 	lda #0
@@ -487,7 +493,7 @@ save_color_bottom = *+1
 
 	; default is:
 	;    %00010101
-        ; charset at $3800
+	; charset at $3800
 	lda #%00011111
 	sta $d018
 
@@ -518,9 +524,9 @@ save_color_bottom = *+1
 
         ; Vic bank 0: $0000-$3FFF
 	lda $dd00
-        and #$fc
+	and #$fc
 	ora #3
-        sta $dd00
+	sta $dd00
 
 	;
 	; irq handler
@@ -647,7 +653,7 @@ save_color_bottom = *+1
 .proc init_charset
 	ldx #$07
 @loop:
-        lda empty_char,x
+	lda empty_char,x
 	sta $3800 + $ff*8,x
 	eor #$ff
 	sta $3800 + $fe*8,x
@@ -691,7 +697,7 @@ anim_speed:		.byte 7
 anim_char_idx:		.byte ANIM_TOTAL_FRAMES-1
 scroller_text_ptr_low:	.byte 0
 scroller_text_ptr_hi:	.byte 0
-colorwash_delay:        .byte COLORWASH_SPEED
+colorwash_delay:	.byte COLORWASH_SPEED
 
 scroller_text:
         scrcode "   retro moe presents "
@@ -703,14 +709,14 @@ scroller_text:
 	scrcode "64. "
 	scrcode "people said about this game: 'awesome graphics', 'impressive physics', "
 	scrcode "'best sound ever', 'i want to ride a real unicycle now', "
-        scrcode "'bikes? what a waste of resources!', "
+	scrcode "'bikes? what a waste of resources!', "
 	scrcode "and much more! "
 	scrcode "credits: code and some gfx by riq, the rest was taken from somewhere... "
 	scrcode "tools used: ca65, vim, gimp, project one, wine, vchar64, spritepad, vice... "
-        scrcode "download the source code from https://github.com/ricardoquesada/c64-the-muni-race "
-        scrcode "  come and join us for a muni ride: http://berkeleyunicycling.org/ "
-        scrcode "      contact retro moe at : http://retro.moe "
-        scrcode "      press 'space' to return to the main menu...   "
+	scrcode "download the source code from https://github.com/ricardoquesada/c64-the-muni-race "
+	scrcode "  come and join us for a muni ride: http://berkeleyunicycling.org/ "
+	scrcode "      contact retro moe at : http://retro.moe "
+	scrcode "      press 'space' to return to the main menu...   "
 	.byte $ff
 
 char_frames:
@@ -751,21 +757,21 @@ char_frames:
 	.byte %00000000
 
 empty_char:
-        .byte %11111111
-        .byte %11111111
-        .byte %11111111
-        .byte %11111111
-        .byte %11111111
-        .byte %11111111
-        .byte %11111111
-        .byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
+	.byte %11111111
 
 .segment "ABOUT_CHARSET"
 	.incbin "res/1-writer.64c",2
 
 .segment "SIDMUSIC"
 ;         .incbin "res/music.sid",$7e
-         .incbin "res/1_45_Tune.sid",$7e
+	 .incbin "res/1_45_Tune.sid",$7e
 
 .segment "ABOUT_GFX"
 ;	 .incbin "res/muni-320x200x16.prg"

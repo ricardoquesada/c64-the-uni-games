@@ -35,7 +35,7 @@ SPRITE_ANIMATION_SPEED = 8
 
 	lda #$01
 	jsr clear_color
-        jsr init_main_menu_screen
+	jsr init_main_menu_screen
 
 	; no scroll,single-color,40-cols
 	; default: %00001000
@@ -153,7 +153,7 @@ SPRITE_ANIMATION_SPEED = 8
 	jsr init_choose_rider_sprites
 	lda #$01
 	sta menu_mode
-        jmp @main_loop
+	jmp @main_loop
 
 @jump_about:
 	jmp __ABOUT_CODE_LOAD__
@@ -373,7 +373,6 @@ no_irq:
 	tya
 	and #$3f		; 64 colors
 	sta color_idx
-
 
 	rts
 .endproc
