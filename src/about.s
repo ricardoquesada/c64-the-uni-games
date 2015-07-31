@@ -36,6 +36,9 @@ MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 ; SPEED must be between 0 and 7. 0=Stop, 7=Max speed
 SCROLL_SPEED = 6
 
+; Black
+SCROLL_BKG_COLOR = 0
+
 ; SPEED of colorwasher: 1=Max speed
 COLORWASH_SPEED = 1
 
@@ -96,29 +99,15 @@ irq1:
 	lda #%00011011		; +2
 	sta $d011		; +4
 
-;	; two lines of colors
-;	lda #$08		; +2
-;	sta $d020		; +4
-;	sta $d021		; +4
+	ldx #SCROLL_BKG_COLOR	; +6
+	stx $d020		; +10
+	stx $d021		; +14
 
-	; waste some cycles so we can change colors 
-	; and horizontal scroll at the correct time
-	; and with enough time that we can do it
-	; when the cycles are invisible
-;	.repeat 58
-;		nop
-;	.endrepeat
-
-;	; paint 2 lines with different color
-	ldx #15			; Grey 2
-	stx $d020
-	stx $d021
-;
-	lda smooth_scroll_x
-	sta $d016
+	lda smooth_scroll_x	; +16
+	sta $d016		; +20
 
 	; raster bars
-	ldx #$00
+	ldx #$00		; +22
 
 	; 7 chars of 8 raster lines
 	; the "+8" in "raster_colors+8" is needed
@@ -466,9 +455,9 @@ save_color_bottom = *+1
 ;--------------------------------------------------------------------------
 .proc init
 	; must be BEFORE any screen-related function
-	lda #$07
+	lda #$20
 	jsr clear_screen
-	lda #3
+	lda #$00
 	jsr clear_color
 
 	; must be BEFORE init_charset / init_scroll_colors
@@ -611,7 +600,7 @@ save_color_bottom = *+1
 	; 9 lines: 40 * 9 = 360. 256 + 104
 @loop:
 	; clear color
-	lda #15
+	lda #SCROLL_BKG_COLOR
 	sta $d800 + SCROLL_AT_LINE * 40,x
 	sta $d800 + SCROLL_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
 
