@@ -8,7 +8,7 @@ X64 = x64
 
 all: disk
 
-SRC=src/main.s src/about.s src/utils.s
+SRC=src/main.s src/about.s src/utils.s src/game.s
 prg:
 	cl65 -d -g -Ln therace.sym -u __EXEHDR__ -t c64 -o therace.prg -C therace.cfg ${SRC}
 

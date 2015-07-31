@@ -284,11 +284,11 @@ no_irq:
 	sta VIC_SPR2_COLOR
 
 	; sprite pointers
-	; sprites are located at $9000... that's $1000 / $40 = $40 (first sprite)
-	lda #$80
+	; sprites are located at $8000... First sprite pointer is 0
+	lda #$00		; sprite pointer 0
 	sta $87f8
 	sta $87f9
-	lda #$82
+	lda #$02		; sprite pointer 2
 	sta $87fa
 
 	rts
@@ -394,7 +394,7 @@ no_irq:
 
 	ldx selected_rider
 	lda $87f8,x
-	eor #%00000001
+	eor #%00000001		; new spriter pointer
 	sta $87f8,x
 	rts
 .endproc

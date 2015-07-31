@@ -694,7 +694,7 @@ scroller_text_ptr_hi:	.byte 0
 colorwash_delay:        .byte COLORWASH_SPEED
 
 scroller_text:
-	scrcode "   retro moe presents "
+        scrcode "   retro moe presents "
 	.byte 65
 	scrcode "the muni race"
 	.byte 66
@@ -708,8 +708,8 @@ scroller_text:
 	scrcode "credits: code and some gfx by riq, the rest was taken from somewhere... "
 	scrcode "tools used: ca65, vim, gimp, project one, wine, vchar64, spritepad, vice... "
         scrcode "download the source code from https://github.com/ricardoquesada/c64-the-muni-race "
-        scrcode "  come and join us in a muni ride: http://berkeleyunicycling.org/ "
-        scrcode "      contact me: http://retro.moe "
+        scrcode "  come and join us for a muni ride: http://berkeleyunicycling.org/ "
+        scrcode "      contact retro moe at : http://retro.moe "
         scrcode "      press 'space' to return to the main menu...   "
 	.byte $ff
 
