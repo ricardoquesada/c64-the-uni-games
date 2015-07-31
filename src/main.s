@@ -181,13 +181,13 @@ no_irq:
 .proc init_main_menu_screen
 	ldx #$00
 @loop:
-        lda main_menu_screen,x
+	lda main_menu_screen,x
 	sta $8400,x
-        lda main_menu_screen+$0100,x
+	lda main_menu_screen+$0100,x
 	sta $8400+$0100,x
-        lda main_menu_screen+$0200,x
+	lda main_menu_screen+$0200,x
 	sta $8400+$0200,x
-        lda main_menu_screen+$02e8,x
+	lda main_menu_screen+$02e8,x
 	sta $8400+$02e8,x
 	inx
 	bne @loop
@@ -202,27 +202,27 @@ no_irq:
 .proc init_choose_rider_screen
 	ldx #39
 @loop:
-        ; overwrite starting from line 10. Lines 0-9 are still used: 10*40 = 400 = $0190
-        ; total lines to write: 10
-        .repeat 10,i
-                lda choose_rider_screen + (40*i),x
-                sta $8590 + (40*i),x		; start screen: $8400 (vic bank 2). offset = $0190
-        .endrepeat
+	; overwrite starting from line 10. Lines 0-9 are still used: 10*40 = 400 = $0190
+	; total lines to write: 10
+	.repeat 10,i
+		lda choose_rider_screen + (40*i),x
+		sta $8590 + (40*i),x		; start screen: $8400 (vic bank 2). offset = $0190
+	.endrepeat
 
-        ; small delay to create a "sweeping" effect
-        txa
-        pha
-        ldx #$05                ; start of delay
-:       ldy #$00
-:       iny
-        bne :-
-        dex
-        bne :--                 ; end of delay
-        pla
-        tax
+	; small delay to create a "sweeping" effect
+	txa
+	pha
+	ldx #$05		; start of delay
+:	ldy #$00
+:	iny
+	bne :-
+	dex
+	bne :--			; end of delay
+	pla
+	tax
 
-        dex
-        bpl @loop
+	dex
+	bpl @loop
 	rts
 .endproc
 
@@ -424,7 +424,7 @@ no_irq:
 
 	; positions for the "select" sprite
 	; based on which rider is selected
-@position_x: .byte $43, $07
+@position_x: .byte $43, $06
 @position_9: .byte %00000010, %00000110
 .endproc
 	
@@ -497,7 +497,7 @@ choose_rider_screen:
 	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "   cChHrRiIsS               kKrRiIsS    "
-        scrcode "    hHoOlLmM             lLaAbBoOnNtTeE "
+	scrcode "    hHoOlLmM             lLaAbBoOnNtTeE "
 
 
 .segment "MAIN_CHARSET"
