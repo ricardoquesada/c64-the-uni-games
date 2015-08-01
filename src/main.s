@@ -275,7 +275,7 @@ no_irq:
 	sta VIC_SPR1_X
 	lda #$a4		; position y
 	sta VIC_SPR1_Y
-	lda __MAIN_SPRITES_LOAD__ + 64 * 1 + 63 ; sprite color
+	lda __MAIN_SPRITES_LOAD__ + 64 * 2 + 63 ; sprite color
 	and #$0f
 	sta VIC_SPR1_COLOR
 
@@ -284,7 +284,7 @@ no_irq:
 	sta VIC_SPR2_X
 	lda #$a0		; position y
 	sta VIC_SPR2_Y
-	lda __MAIN_SPRITES_LOAD__ + 64 * 2 + 63 ; sprite color
+	lda __MAIN_SPRITES_LOAD__ + 64 * 4 + 63 ; sprite color
 	and #$0f
 	sta VIC_SPR2_COLOR
 
@@ -292,8 +292,9 @@ no_irq:
 	; sprites are located at $8000... First sprite pointer is 0
 	lda #$00		; sprite pointer 0
 	sta $87f8
-	sta $87f9
 	lda #$02		; sprite pointer 2
+	sta $87f9
+	lda #$04		; sprite pointer 4
 	sta $87fa
 
 	rts
