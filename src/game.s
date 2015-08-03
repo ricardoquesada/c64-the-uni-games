@@ -42,6 +42,10 @@
 
 .proc init_screen
 
+	lda #3
+	sta $d020
+	sta $d021
+
 	; screen is at $8400
 	ldx #$00
 @loop:

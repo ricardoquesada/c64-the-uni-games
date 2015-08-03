@@ -35,7 +35,7 @@ SPRITE_ANIMATION_SPEED = 8
 
 	lda #$01
 	jsr clear_color
-	jsr init_main_menu_screen
+	jsr init_screen
 
 	; no scroll,single-color,40-cols
 	; default: %00001000
@@ -181,9 +181,11 @@ no_irq:
 	rti			; restores previous PC, status
 
 ;--------------------------------------------------------------------------
-; init_main_menu_screen
+; init_screen
 ;--------------------------------------------------------------------------
-.proc init_main_menu_screen
+; paints the screen with the "main menu" screen
+;--------------------------------------------------------------------------
+.proc init_screen
 	ldx #$00
 @loop:
 	lda main_menu_screen,x
@@ -299,15 +301,6 @@ no_irq:
 	rts
 .endproc
 
-
-
-;--------------------------------------------------------------------------
-; init_color_wash(void)
-;--------------------------------------------------------------------------
-; sets the screen color already 40 "washed" colors, so that the scrolls
-; starts at the right position.
-; This code is similar to call `jsr color_wash` for 40 times faster
-;--------------------------------------------------------------------------
 ;--------------------------------------------------------------------------
 ; init_color_wash(void)
 ;--------------------------------------------------------------------------
