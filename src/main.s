@@ -438,6 +438,7 @@ no_irq:
 	; modes: $00: main menu, $01: choose rider menu
 menu_mode: .byte $00
 	; $00: cris holm, $01: krish labonte
+.export selected_rider
 selected_rider: .byte $00
 animation_delay: .byte SPRITE_ANIMATION_SPEED
 
