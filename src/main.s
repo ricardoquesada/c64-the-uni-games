@@ -269,33 +269,32 @@ no_irq:
 	lda __MAIN_SPRITES_LOAD__ + 64 * 0 + 63; sprite color
 	and #$0f
 	sta VIC_SPR0_COLOR
+	; sprites are located at $8000... First sprite pointer is 0
+	lda #$00		; sprite pointer 0
+	sta $87f8
 
 	; sprite #1
 	lda #$0b		; position x
 	sta VIC_SPR1_X
 	lda #$a4		; position y
 	sta VIC_SPR1_Y
-	lda __MAIN_SPRITES_LOAD__ + 64 * 2 + 63 ; sprite color
+	lda __MAIN_SPRITES_LOAD__ + 64 * 8 + 63 ; sprite color
 	and #$0f
 	sta VIC_SPR1_COLOR
+	lda #$08		; sprite pointer 8
+	sta $87f9
 
 	; sprite #2
 	lda #$43		; position x
 	sta VIC_SPR2_X
 	lda #$a0		; position y
 	sta VIC_SPR2_Y
-	lda __MAIN_SPRITES_LOAD__ + 64 * 4 + 63 ; sprite color
+	lda __MAIN_SPRITES_LOAD__ + 64 * 7 + 63 ; sprite color
 	and #$0f
 	sta VIC_SPR2_COLOR
-
-	; sprite pointers
-	; sprites are located at $8000... First sprite pointer is 0
-	lda #$00		; sprite pointer 0
-	sta $87f8
-	lda #$02		; sprite pointer 2
-	sta $87f9
-	lda #$04		; sprite pointer 4
+	lda #$07		; sprite pointer 7
 	sta $87fa
+
 
 	rts
 .endproc

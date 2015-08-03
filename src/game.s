@@ -62,10 +62,10 @@
 	cmp #$01
 	bne :+
 
-	lda #$02		; sprite pointer 2
+	lda #$08		; sprite pointer 8
 	sta $87f8
 
-	lda __MAIN_SPRITES_LOAD__ + 64 * 2 + 63 ; sprite color
+	lda __MAIN_SPRITES_LOAD__ + 64 * 8 + 63 ; sprite color
 	and #$0f
 	sta VIC_SPR0_COLOR
 
