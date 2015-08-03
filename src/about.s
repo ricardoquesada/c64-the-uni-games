@@ -712,9 +712,10 @@ scroller_text:
 	scrcode "'bikes? what a waste of resources!', "
 	scrcode "and much more! "
 	scrcode "credits: code and some gfx by riq, the rest was taken from somewhere... "
-	scrcode "tools used: ca65, vim, gimp, project one, wine, vchar64, spritepad, vice... "
-	scrcode "download the source code from https://github.com/ricardoquesada/c64-the-muni-race "
-	scrcode "  come and join us for a muni ride: http://berkeleyunicycling.org/ "
+	scrcode "tools: ca65, vim, gimp, project one, vice, wine, vchar64, spritepad... "
+	scrcode "download the source code: https://github.com/ricardoquesada/c64-the-muni-race "
+	scrcode "  come and join us for a muni ride: http://berkeleyunicycling.org "
+	scrcode "  high quality unicycles: http://www.krisholm.com "
 	scrcode "      contact retro moe at : http://retro.moe "
 	scrcode "      press 'space' to return to the main menu...   "
 	.byte $ff

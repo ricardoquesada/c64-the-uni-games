@@ -7,7 +7,7 @@
 ;--------------------------------------------------------------------------
 
 ; exported by the linker
-.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__
+.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__, __HIGH_SCORES_CODE_LOAD__
 
 ; from utils.s
 .import clear_screen, clear_color, get_key, read_joy2
@@ -146,8 +146,11 @@ SPRITE_ANIMATION_SPEED = 8
 	jsr get_key
 	bcc @main_loop
 
+
 	cmp #$40                ; F1
 	beq @set_choose_rider_mode
+	cmp #$50		; F3
+	beq @jump_high_scores
 	cmp #$30                ; F7
 	beq @jump_about
 	jmp @main_loop
@@ -160,6 +163,8 @@ SPRITE_ANIMATION_SPEED = 8
 	sta menu_mode
 	jmp @main_loop
 
+@jump_high_scores:
+	jmp __HIGH_SCORES_CODE_LOAD__
 @jump_about:
 	jmp __ABOUT_CODE_LOAD__
 
