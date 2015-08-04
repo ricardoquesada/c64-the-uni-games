@@ -211,29 +211,42 @@ no_irq:
 ; displays the "choose rider" message
 ;--------------------------------------------------------------------------
 .proc init_choose_rider_screen
-	ldx #39
+	ldx #20
+	ldy #19
 @loop:
 	; overwrite starting from line 10. Lines 0-9 are still used: 10*40 = 400 = $0190
 	; total lines to write: 10
 	.repeat 10,i
 		lda choose_rider_screen + (40*i),x
 		sta $8590 + (40*i),x		; start screen: $8400 (vic bank 2). offset = $0190
+
+		lda choose_rider_screen + (40*i),y
+		sta $8590 + (40*i),y		; start screen: $8400 (vic bank 2). offset = $0190
 	.endrepeat
 
+	jsr @delay
+
+	iny
+	dex
+	bpl @loop
+	rts
+
+@delay:
 	; small delay to create a "sweeping" effect
 	txa
 	pha
-	ldx #$05		; start of delay
+	tya
+	pha
+	ldx #$12		; start of delay
 :	ldy #$00
-:	iny
+:	dey
 	bne :-
 	dex
 	bne :--			; end of delay
 	pla
+	tay
+	pla
 	tax
-
-	dex
-	bpl @loop
 	rts
 .endproc
 

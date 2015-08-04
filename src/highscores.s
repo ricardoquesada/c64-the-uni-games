@@ -79,18 +79,67 @@ no_irq:
 ; paints the screen with the "main menu" screen
 ;--------------------------------------------------------------------------
 .proc init_screen
-	ldx #$00
+	ldx #<high_scores_screen
+	ldy #>high_scores_screen
+	stx @loadaddr
+	sty @loadaddr+1
+
+	ldx #<$8400
+	ldy #>$8400
+	stx @saveaddr
+	sty @saveaddr+1
+
+
+	ldy #25			; repeat 25 times
+
 @loop:
+	jsr @delay
+	ldx #$00
+
+@shortloop:
+@loadaddr = *+1
 	lda high_scores_screen+$0000,x
+@saveaddr = *+1
 	sta $8400,x
-	lda high_scores_screen+$0100,x
-	sta $8400+$0100,x
-	lda high_scores_screen+$0200,x
-	sta $8400+$0200,x
-	lda high_scores_screen+$02e8,x
-	sta $8400+$02e8,x
 	inx
+	cpx #40
+	bne @shortloop
+	clc
+	lda @loadaddr
+	adc #40
+	sta @loadaddr
+	bcc :+
+	inc @loadaddr+1
+:
+	clc
+	lda @saveaddr
+	adc #40
+	sta @saveaddr
+	bcc :+
+	inc @saveaddr+1
+:
+	dey
 	bne @loop
+
+	rts
+
+@delay:
+	txa
+	pha
+	tya
+	pha
+
+	ldx #$10
+:	ldy #$00
+:	dey
+	bne :-
+	dex
+	bne :--
+
+	pla
+	tay
+	pla
+	tax
 	rts
 .endproc
 
