@@ -146,7 +146,6 @@ SPRITE_ANIMATION_SPEED = 8
 	jsr get_key
 	bcc @main_loop
 
-
 	cmp #$40                ; F1
 	beq @set_choose_rider_mode
 	cmp #$50		; F3
