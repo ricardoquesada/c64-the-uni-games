@@ -88,7 +88,10 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 	jmp __MAIN_CODE_LOAD__
 
 
-irq1:
+;--------------------------------------------------------------------------
+; IRQ handler
+;--------------------------------------------------------------------------
+irq:
 	pha			; saves A, X, Y
 	txa
 	pha
@@ -167,11 +170,11 @@ irq1:
 	dec $d020
 .endif
 
-	; we have to re-schedule irq1 from irq1 basically because
+	; we have to re-schedule irq from irq basically because
 	; we are using a double IRQ
-	lda #<irq1
+	lda #<irq
 	sta $fffe
-	lda #>irq1
+	lda #>irq
 	sta $ffff
 
 	lda #RASTER_START+SCROLL_AT_LINE*8-2
@@ -185,7 +188,6 @@ irq1:
 	tax
 	pla
 	rti			; restores previous PC, status
-
 
 ;--------------------------------------------------------------------------
 ; scroll(void)
@@ -531,9 +533,9 @@ save_color_bottom = *+1
 	;
 	; irq handler
 	;
-	lda #<irq1
+	lda #<irq
 	sta $fffe
-	lda #>irq1
+	lda #>irq
 	sta $ffff
 
 	; raster interrupt

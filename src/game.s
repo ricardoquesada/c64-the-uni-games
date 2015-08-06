@@ -19,6 +19,7 @@
 ; Macros
 ;--------------------------------------------------------------------------
 .macpack cbm			; adds support for scrcode
+.macpack mymacros		; my own macros
 
 ;--------------------------------------------------------------------------
 ; Constants
@@ -34,15 +35,83 @@
 	jsr init_screen
 	jsr init_sprites
 
+	; enable raster irq
+	lda #01
+	sta $d01a
+
+	; raster irq vector
+	ldx #<irq
+	ldy #>irq
+	stx $fffe
+	sty $ffff
+
+	lda #80
+	sta $d012
+
+	; clear interrupts and ACK irq
+	lda $dc0d
+	lda $dd0d
+	asl $d019
 
 	cli
 
 	jmp *
 
+;--------------------------------------------------------------------------
+; IRQ handler
+;--------------------------------------------------------------------------
+.proc irq
+	pha			; saves A, X, Y
+	txa
+	pha
+	tya
+	pha
 
+	STABILIZE_RASTER
+
+	lda #14
+	sta $d020
+	sta $d021
+
+	lda smooth_scroll_x
+	sta $d016
+
+	.repeat 8*10
+		lda $d012
+:		cmp $d012
+		beq :-
+		inc $d021
+	.endrepeat
+
+	lda #%00001000
+	sta $d016
+
+	; we have to re-schedule irq from irq basically because
+	; we are using a double IRQ
+	lda #<irq
+	sta $fffe
+	lda #>irq
+	sta $ffff
+
+	lda #50
+	sta $d012
+
+	asl $d019
+
+	pla			; restores A, X, Y
+	tay
+	pla
+	tax
+	pla
+	rti			; restores previous PC, status
+.endproc
+
+;--------------------------------------------------------------------------
+; void init_screen() 
+;--------------------------------------------------------------------------
 .proc init_screen
 
-	lda #3
+	lda #14
 	sta $d020
 	sta $d021
 
@@ -56,6 +125,13 @@
 	sta $8400+$02e8,x
 	inx
 	bne @loop
+
+	ldx #40*2-1
+:	lda screen,x
+	sta $8400,x
+	dex
+	bpl :-
+
 	rts
 .endproc
 
@@ -83,3 +159,10 @@
 	rts
 .endproc
 
+smooth_scroll_x:
+	.byte $07
+
+screen:
+		;0123456789|123456789|123456789|123456789|
+	scrcode " score                             time "
+	scrcode " 00000                              90  "
