@@ -11,7 +11,7 @@
 
 
 ; exported by the linker
-.import __ABOUT_CHARSET_LOAD__, __SIDMUSIC_LOAD__, __ABOUT_CODE_LOAD__, __ABOUT_GFX_LOAD__, __MAIN_CODE_LOAD__
+.import __SIDMUSIC_LOAD__, __ABOUT_CODE_LOAD__, __ABOUT_GFX_LOAD__, __MAIN_CODE_LOAD__, __MAIN_CHARSET_LOAD__
 
 ; from utils.s
 .import clear_screen, clear_color, get_key
@@ -342,7 +342,7 @@ scroll_screen:
 	asl
 	asl
 	clc
-	adc #<__ABOUT_CHARSET_LOAD__
+	adc #<(__MAIN_CHARSET_LOAD__ + 128*8)		; charset starting at pos 128
 	sta $f9
 
 	; multiply by 8 (MSB)
@@ -356,7 +356,7 @@ scroll_screen:
 	lsr
 
 	clc
-	adc #>__ABOUT_CHARSET_LOAD__
+	adc #>(__MAIN_CHARSET_LOAD__ + 128*8)		; charset starting at pos 128
 	sta $fa
 
 	rts
@@ -769,8 +769,6 @@ empty_char:
 	.byte %11111111
 	.byte %11111111
 
-.segment "ABOUT_CHARSET"
-	.incbin "res/1-writer.64c",2
 
 .segment "SIDMUSIC"
 ;         .incbin "res/music.sid",$7e

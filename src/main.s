@@ -516,8 +516,7 @@ choose_rider_screen:
 
 
 .segment "MAIN_CHARSET"
-;	.incbin "res/shared_font.bin"
-	.incbin "res/boulderdash-font.bin"
+	.incbin "res/font-boulderdash-1writer.bin"
 
 .segment "MAIN_SPRITES"
 	.incbin "res/sprites.prg",2
