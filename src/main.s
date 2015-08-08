@@ -10,7 +10,7 @@
 .import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__, __HIGH_SCORES_CODE_LOAD__
 
 ; from utils.s
-.import clear_screen, clear_color, get_key, read_joy2
+.import clear_screen, clear_color, get_key, read_joy2, detect_pal_ntsc
 
 ;--------------------------------------------------------------------------
 ; Macros
@@ -25,12 +25,14 @@ SPRITE_ANIMATION_SPEED = 8
 
 
 .segment "CODE"
+	jsr detect_pal_ntsc
+	sta video_type
 	jmp __MAIN_CODE_LOAD__
+
 ;	jmp __ABOUT_CODE_LOAD__
 
 
 .segment "MAIN_CODE"
-
 	sei
 
 	lda #$01
@@ -202,7 +204,31 @@ no_irq:
 	sta $8400+$02e8,x
 	inx
 	bne @loop
+
+	; display PAL/NTSC logo
+	lda video_type
+	cmp #03
+	beq :+
+	ldx #<@ntsc_label
+	ldy #>@ntsc_label
+	stx @label_addr
+	sty @label_addr+1
+
+:
+	ldx #$00
+@label_addr = *+1
+:	lda @pal_label,x
+	beq @end
+	sta $8400 + 24*40 + 36,x
+	lda #11			; dark gray. color for the label
+	sta $d800 + 24*40 + 36,x
+	inx
+	bne :-
+@end:
 	rts
+
+@pal_label: .byte 144, 129, 140, 0
+@ntsc_label: .byte 142, 148, 147, 131, 0
 .endproc
 
 ;--------------------------------------------------------------------------
@@ -494,12 +520,11 @@ main_menu_screen:
 	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "
-	scrcode "                                        "
 	; splitting the macro in 3 since it has too many parameters
 	scrcode "     ",64,96,"2",178,"0"
 	scrcode          176,"1",177,"5",181
 	scrcode                 "  rReEtTrRoO  mMoOeE     "
-;	scrcode                 " rRqQ pPrRoOgGsS       "
+	scrcode "                                        "
 
 choose_rider_screen:
 		;0123456789|123456789|123456789|123456789|
@@ -514,6 +539,9 @@ choose_rider_screen:
 	scrcode "   cChHrRiIsS               kKrRiIsS    "
 	scrcode "    hHoOlLmM             lLaAbBoOnNtTeE "
 
+.export video_type
+video_type:
+	.byte $00
 
 .segment "MAIN_CHARSET"
 	.incbin "res/font-boulderdash-1writer.bin"

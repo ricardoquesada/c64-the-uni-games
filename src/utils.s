@@ -137,3 +137,29 @@
 	rts
 .endproc
 
+;--------------------------------------------------------------------------
+; char detect_pal_ntsc(void)
+;--------------------------------------------------------------------------
+; code taken from here: http://codebase64.org/doku.php?id=base:detect_pal_ntsc
+; returns A: $03 = PAL:  312 rasterlines
+;	     $02 = NTSC: 263 rasterlines
+;	     $01 = NTSC: 262 rasterlines
+;
+;	312 rasterlines -> 63 cycles per line [PAL: 6569 VIC]
+;	263 rasterlines -> 65 cycles per line [NTSC: 6567R8 VIC]
+;	262 rasterlines -> 64 cycles per line [NTSC: 6567R56A VIC]
+;--------------------------------------------------------------------------
+.export detect_pal_ntsc
+.proc detect_pal_ntsc
+	sei
+:
+	lda $d012
+:
+	cmp $d012
+	beq :-
+	bmi :--
+	and #$03
+	cli
+	rts
+.endproc
+
