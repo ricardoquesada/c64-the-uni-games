@@ -152,14 +152,62 @@
 .export detect_pal_ntsc
 .proc detect_pal_ntsc
 	sei
-:
-	lda $d012
-:
-	cmp $d012
+	ldx #$00
+:	lda $d012
+:	cmp $d012
 	beq :-
 	bmi :--
 	and #$03
+	cmp #$03
+	bne :+
+	inx
+:
+	stx $02a6
 	cli
+	rts
+.endproc
+
+;--------------------------------------------------------------------------
+; void sync_irq_timer()
+;--------------------------------------------------------------------------
+; code taken from zoo mania game source code: http://csdb.dk/release/?id=121860
+; and values from here: http://codebase64.org/doku.php?id=base:playing_music_on_pal_and_ntsc&s[]=ntsc
+;--------------------------------------------------------------------------
+NTSC_TIMER := $4fb4			; value used in zoo mania
+;NTSC_TIMER = $49f6			; value from codebase
+PAL_TIMER = $4cc7			; 312 * 63 = 19656 = $4cc8 - 1 = $4cc7
+
+.export sync_irq_timer
+.proc sync_irq_timer
+
+	lda #$00
+	sta $dc0e
+
+	ldy #$08
+@wait:
+	cpy $d012
+	bne @wait
+	lda $d011
+	bmi @wait
+
+	lda $02a6
+	beq @ntsc
+
+	; 50hz on PAL
+	lda #<PAL_TIMER
+	ldy #>PAL_TIMER
+	jmp @nontsc
+@ntsc:
+	; 50hz on NTSC
+	lda #<NTSC_TIMER
+	ldy #>NTSC_TIMER
+
+@nontsc:
+	sta $dc04
+	sty $dc05
+
+	lda #$11
+	sta $dc0e
 	rts
 .endproc
 

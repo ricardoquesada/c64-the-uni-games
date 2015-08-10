@@ -14,7 +14,7 @@
 .import __SIDMUSIC_LOAD__, __ABOUT_CODE_LOAD__, __ABOUT_GFX_LOAD__, __MAIN_CODE_LOAD__, __MAIN_CHARSET_LOAD__
 
 ; from utils.s
-.import clear_screen, clear_color, get_key
+.import clear_screen, clear_color, get_key, sync_irq_timer
 
 ;--------------------------------------------------------------------------
 ; Constants
@@ -62,10 +62,8 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 ;--------------------------------------------------------------------------
 	jsr init
 
-
 @mainloop:
-	lda #0
-	sta sync
+	lda sync
 :	cmp sync
 	beq :-
 
@@ -98,6 +96,31 @@ irq:
 	tya
 	pha
 
+	sei
+	asl $d019
+	bcs @raster
+
+	; timer A interrupt
+	lda $dc0d		; clear the interrupt
+	cli
+
+.if (DEBUG=1)
+	inc $d020
+.endif
+	jsr MUSIC_PLAY
+.if (DEBUG=1)
+	dec $d020
+.endif
+	inc sync50hz
+
+	pla			; restores A, X, Y
+	tay
+	pla
+	tax
+	pla
+	rti			; restores previous PC, status
+
+@raster:
 	STABILIZE_RASTER
 
 	.repeat 23
@@ -162,13 +185,6 @@ irq:
 
 	inc sync
 
-.if (DEBUG=1)
-	inc $d020
-.endif
-	jsr MUSIC_PLAY
-.if (DEBUG=1)
-	dec $d020
-.endif
 
 	; we have to re-schedule irq from irq basically because
 	; we are using a double IRQ
@@ -501,6 +517,7 @@ save_color_bottom = *+1
 
 	; no interrups
 	sei
+	jsr sync_irq_timer
 
 	; turn off cia interrups
 	lda #$7f
@@ -530,8 +547,16 @@ save_color_bottom = *+1
 	ora #3
 	sta $dd00
 
+
+	; set Timer interrupt
+	lda #$01
+	sta $dc0e			; start time A
+	lda #$81
+	sta $dc0d			; enable time A interrupts
+
 	;
 	; irq handler
+	; both for raster and timer interrupts
 	;
 	lda #<irq
 	sta $fffe
@@ -546,7 +571,6 @@ save_color_bottom = *+1
 	lda $dc0d
 	lda $dd0d
 	asl $d019
-
 
 	; enable interrups again
 	cli
@@ -628,8 +652,7 @@ save_color_bottom = *+1
 ; Args: -
 ;--------------------------------------------------------------------------
 .proc init_scroll_vars
-	lda #$01
-	sta sync
+	inc sync
 	lda #$07
 	sta smooth_scroll_x
 	lda #$80
@@ -691,7 +714,8 @@ raster_colors_bottom:
 
 TOTAL_RASTER_LINES = raster_colors_bottom-raster_colors_top
 
-sync:			.byte 1
+sync:			.byte 0
+sync50hz:		.byte 0
 smooth_scroll_x:	.byte 7
 chars_scrolled:		.byte 128
 current_char:		.byte 0
