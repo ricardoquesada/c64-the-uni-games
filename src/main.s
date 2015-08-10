@@ -25,12 +25,28 @@ SPRITE_ANIMATION_SPEED = 8
 
 
 .segment "CODE"
+	; things that are going to be executed only once in the whole game
 	jsr detect_pal_ntsc
 	sta video_type
-	jmp __MAIN_CODE_LOAD__
 
+
+	; turn off BASIC + Kernal. More RAM
+	lda #$35
+	sta $01
+
+	; disable NMI
+;	sei
+;	ldx #<disable_nmi
+;	ldy #>disable_nmi
+;	sta $fffa
+;	sta $fffb
+;	cli
+
+	jmp __MAIN_CODE_LOAD__
 ;	jmp __ABOUT_CODE_LOAD__
 
+disable_nmi:
+	rti
 
 .segment "MAIN_CODE"
 	sei
@@ -73,9 +89,6 @@ SPRITE_ANIMATION_SPEED = 8
 	sta $d021
 
 
-	; turn off BASIC + Kernal. More RAM
-	lda #$35
-	sta $01
 
 	; turn off cia interrups
 	lda #$7f

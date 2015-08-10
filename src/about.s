@@ -20,7 +20,8 @@
 ; Constants
 ;--------------------------------------------------------------------------
 
-DEBUG = 0			; Use 1 to enable music-raster debug
+; bitwise: 1=raster-sync code. 2=50hz code (music)
+DEBUG = 0
 
 RASTER_START = 50
 
@@ -67,13 +68,13 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 :	cmp sync
 	beq :-
 
-.if (DEBUG=1)
+.if (DEBUG & 1)
 	dec $d020
 .endif
 	jsr scroll
 	jsr anim_char
 	jsr anim_colorwash
-.if (DEBUG=1)
+.if (DEBUG & 1)
 	inc $d020
 .endif
 
@@ -104,11 +105,11 @@ irq:
 	lda $dc0d		; clear the interrupt
 	cli
 
-.if (DEBUG=1)
+.if (DEBUG & 2)
 	inc $d020
 .endif
 	jsr MUSIC_PLAY
-.if (DEBUG=1)
+.if (DEBUG & 2)
 	dec $d020
 .endif
 	inc sync50hz
@@ -536,10 +537,6 @@ save_color_bottom = *+1
 	; vertical scroll: default position
 	lda #%00011011
 	sta $d011
-
-	; turn off BASIC + Kernal. More RAM
-	lda #$35
-	sta $01
 
         ; Vic bank 0: $0000-$3FFF
 	lda $dd00
