@@ -22,7 +22,7 @@ dist: prg
 	$(C1541) -format "therace dist,rq" d64 $(IMAGE)
 	$(C1541) $(IMAGE) -write therace_exo.prg "the race"
 	$(C1541) $(IMAGE) -list
-	rm -f intro.o therace.prg therace_exo.prg
+	rm -f src/*.o therace.prg therace_exo.prg
 
 test: disk
 	$(X64) -moncommands therace.sym therace.d64
@@ -31,4 +31,4 @@ testdist: dist
 	$(X64) -moncommands therace.sym $(IMAGE)
 
 clean:
-	rm -f *~ *.o therace.prg therace_exo.prg therace.d64 therace.sym $(IMAGE)
+	rm -f src/*.o therace.prg therace_exo.prg therace.d64 therace.sym $(IMAGE)
