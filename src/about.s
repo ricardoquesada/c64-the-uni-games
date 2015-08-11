@@ -64,10 +64,25 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 	jsr init
 
 @mainloop:
+	lda sync50hz
+	beq :+
+	jsr @do_sync50hz
+:
 	lda sync
-:	cmp sync
-	beq :-
+	beq :+
+	jsr @do_sync
+:
+	; key pressed ?
+	jsr get_key
+	bcc @mainloop
+	cmp #$47		; space
+	bne @mainloop
 
+	jmp __MAIN_CODE_LOAD__
+
+@do_sync:
+	lda #$00
+	sta sync
 .if (DEBUG & 1)
 	dec $d020
 .endif
@@ -77,14 +92,19 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 .if (DEBUG & 1)
 	inc $d020
 .endif
+	rts
 
-	; key pressed ?
-	jsr get_key
-	bcc @mainloop
-	cmp #$47		; space
-	bne @mainloop
-
-	jmp __MAIN_CODE_LOAD__
+@do_sync50hz:
+	lda #$00
+	sta sync50hz
+.if (DEBUG & 2)
+	inc $d020
+.endif
+	jsr MUSIC_PLAY
+.if (DEBUG & 2)
+	dec $d020
+.endif
+	rts
 
 
 ;--------------------------------------------------------------------------
@@ -105,13 +125,6 @@ irq:
 	lda $dc0d		; clear the interrupt
 	cli
 
-.if (DEBUG & 2)
-	inc $d020
-.endif
-	jsr MUSIC_PLAY
-.if (DEBUG & 2)
-	dec $d020
-.endif
 	inc sync50hz
 
 	pla			; restores A, X, Y
@@ -453,21 +466,23 @@ ANIM_TOTAL_FRAMES = 4
 	bne :-
 
 save_color_top = *+1
-	lda #00			; This value will be overwritten
+	lda #00			; self modifying code
 	sta raster_colors_top+TOTAL_RASTER_LINES-1
 
 	; washer bottom
 	lda raster_colors_bottom+TOTAL_RASTER_LINES-1
 	sta save_color_bottom
 
-	cpx #TOTAL_RASTER_LINES-1
+	; x == TOTAL_RASTER_LINES... and I need it to be TOTAL_RASTER_LINES-1
+	dex
+
 :	lda raster_colors_bottom,x
 	sta raster_colors_bottom+1,x
 	dex
 	bpl :-
 
 save_color_bottom = *+1
-	lda #00			; This value will be overwritten
+	lda #00			; self modifying code
 	sta raster_colors_bottom
 	rts
 .endproc
@@ -649,7 +664,6 @@ save_color_bottom = *+1
 ; Args: -
 ;--------------------------------------------------------------------------
 .proc init_scroll_vars
-	inc sync
 	lda #$07
 	sta smooth_scroll_x
 	lda #$80
