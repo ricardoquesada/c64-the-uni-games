@@ -26,7 +26,7 @@ DEBUG = 0
 RASTER_START = 50
 
 SCROLL_AT_LINE = 18
-ROWS_PER_CHAR = 7
+ROWS_PER_LETTER = 7
 
 SCREEN_TOP = $0400 + SCROLL_AT_LINE * 40
 
@@ -41,7 +41,7 @@ SCROLL_SPEED = 6
 SCROLL_BKG_COLOR = 0
 
 ; SPEED of colorwasher: 1=Max speed
-COLORWASH_SPEED = 1
+COLORWASH_DELAY = 1
 
 ANIM_SPEED = 1
 
@@ -141,47 +141,32 @@ irq:
 		nop
 	.endrepeat
 
-	; char mode
-	lda #%00011011		; +2
-	sta $d011		; +4
+	; set char mode
+	lda #%00011011
+	sta $d011
 
-	ldx #SCROLL_BKG_COLOR	; +6
-	stx $d020		; +10
-	stx $d021		; +14
+	; set colors
+	ldx #SCROLL_BKG_COLOR
+	stx $d020
+	stx $d021
 
-	lda smooth_scroll_x	; +16
-	sta $d016		; +20
+	; set the horizontal scroll
+	lda smooth_scroll_x
+	sta $d016
 
 	; raster bars
-	ldx #$00		; +22
+	ldx #$00
 
-	; 7 chars of 8 raster lines
-	; the "+8" in "raster_colors+8" is needed
-	; in order to center the washer effect.
-	; the washer colors has 64 colors, but here we are using only 56 lines (7 rows of 8 lines each)
-	.repeat ROWS_PER_CHAR
-		; 7 "Good" lines: I must consume 63 cycles
-		.repeat 7
-			lda raster_colors+8,x	; +4
-			sta $d021		; +4
-			inx			; +2
-			.repeat 25
-				nop		; +2 * 25
-			.endrepeat
-			bit $00			; +3 = 63 cycles
-		.endrepeat
-		; 1 "Bad lines": I must consume ~20 cycles
-		lda raster_colors+8,x		; +4
-		sta $d021			; +4
-		inx				; +2
-		.repeat 5
-			nop			; +2 * 5 = 20 cycles
-		.endrepeat
-	.endrepeat
-
-	.repeat 23
-		nop
-	.endrepeat
+	; paint the raster bars
+	ldy #(ROWS_PER_LETTER *8)
+:       lda $d012
+:       cmp $d012
+	beq :-
+	lda raster_colors+12,x
+	sta $d021
+	inx
+	dey
+	bne :--
 
 	; color
 	lda #$00
@@ -253,7 +238,7 @@ irq:
 	sty @screen_address+1
 
 	; should not be bigger than 7 (8 rows)
-	ldy #.min(ROWS_PER_CHAR,7)
+	ldy #.min(ROWS_PER_LETTER,7)
 
 
 @loop:
@@ -319,7 +304,7 @@ scroll_screen:
 	ldy #38
 
 @loop:
-	.repeat ROWS_PER_CHAR,i
+	.repeat ROWS_PER_LETTER,i
 		lda SCREEN_TOP+40*i+1,x
 		sta SCREEN_TOP+40*i+0,x
 	.endrepeat
@@ -451,7 +436,7 @@ ANIM_TOTAL_FRAMES = 4
 	rts
 
 :
-	lda #COLORWASH_SPEED
+	lda #COLORWASH_DELAY
 	sta colorwash_delay
 
 	; washer top
@@ -646,12 +631,12 @@ save_color_bottom = *+1
 	; clear color
 	lda #SCROLL_BKG_COLOR
 	sta $d800 + SCROLL_AT_LINE * 40,x
-	sta $d800 + SCROLL_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
+	sta $d800 + SCROLL_AT_LINE * 40 + (ROWS_PER_LETTER*40-256),x
 
 	; clear char
 	lda #$ff
 	sta $0400 + SCROLL_AT_LINE * 40,x
-	sta $0400 + SCROLL_AT_LINE * 40 + (ROWS_PER_CHAR*40-256),x
+	sta $0400 + SCROLL_AT_LINE * 40 + (ROWS_PER_LETTER*40-256),x
 
 	inx
 	bne @loop
@@ -734,7 +719,7 @@ anim_speed:		.byte 7
 anim_char_idx:		.byte ANIM_TOTAL_FRAMES-1
 scroller_text_ptr_low:	.byte 0
 scroller_text_ptr_hi:	.byte 0
-colorwash_delay:	.byte COLORWASH_SPEED
+colorwash_delay:	.byte COLORWASH_DELAY
 
 scroller_text:
         scrcode "   retro moe presents "
