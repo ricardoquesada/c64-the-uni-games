@@ -4,6 +4,8 @@
 ;
 ; High Scores screen
 ;
+; Uses $f9/$fa temporary. $f9/$fa can be used by other temporary functions
+;
 ;--------------------------------------------------------------------------
 
 ; exported by the linker
@@ -79,46 +81,49 @@ no_irq:
 ; paints the screen with the "main menu" screen
 ;--------------------------------------------------------------------------
 .proc init_screen
-	ldx #<high_scores_screen
-	ldy #>high_scores_screen
-	stx @loadaddr
-	sty @loadaddr+1
 
-	ldx #<$8400
-	ldy #>$8400
-	stx @saveaddr
-	sty @saveaddr+1
+	; clear the screen
+	ldx #0
+	lda #$20
+:	sta $8400+$0000,x
+	sta $8400+$0100,x
+	sta $8400+$0200,x
+	sta $8400+$02e8,x
+	inx
+	bne :-
+
+	ldx #0
+:	lda high_scores_screen,x
+	sta $8400,x
+	inx
+	cpx #40			; draw 1 line
+	bne :-
+
+	; init "save" pointer
+	ldx #<($8400 + 40 * 3)	; start writing at 3rd line
+	ldy #>($8400 + 40 * 3)
+	stx $f9
+	sty $fa
 
 
-	ldy #25			; repeat 25 times
+	ldx #00			; x has the high score entry
 
 @loop:
 	jsr @delay
-	ldx #$00
 
-@shortloop:
-@loadaddr = *+1
-	lda high_scores_screen+$0000,x
-@saveaddr = *+1
-	sta $8400,x
+
+	jsr @print_highscore_entry
+
+	; pointer to the next line in the screen
+	clc
+	lda $f9
+	adc #40 * 2 + 0		; skip one line
+	sta $f9
+	bcc :+
+	inc $fa
+:
 	inx
-	cpx #40
-	bne @shortloop
-	clc
-	lda @loadaddr
-	adc #40
-	sta @loadaddr
-	bcc :+
-	inc @loadaddr+1
-:
-	clc
-	lda @saveaddr
-	adc #40
-	sta @saveaddr
-	bcc :+
-	inc @saveaddr+1
-:
-	dey
+	cpx #10			; repeat 10 times. there are only 10 high scores
 	bne @loop
 
 	rts
@@ -141,34 +146,127 @@ no_irq:
 	pla
 	tax
 	rts
+
+@print_highscore_entry:
+	txa			; x has the high score entry index
+
+	ldy #$00		; y = screen idx
+
+	pha
+	clc
+	adc #$01		; positions start with 1, not 0
+
+	; print position
+	cmp #10
+	bne @print_second_digit
+
+	; quick hack
+	; if number is 10, print '1'
+	; otherwise, skip to second number
+	lda #$31		; number '1'
+	sta ($f9),y
+	ora #$40
+	iny
+	sta ($f9),y
+	iny
+	lda #00			; second digit is '0'
+	jmp :+
+
+@print_second_digit:
+	iny
+	iny
+:
+	clc
+	adc #$30 		; A = high_score entry.
+	sta ($f9),y
+	iny
+	ora #$40		; wide chars
+	sta ($f9),y
+	iny
+
+	; print '.'
+	lda #33			; '.'
+	sta ($f9),y
+	iny
+
+
+	; print name 
+	lda #10
+	sta @tmp_counter
+
+	txa			; multiply x by 16, since each entry has 16 bytes
+	asl
+	asl
+	asl
+	asl
+	tax			; x = high score pointer
+
+:	lda entries,x		; points to entry[i].name
+	sta ($f9),y		; pointer to screen
+	iny
+	ora #$40		; wide chars
+	sta ($f9),y
+	iny
+	inx
+	dec @tmp_counter
+	bne :-
+
+	; print score
+	lda #6
+	sta @tmp_counter
+
+	iny
+	iny
+	iny
+
+:	lda entries,x		; points to entry[i].score
+	clc
+	adc #$30
+	sta ($f9),y		; pointer to screen
+	iny
+	ora #$40		; wide chars
+	sta ($f9),y
+	iny
+	inx
+	dec @tmp_counter
+	bne :-
+
+	pla
+	tax
+	rts
+
+@tmp_counter:
+	.byte 0
 .endproc
 
 
 high_scores_screen:
 		;0123456789|123456789|123456789|123456789|
 	scrcode "         hHiIgGhH  sScCoOrReEsS         "
-	scrcode "                                        "
-	scrcode "                                        "
-	scrcode "                                        "
-	scrcode " 11 -  tToOmM                           "
-	scrcode "                                        "
-	scrcode " 22 -  cChHrRiIsS                       "
-	scrcode "                                        "
-	scrcode " 44 -  dDrRaAgGoOnN                     "
-	scrcode "                                        "
-	scrcode " 33 -  jJoOsShH                         "
-	scrcode "                                        "
-	scrcode " 44 -  aAsShHlLeEyY                     "
-	scrcode "                                        "
-	scrcode " 55 -  kKeEvViInN                       "
-	scrcode "                                        "
-	scrcode " 77 -  mMiIcChHeElLeE                   "
-	scrcode "                                        "
-	scrcode " 88 -  cCoOrRbBiInN                     "
-	scrcode "                                        "
-	scrcode " 99 -  bBeEaAuU                         "
-	scrcode "                                        "
-	scrcode " 00 -  rRiIcCaArRdDoO                   "
-	scrcode "                                        "
-	scrcode "                                        "
 
+
+entries:
+	; high score entry:
+	;     name: 10 bytes in PETSCII
+	;     score: 6 bytes in BCD
+	;        0123456789
+	scrcode "tom       "
+	.byte  9,0,0,0,0,0
+	scrcode "chris     "
+	.byte  8,0,0,0,0,0
+	scrcode "dragon    "
+	.byte  7,0,0,0,0,0
+	scrcode "josh      "
+	.byte  6,0,0,0,0,0
+	scrcode "ashley    "
+	.byte  5,0,0,0,0,0
+	scrcode "kevin     "
+	.byte  4,0,0,0,0,0
+	scrcode "michele   "
+	.byte  3,0,0,0,0,0
+	scrcode "corbin    "
+	.byte  2,0,0,0,0,0
+	scrcode "beau      "
+	.byte  1,0,0,0,0,0
+	scrcode "ricardo123"
+	.byte  0,0,0,0,0,0
