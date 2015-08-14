@@ -124,7 +124,7 @@ disable_nmi:
 	sta animation_delay
 
 	lda #$00			; avoid garbage when opening borders
-	sta $3fff
+	sta $bfff			; should be $3fff, but I'm in the 2 bank
 
 	cli
 
