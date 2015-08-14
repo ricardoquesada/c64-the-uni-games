@@ -201,21 +201,10 @@ vic_video_type: .byte $00
 	beq :-
 
 	lda vic_video_type
-
-	cmp #$00
-	beq @pal
-	cmp #$2f
-	beq @pal
-
-	ldx #$00
-	beq :+
-@pal:
-	ldx #$01
-:	stx $02a6	
 	rts
 
 timer_irq:
-	pha			; saves A
+	pha			; only saves A
 
 	sei
 	; timer A interrupt
@@ -225,11 +214,10 @@ timer_irq:
 	sta vic_video_type
 
 	inc sync
-	inc $d020
 	cli
 
-	pla
-	rti			; restores previous PC, status
+	pla			; restoring A
+	rti
 
 sync:	.byte $00
 
