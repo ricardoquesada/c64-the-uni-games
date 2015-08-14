@@ -268,8 +268,15 @@ irq_open_borders:
 
 	cmp #$2f		; Pal-N?
 	beq @paln		; yes
+
+	cmp #$2e		; NTSC Old?
+	beq @ntscold		; yes
 				
 	ldx #$0e		; otherwise it is NTSC
+	bne @end
+
+@ntscold:
+	ldx #$0c
 	bne @end
 @paln:
 	ldx #$0d

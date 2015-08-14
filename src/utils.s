@@ -140,16 +140,18 @@
 ;--------------------------------------------------------------------------
 ; char detect_pal_paln_ntsc(void)
 ;--------------------------------------------------------------------------
-; triggers a CIA interrupt of exactly 312*63-1 cycles (PAL).
-; Messuare d012 before and after the timer.
-; Basically returns the new value of d012.
-; And updates the $2a6 value accordingly: 0 if NTSC, 1 if PAL
+; It counts how many rasterlines were drawn in 312*63-1 (19655) cycles. 
+;
+; In PAL,      (312 by 63)  19655/63 = 312  -> 312 % 312   (00, $00)
+; In PAL-N,    (312 by 65)  19655/65 = 302  -> 302 % 312   (46, $2e)
+; In NTSC,     (263 by 65)  19655/65 = 302  -> 302 % 263   (39, $27)
+; In NTSC Old, (262 by 64)  19655/64 = 307  -> 307 % 262   (45, $2d) 
 ;
 ; Return values:
-;    1 --> PAL
-;   2F --> PAL-N
-;   28 --> NTSC
-;   29 --> NTSC-OLD
+;   $01 --> PAL
+;   $2F --> PAL-N
+;   $28 --> NTSC
+;   $2e --> NTSC-OLD
 ;
 ;--------------------------------------------------------------------------
 .export vic_video_type
@@ -193,6 +195,7 @@ vic_video_type: .byte $00
 	lda $dc0d		; clear possible interrupts
 	lda $dd0d
 
+
 	lda #$81
 	sta $dc0d		; enable time A interrupts
 	cli
@@ -219,7 +222,7 @@ timer_irq:
 	pla			; restoring A
 	rti
 
-sync:	.byte $00
+sync:		.byte $00
 
 .endproc
 
