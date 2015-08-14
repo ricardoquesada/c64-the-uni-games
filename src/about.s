@@ -95,8 +95,7 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 	rts
 
 @do_sync50hz:
-	lda #$00
-	sta sync50hz
+:
 .if (DEBUG & 2)
 	inc $d020
 .endif
@@ -104,6 +103,9 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 .if (DEBUG & 2)
 	dec $d020
 .endif
+	dec sync50hz		; I don't think it is possible have more than one
+	bne :-			; timer IRQ, but just in case
+				
 	rts
 
 

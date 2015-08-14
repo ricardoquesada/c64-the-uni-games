@@ -184,6 +184,7 @@ no_irq:
 	sta ($f9),y
 	iny
 
+
 	; print '.'
 	lda #33			; '.'
 	sta ($f9),y
@@ -210,6 +211,7 @@ no_irq:
 	inx
 	dec @tmp_counter
 	bne :-
+
 
 	; print score
 	lda #6

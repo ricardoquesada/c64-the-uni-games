@@ -171,11 +171,11 @@
 ; void sync_irq_timer()
 ;--------------------------------------------------------------------------
 ; code taken from zoo mania game source code: http://csdb.dk/release/?id=121860
-; and values from here: http://codebase64.org/doku.php?id=base:playing_music_on_pal_and_ntsc&s[]=ntsc
+; and values from here: http://codebase64.org/doku.php?id=base:playing_music_on_pal_and_ntsc
 ;--------------------------------------------------------------------------
-NTSC_TIMER := $4fb4			; value used in zoo mania
-;NTSC_TIMER = $49f6			; value from codebase
-PAL_TIMER = $4cc7			; 312 * 63 = 19656 = $4cc8 - 1 = $4cc7
+PAL_TIMER := (312*63)-1			; raster lines (312) * cycles_per_line(63) = 19656 
+PAL_N_TIMER := $4fc2-1 			; 19656 / (98524/102344) - 1
+NTSC_TIMER := $4fb4			; 19565 / (98524/102272) - 1
 
 .export sync_irq_timer
 .proc sync_irq_timer
@@ -193,6 +193,17 @@ PAL_TIMER = $4cc7			; 312 * 63 = 19656 = $4cc8 - 1 = $4cc7
 	lda $02a6
 	beq @ntsc
 
+	cmp #$01
+	beq @palb
+
+	; it is a PAL-N (drean commodore 64)
+	lda #<PAL_N_TIMER
+	ldy #>PAL_N_TIMER
+	jmp *				; should not happen, since drean commodore code
+					; is not implemented yet
+	jmp @nontsc
+
+@palb:
 	; 50hz on PAL
 	lda #<PAL_TIMER
 	ldy #>PAL_TIMER
