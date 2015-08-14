@@ -100,10 +100,12 @@ disable_nmi:
 	sta $d01a
 
 	; no IRQ
-	ldx #<no_irq
-	ldy #>no_irq
+	ldx #<irq_open_borders
+	ldy #>irq_open_borders
 	stx $fffe
 	sty $ffff
+	lda #$f9
+	sta $d012
 
 	; clear interrupts and ACK irq
 	lda $dc0d
@@ -120,6 +122,9 @@ disable_nmi:
 	sta selected_rider
 	lda #SPRITE_ANIMATION_SPEED
 	sta animation_delay
+
+	lda #$00			; avoid garbage when opening borders
+	sta $3fff
 
 	cli
 
@@ -183,12 +188,33 @@ disable_nmi:
 	jmp __ABOUT_CODE_LOAD__
 
 
-no_irq:
+;--------------------------------------------------------------------------
+; raster IRQ
+;--------------------------------------------------------------------------
+; used to open the top/bottom borders
+;--------------------------------------------------------------------------
+.export irq_open_borders
+irq_open_borders:
 	pha			; saves A, X, Y
 	txa
 	pha
 	tya
 	pha
+
+	; open vertical borders trick
+	; first switch to 24 cols-mode...
+	lda $d011
+	and #$f7
+	sta $d011
+
+:	lda $d012
+	cmp #$ff
+	bne :-
+
+	; ...a few raster lines switch to 25 cols-mode again
+	lda $d011
+	ora #$08
+	sta $d011
 
 	asl $d019
 
@@ -218,30 +244,34 @@ no_irq:
 	inx
 	bne @loop
 
+
+	lda #%10000000		; enable sprite 7
+	sta VIC_SPR_ENA
+
+	; 9th bit
+	lda #%10000000
+	sta $d010
+
+	lda #$40
+	sta VIC_SPR7_X
+	lda #$f0
+	sta VIC_SPR7_Y
+
+	lda __MAIN_SPRITES_LOAD__ + 64 * 15 + 63; sprite color
+	and #$0f
+	sta VIC_SPR7_COLOR
+
 	; display PAL/NTSC logo
-	lda video_type
-	cmp #03
-	beq :+
-	ldx #<@ntsc_label
-	ldy #>@ntsc_label
-	stx @label_addr
-	sty @label_addr+1
+	ldx #$0f		; sprite pointer to PAL (15)
+	lda $02a6		; ntsc or pal? 
+	bne @pal		; yes, it is pal
 
-:
-	ldx #$00
-@label_addr = *+1
-:	lda @pal_label,x
-	beq @end
-	sta $8400 + 0*40 + 36,x
-	lda #11			; dark gray. color for the label
-	sta $d800 + 0*40 + 36,x
-	inx
-	bne :-
-@end:
+	ldx #$0e		; change sprite pointer to NTSC (14)
+
+@pal:
+	stx $87ff		; set sprite pointer
+
 	rts
-
-@pal_label:  .byte  32, 144, 129, 140, 0
-@ntsc_label: .byte 142, 148, 147, 131, 0
 .endproc
 
 ;--------------------------------------------------------------------------
@@ -296,7 +326,8 @@ no_irq:
 ;--------------------------------------------------------------------------
 .proc init_choose_rider_sprites
 
-	lda #%00000111		; enable 3 sprites
+	lda VIC_SPR_ENA
+	ora #%00000111		; enable sprites 1,2,3
 	sta VIC_SPR_ENA
 
 	; sprites 0,1: multicolor
@@ -316,7 +347,8 @@ no_irq:
 	sta VIC_SPR_MCOLOR1
 
 	; 9th bit
-	lda #%00000010
+	lda $d010
+	ora #%00000010
 	sta $d010
 	
 	; sprite #0
@@ -364,15 +396,16 @@ no_irq:
 ; starts at the right position.
 ; This code is similar to call `jsr color_wash` for 40 times faster
 ;--------------------------------------------------------------------------
+COLORWASH_START_LINE = 0
 .proc init_color_wash
 	; set color screen
 	ldx #00
 	ldy #00
 @loop:
-	; 9 lines to scroll, starting from line 1
+	; 9 lines to scroll, starting from line 0
 	.repeat 9,i
 		lda colors+(i*2),y
-		sta $d800+40*(i+1),x
+		sta $d800+40*(i+COLORWASH_START_LINE),x
 	.endrepeat
 	iny
 	inx
@@ -393,10 +426,10 @@ no_irq:
 	; scroll the colors
 	ldx #0
 @loop:
-	; 9 lines to scroll, starting from line 1
+	; 9 lines to scroll, starting from line COLORWASH_START_LINE
 	.repeat 9,i
-		lda $d800+40*(i+1)+1,x
-		sta $d800+40*(i+1),x
+		lda $d800+40*(i+COLORWASH_START_LINE)+1,x
+		sta $d800+40*(i+COLORWASH_START_LINE),x
 	.endrepeat
 	inx
 	cpx #40			; 40 columns
@@ -413,7 +446,7 @@ no_irq:
 
 	.repeat 9,i
 		lda colors,y
-		sta $d800+40*(i+1)+39
+		sta $d800+40*(i+COLORWASH_START_LINE)+39
 		iny
 		iny
 		tya
@@ -471,6 +504,7 @@ no_irq:
 	lda @position_x,x
 	sta VIC_SPR2_X		; set position X
 	lda @position_9,x
+	ora #%10000000		; sprite 7 must be On (it is the PAL/NTSC sprite)
 	sta $d010		; set 9th for position X
 	stx selected_rider
 	rts
@@ -506,7 +540,6 @@ colors:
 
 main_menu_screen:
 		;0123456789|123456789|123456789|123456789|
-	scrcode "                                        "
 	.repeat 20
 	.byte $2a,$6a
 	.endrepeat
@@ -520,6 +553,7 @@ main_menu_screen:
 	.repeat 20
 	.byte $2a,$6a
 	.endrepeat
+	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "
 	scrcode "                                        "

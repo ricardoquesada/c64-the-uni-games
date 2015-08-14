@@ -14,6 +14,9 @@
 ; from utils.s
 .import clear_screen, clear_color, get_key, read_joy2
 
+; from main.s
+.import irq_open_borders
+
 ;--------------------------------------------------------------------------
 ; Macros
 ;--------------------------------------------------------------------------
@@ -34,8 +37,8 @@
 	sta $d01a
 
 	; no IRQ
-	ldx #<no_irq
-	ldy #>no_irq
+	ldx #<irq_open_borders
+	ldy #>irq_open_borders
 	stx $fffe
 	sty $ffff
 
@@ -57,23 +60,6 @@
 	cmp #$47		; space
 	bne @main_loop
 	jmp __MAIN_CODE_LOAD__
-
-
-no_irq:
-	pha			; saves A, X, Y
-	txa
-	pha
-	tya
-	pha
-
-	asl $d019
-
-	pla			; restores A, X, Y
-	tay
-	pla
-	tax
-	pla
-	rti			; restores previous PC, status
 
 ;--------------------------------------------------------------------------
 ; init_screen
