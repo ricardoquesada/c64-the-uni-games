@@ -41,6 +41,8 @@
 	ldy #>irq_open_borders
 	stx $fffe
 	sty $ffff
+	lda #$f9
+	sta $d012
 
 	; clear interrupts and ACK irq
 	lda $dc0d

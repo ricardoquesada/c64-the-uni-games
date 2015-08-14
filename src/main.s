@@ -10,7 +10,7 @@
 .import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__, __HIGH_SCORES_CODE_LOAD__
 
 ; from utils.s
-.import clear_screen, clear_color, get_key, read_joy2, detect_pal_ntsc 
+.import clear_screen, clear_color, get_key, read_joy2, detect_pal_paln_ntsc, vic_video_type
 
 ;--------------------------------------------------------------------------
 ; Macros
@@ -25,14 +25,13 @@ SPRITE_ANIMATION_SPEED = 8
 
 
 .segment "CODE"
-	; things that are going to be executed only once in the whole game
-	jsr detect_pal_ntsc
-	sta video_type
-
-
 	; turn off BASIC + Kernal. More RAM
 	lda #$35
 	sta $01
+
+	; things that are going to be executed only once in the whole game
+	jsr detect_pal_paln_ntsc
+
 
 	; disable NMI
 ;	sei
@@ -87,7 +86,6 @@ disable_nmi:
 	lda #$00
 	sta $d020
 	sta $d021
-
 
 
 	; turn off cia interrups
@@ -263,12 +261,19 @@ irq_open_borders:
 
 	; display PAL/NTSC logo
 	ldx #$0f		; sprite pointer to PAL (15)
-	lda $02a6		; ntsc or pal? 
-	bne @pal		; yes, it is pal
+	lda vic_video_type	; ntsc, pal or paln?
 
-	ldx #$0e		; change sprite pointer to NTSC (14)
+	cmp #$01		; Pal ?
+	beq @end		; yes.
 
-@pal:
+	cmp #$2f		; Pal-N?
+	beq @paln		; yes
+				
+	ldx #$0e		; otherwise it is NTSC
+	bne @end
+@paln:
+	ldx #$0d
+@end:
 	stx $87ff		; set sprite pointer
 
 	rts
@@ -585,10 +590,6 @@ choose_rider_screen:
 	scrcode "                                        "
 	scrcode "   cChHrRiIsS               kKrRiIsS    "
 	scrcode "    hHoOlLmM             lLaAbBoOnNtTeE "
-
-.export video_type
-video_type:
-	.byte $00
 
 .segment "MAIN_CHARSET"
 	.incbin "res/font-boulderdash-1writer.bin"

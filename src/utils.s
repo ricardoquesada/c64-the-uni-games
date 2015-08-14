@@ -138,33 +138,101 @@
 .endproc
 
 ;--------------------------------------------------------------------------
-; char detect_pal_ntsc(void)
+; char detect_pal_paln_ntsc(void)
 ;--------------------------------------------------------------------------
-; code taken from here: http://codebase64.org/doku.php?id=base:detect_pal_ntsc
-; returns A: $03 = PAL:  312 rasterlines
-;	     $02 = NTSC: 263 rasterlines
-;	     $01 = NTSC: 262 rasterlines
+; triggers a CIA interrupt of exactly 312*63-1 cycles (PAL).
+; Messuare d012 before and after the timer.
+; Basically returns the new value of d012.
+; And updates the $2a6 value accordingly: 0 if NTSC, 1 if PAL
 ;
-;	312 rasterlines -> 63 cycles per line [PAL: 6569 VIC]
-;	263 rasterlines -> 65 cycles per line [NTSC: 6567R8 VIC]
-;	262 rasterlines -> 64 cycles per line [NTSC: 6567R56A VIC]
+; Return values:
+;    1 --> PAL
+;   2F --> PAL-N
+;   28 --> NTSC
+;   29 --> NTSC-OLD
+;
 ;--------------------------------------------------------------------------
-.export detect_pal_ntsc
-.proc detect_pal_ntsc
+.export vic_video_type
+vic_video_type: .byte $00
+
+.export detect_pal_paln_ntsc
+.proc detect_pal_paln_ntsc
 	sei
-	ldx #$00
+
+	; wait for start of raster (more stable results)
 :	lda $d012
 :	cmp $d012
 	beq :-
 	bmi :--
-	and #$03
-	cmp #$03
-	bne :+
-	inx
-:
-	stx $02a6
+
+	lda #$00
+	sta $dc0e
+
+	lda #$00
+	sta $d01a		; no raster IRQ
+	lda #$7f
+	sta $dc0d		; no timer IRQ
+	sta $dd0d
+
+	lda #$00
+	sta sync
+
+	ldx #<(312*63-1)	; set the timer for PAL
+	ldy #>(312*63-1)
+	stx $dc04
+	sty $dc05
+
+	lda #%00001001		; one-shot only
+	sta $dc0e
+
+	ldx #<timer_irq
+	ldy #>timer_irq
+	stx $fffe
+	sty $ffff
+
+	lda $dc0d		; clear possible interrupts
+	lda $dd0d
+
+	lda #$81
+	sta $dc0d		; enable time A interrupts
 	cli
+
+:	lda sync
+	beq :-
+
+	lda vic_video_type
+
+	cmp #$00
+	beq @pal
+	cmp #$2f
+	beq @pal
+
+	ldx #$00
+	beq :+
+@pal:
+	ldx #$01
+:	stx $02a6	
 	rts
+
+timer_irq:
+	pha			; saves A
+
+	sei
+	; timer A interrupt
+	lda $dc0d		; clear the interrupt
+
+	lda $d012
+	sta vic_video_type
+
+	inc sync
+	inc $d020
+	cli
+
+	pla
+	rti			; restores previous PC, status
+
+sync:	.byte $00
+
 .endproc
 
 ;--------------------------------------------------------------------------
@@ -174,8 +242,8 @@
 ; and values from here: http://codebase64.org/doku.php?id=base:playing_music_on_pal_and_ntsc
 ;--------------------------------------------------------------------------
 PAL_TIMER := (312*63)-1			; raster lines (312) * cycles_per_line(63) = 19656 
-PAL_N_TIMER := $4fc2-1 			; 19656 / (98524/102344) - 1
-NTSC_TIMER := $4fb4			; 19565 / (98524/102272) - 1
+PAL_N_TIMER := $4fc2-1 			; 19656 / (985248/1023445) - 1
+NTSC_TIMER := $4fb2			; 19656 / (985248/1022727) - 1
 
 .export sync_irq_timer
 .proc sync_irq_timer
@@ -190,30 +258,28 @@ NTSC_TIMER := $4fb4			; 19565 / (98524/102272) - 1
 	lda $d011
 	bmi @wait
 
-	lda $02a6
-	beq @ntsc
-
+	lda vic_video_type
 	cmp #$01
-	beq @palb
+	beq @pal
+	cmp #$2f
+	beq @paln
 
-	; it is a PAL-N (drean commodore 64)
+	; 50hz on NTSC			; it is an NTSC
+	lda #<NTSC_TIMER
+	ldy #>NTSC_TIMER
+	jmp @end
+
+@paln:					; it is a PAL-N (drean commodore 64)
 	lda #<PAL_N_TIMER
 	ldy #>PAL_N_TIMER
-	jmp *				; should not happen, since drean commodore code
-					; is not implemented yet
-	jmp @nontsc
+	jmp @end
 
-@palb:
+@pal:
 	; 50hz on PAL
 	lda #<PAL_TIMER
 	ldy #>PAL_TIMER
-	jmp @nontsc
-@ntsc:
-	; 50hz on NTSC
-	lda #<NTSC_TIMER
-	ldy #>NTSC_TIMER
 
-@nontsc:
+@end:
 	sta $dc04
 	sty $dc05
 
