@@ -26,11 +26,14 @@
 ;--------------------------------------------------------------------------
 .include "c64.inc"		; c64 constants
 
+RASTER_TOP = 12			; first raster line
+RASTER_BOTTOM = 50 + 8*3	; moving part of the screen
+
 .segment "GAME_CODE"
 
 	sei
 
-	lda #00
+	lda #01
 	jsr clear_color
 	jsr init_screen
 	jsr init_sprites
@@ -40,12 +43,12 @@
 	sta $d01a
 
 	; raster irq vector
-	ldx #<irq
-	ldy #>irq
+	ldx #<irq_top
+	ldy #>irq_top
 	stx $fffe
 	sty $ffff
 
-	lda #80
+	lda #RASTER_TOP
 	sta $d012
 
 	; clear interrupts and ACK irq
@@ -58,9 +61,9 @@
 	jmp *
 
 ;--------------------------------------------------------------------------
-; IRQ handler
+; IRQ handler: RASTER_TOP
 ;--------------------------------------------------------------------------
-.proc irq
+.proc irq_top
 	pha			; saves A, X, Y
 	txa
 	pha
@@ -69,31 +72,17 @@
 
 	STABILIZE_RASTER
 
-	lda #14
+	lda #00
 	sta $d020
+	lda #00
 	sta $d021
 
-	lda smooth_scroll_x
-	sta $d016
-
-	.repeat 8*10
-		lda $d012
-:		cmp $d012
-		beq :-
-		inc $d021
-	.endrepeat
-
-	lda #%00001000
-	sta $d016
-
-	; we have to re-schedule irq from irq basically because
-	; we are using a double IRQ
-	lda #<irq
+	lda #<irq_bottom
 	sta $fffe
-	lda #>irq
+	lda #>irq_bottom
 	sta $ffff
 
-	lda #50
+	lda #RASTER_BOTTOM
 	sta $d012
 
 	asl $d019
@@ -105,6 +94,42 @@
 	pla
 	rti			; restores previous PC, status
 .endproc
+
+;--------------------------------------------------------------------------
+; IRQ handler: RASTER_BOTTOM
+;--------------------------------------------------------------------------
+.proc irq_bottom
+	pha			; saves A, X, Y
+	txa
+	pha
+	tya
+	pha
+
+	STABILIZE_RASTER
+
+	lda #$00
+	sta $d020
+	lda #14
+	sta $d021
+
+	lda #<irq_top
+	sta $fffe
+	lda #>irq_top
+	sta $ffff
+
+	lda #RASTER_TOP
+	sta $d012
+
+	asl $d019
+
+	pla			; restores A, X, Y
+	tay
+	pla
+	tax
+	pla
+	rti			; restores previous PC, status
+.endproc
+
 
 ;--------------------------------------------------------------------------
 ; void init_screen() 
@@ -128,6 +153,7 @@
 
 	ldx #40*2-1
 :	lda screen,x
+	ora #$80		; using second half of the romset
 	sta $8400,x
 	dex
 	bpl :-
@@ -135,6 +161,9 @@
 	rts
 .endproc
 
+;--------------------------------------------------------------------------
+; void init_screen() 
+;--------------------------------------------------------------------------
 .proc init_sprites
 	; in case rider 1 is selected (instead of 0)
 	; sprite pointer and sprite color need to be changed

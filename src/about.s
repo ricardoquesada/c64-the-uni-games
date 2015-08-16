@@ -740,7 +740,7 @@ scroller_text:
 	scrcode "download the source code: https://github.com/ricardoquesada/c64-the-muni-race "
 	scrcode "  come and join us for a muni ride: http://berkeleyunicycling.org "
 	scrcode "  high quality unicycles: http://www.krisholm.com "
-	scrcode "      contact retro moe at : http://retro.moe "
+	scrcode "      contact retro moe at: http://retro.moe "
 	scrcode "      press 'space' to return to the main menu...   "
 	.byte $ff
 
