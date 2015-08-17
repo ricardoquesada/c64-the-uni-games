@@ -28,6 +28,7 @@
 
 RASTER_TOP = 12			; first raster line
 RASTER_BOTTOM = 50 + 8*3	; moving part of the screen
+RIDER_ANIMATION_SPEED = 8
 
 .segment "GAME_CODE"
 
@@ -37,6 +38,9 @@ RASTER_BOTTOM = 50 + 8*3	; moving part of the screen
 	jsr clear_color
 	jsr init_screen
 	jsr init_sprites
+
+	lda #$00
+	sta sync
 
 	; enable raster irq
 	lda #01
@@ -58,7 +62,13 @@ RASTER_BOTTOM = 50 + 8*3	; moving part of the screen
 
 	cli
 
-	jmp *
+@mainloop:
+:	lda sync
+	beq :-
+
+	dec sync
+	jsr animate_rider
+	jmp @mainloop
 
 ;--------------------------------------------------------------------------
 ; IRQ handler: RASTER_TOP
@@ -120,6 +130,8 @@ RASTER_BOTTOM = 50 + 8*3	; moving part of the screen
 	lda #RASTER_TOP
 	sta $d012
 
+	inc sync
+
 	asl $d019
 
 	pla			; restores A, X, Y
@@ -132,7 +144,7 @@ RASTER_BOTTOM = 50 + 8*3	; moving part of the screen
 
 
 ;--------------------------------------------------------------------------
-; void init_screen() 
+; void init_screen()
 ;--------------------------------------------------------------------------
 .proc init_screen
 
@@ -183,13 +195,32 @@ RASTER_BOTTOM = 50 + 8*3	; moving part of the screen
 	sta VIC_SPR_ENA
 	lda #40
 	sta VIC_SPR0_X
-	lda #80
+	lda #228
 	sta VIC_SPR0_Y
 	rts
 .endproc
 
-smooth_scroll_x:
-	.byte $07
+;--------------------------------------------------------------------------
+; void animate_rider
+;--------------------------------------------------------------------------
+.proc animate_rider
+	dec animation_delay
+	beq @animate
+	rts
+
+@animate:
+	lda #RIDER_ANIMATION_SPEED
+	sta animation_delay
+
+	lda $87f8
+	eor #%00000001		; new spriter pointer
+	sta $87f8
+	rts
+.endproc
+
+animation_delay:	.byte RIDER_ANIMATION_SPEED
+smooth_scroll_x:	.byte $07
+sync:			.byte $00
 
 screen:
 		;0123456789|123456789|123456789|123456789|
