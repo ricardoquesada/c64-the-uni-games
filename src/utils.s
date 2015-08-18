@@ -227,6 +227,28 @@ sync:		.byte $00
 
 .endproc
 
+.export start_clean
+.proc start_clean
+	sei
+	lda #$35		; no basic, no kernel
+	sta $01
+
+	; disable interrupts
+	lda #$00
+	sta $d01a		; no raster IRQ
+	lda #$7f
+	sta $dc0d		; no timer IRQ
+	sta $dd0d
+
+			
+	asl $d019		; ack possible interrupts
+	lda $dc0d
+	lda $dd0d
+	cli
+	rts
+.endproc
+
+
 ;--------------------------------------------------------------------------
 ; void sync_irq_timer()
 ;--------------------------------------------------------------------------

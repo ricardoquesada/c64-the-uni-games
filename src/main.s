@@ -10,7 +10,7 @@
 .import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__, __HIGH_SCORES_CODE_LOAD__
 
 ; from utils.s
-.import clear_screen, clear_color, get_key, read_joy2, detect_pal_paln_ntsc, vic_video_type
+.import clear_screen, clear_color, get_key, read_joy2, detect_pal_paln_ntsc, vic_video_type, start_clean
 
 ;--------------------------------------------------------------------------
 ; Macros
@@ -25,9 +25,8 @@ SPRITE_ANIMATION_SPEED = 8
 
 
 .segment "CODE"
-	; turn off BASIC + Kernal. More RAM
-	lda #$35
-	sta $01
+	; no basic, no kernel, no interrupts
+	jsr start_clean
 
 	; things that are going to be executed only once in the whole game
 	jsr detect_pal_paln_ntsc
