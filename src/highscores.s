@@ -1,4 +1,4 @@
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ;
 ; The MUni Race: https://github.com/ricardoquesada/c64-the-muni-race
 ;
@@ -6,10 +6,11 @@
 ;
 ; Uses $f9/$fa temporary. $f9/$fa can be used by other temporary functions
 ;
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; exported by the linker
-.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__
+.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__
+.import __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__
 
 ; from utils.s
 .import clear_screen, clear_color, get_key, read_joy2
@@ -17,35 +18,32 @@
 ; from main.s
 .import irq_open_borders
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
-;--------------------------------------------------------------------------
-.macpack cbm			; adds support for scrcode
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.macpack cbm				; adds support for scrcode
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Constants
-;--------------------------------------------------------------------------
-.include "c64.inc"		; c64 constants
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.include "c64.inc"			; c64 constants
 
 
 .segment "HIGH_SCORES_CODE"
 
 	sei
 
-	; enable raster irq
-	lda #01
+	lda #01				; enable raster irq
 	sta $d01a
 
-	; no IRQ
-	ldx #<irq_open_borders
+	ldx #<irq_open_borders		; raster IRQ to open top/bottom borders
 	ldy #>irq_open_borders
 	stx $fffe
 	sty $ffff
 	lda #$f9
 	sta $d012
 
-	; clear interrupts and ACK irq
-	lda $dc0d
+	lda $dc0d			; clear interrupts and ACK irq
 	lda $dd0d
 	asl $d019
 
@@ -59,19 +57,18 @@
 	jsr get_key
 	bcc @main_loop
 
-	cmp #$47		; space
+	cmp #$47			; space ?
 	bne @main_loop
 	jmp __MAIN_CODE_LOAD__
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; init_screen
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; paints the screen with the "main menu" screen
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_screen
 
-	; clear the screen
-	ldx #0
+	ldx #0				; clear the screen
 	lda #$20
 :	sta $8400+$0000,x
 	sta $8400+$0100,x
@@ -84,17 +81,16 @@
 :	lda high_scores_screen,x
 	sta $8400,x
 	inx
-	cpx #40			; draw 1 line
+	cpx #40				; draw 1 line
 	bne :-
 
-	; init "save" pointer
-	ldx #<($8400 + 40 * 3)	; start writing at 3rd line
-	ldy #>($8400 + 40 * 3)
+	ldx #<($8400 + 40 * 3)		; init "save" pointer
+	ldy #>($8400 + 40 * 3)		; start writing at 3rd line
 	stx $f9
 	sty $fa
 
 
-	ldx #00			; x has the high score entry
+	ldx #00				; x has the high score entry
 
 @loop:
 	jsr @delay
@@ -102,16 +98,15 @@
 
 	jsr @print_highscore_entry
 
-	; pointer to the next line in the screen
-	clc
+	clc				; pointer to the next line in the screen
 	lda $f9
-	adc #40 * 2 + 0		; skip one line
+	adc #40 * 2 + 0			; skip one line
 	sta $f9
 	bcc :+
 	inc $fa
 :
 	inx
-	cpx #10			; repeat 10 times. there are only 10 high scores
+	cpx #10				; repeat 10 times. there are only 10 high scores
 	bne @loop
 
 	rts
@@ -136,28 +131,24 @@
 	rts
 
 @print_highscore_entry:
-	txa			; x has the high score entry index
+	txa				; x has the high score entry index
 
-	ldy #$00		; y = screen idx
+	ldy #$00			; y = screen idx
 
 	pha
 	clc
-	adc #$01		; positions start with 1, not 0
+	adc #$01			; positions start with 1, not 0
 
-	; print position
-	cmp #10
+	cmp #10				; print position
 	bne @print_second_digit
 
-	; quick hack
-	; if number is 10, print '1'
-	; otherwise, skip to second number
-	lda #$31		; number '1'
-	sta ($f9),y
+	lda #$31			; hack: if number is 10, print '1'. $31 = '1'
+	sta ($f9),y			; otherwise, skip to second number
 	ora #$40
 	iny
-	sta ($f9),y
+	sta ($f9),y			; wide char: print 2nd part of digit
 	iny
-	lda #00			; second digit is '0'
+	lda #00				; second digit is '0'
 	jmp :+
 
 @print_second_digit:
@@ -165,35 +156,32 @@
 	iny
 :
 	clc
-	adc #$30 		; A = high_score entry.
+	adc #$30			; A = high_score entry.
 	sta ($f9),y
 	iny
-	ora #$40		; wide chars
-	sta ($f9),y
-	iny
-
-
-	; print '.'
-	lda #33			; '.'
+	ora #$40			; wide chars
 	sta ($f9),y
 	iny
 
+	lda #33				; print '.'
+	sta ($f9),y
+	iny
 
-	; print name 
-	lda #10
+
+	lda #10				; print name 
 	sta @tmp_counter
 
-	txa			; multiply x by 16, since each entry has 16 bytes
+	txa				; multiply x by 16, since each entry has 16 bytes
 	asl
 	asl
 	asl
 	asl
-	tax			; x = high score pointer
+	tax				; x = high score pointer
 
-:	lda entries,x		; points to entry[i].name
-	sta ($f9),y		; pointer to screen
+:	lda entries,x			; points to entry[i].name
+	sta ($f9),y			; pointer to screen
 	iny
-	ora #$40		; wide chars
+	ora #$40			; wide chars
 	sta ($f9),y
 	iny
 	inx
@@ -201,20 +189,19 @@
 	bne :-
 
 
-	; print score
-	lda #6
+	lda #6				; print score
 	sta @tmp_counter
 
 	iny
 	iny
 	iny
 
-:	lda entries,x		; points to entry[i].score
+:	lda entries,x			; points to entry[i].score
 	clc
 	adc #$30
-	sta ($f9),y		; pointer to screen
+	sta ($f9),y			; pointer to screen
 	iny
-	ora #$40		; wide chars
+	ora #$40			; wide chars
 	sta ($f9),y
 	iny
 	inx
@@ -238,7 +225,7 @@ high_scores_screen:
 entries:
 	; high score entry:
 	;     name: 10 bytes in PETSCII
-	;     score: 6 bytes in BCD
+	;     score: 6 bytes
 	;        0123456789
 	scrcode "tom       "
 	.byte  9,0,0,0,0,0

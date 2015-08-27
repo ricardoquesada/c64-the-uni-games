@@ -1,4 +1,4 @@
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ;
 ; The MUni Race: https://github.com/ricardoquesada/c64-the-muni-race
 ;
@@ -7,26 +7,26 @@
 ; Zero Page global registers:
 ;   $f9/$fa -> charset:  ** MUST NOT be modifed by any other functions **
 ;
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 
 ; exported by the linker
-.import __SIDMUSIC_LOAD__, __ABOUT_CODE_LOAD__, __ABOUT_GFX_LOAD__, __MAIN_CODE_LOAD__, __MAIN_CHARSET_LOAD__
+.import __SIDMUSIC_LOAD__, __ABOUT_CODE_LOAD__, __ABOUT_GFX_LOAD__
+.import __MAIN_CODE_LOAD__, __MAIN_CHARSET_LOAD__
 
 ; from utils.s
 .import clear_screen, clear_color, get_key, sync_irq_timer
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Constants
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
-; bitwise: 1=raster-sync code. 2=50hz code (music)
-DEBUG = 0
+DEBUG = 0				; bitwise: 1=raster-sync code. 2=50hz code (music)
 
-RASTER_START = 50
+RASTER_START = 50			; raster scan starts at line 50
 
-SCROLL_AT_LINE = 18
-ROWS_PER_LETTER = 7
+SCROLL_AT_LINE = 18			; starting row for the scroller
+ROWS_PER_LETTER = 7			; how many rows does one big-char takes
 
 SCREEN_TOP = $0400 + SCROLL_AT_LINE * 40
 
@@ -34,14 +34,11 @@ SCREEN_TOP = $0400 + SCROLL_AT_LINE * 40
 MUSIC_INIT = __SIDMUSIC_LOAD__
 MUSIC_PLAY = __SIDMUSIC_LOAD__ + 3
 
-; SPEED must be between 0 and 7. 0=Stop, 7=Max speed
-SCROLL_SPEED = 6
+SCROLL_SPEED = 6			; SPEED must be between 0 and 7. 0=Stop, 7=Max speed
 
-; Black
-SCROLL_BKG_COLOR = 0
+SCROLL_BKG_COLOR = 0			; Black
 
-; SPEED of colorwasher: 1=Max speed
-COLORWASH_DELAY = 1
+COLORWASH_DELAY = 1			; SPEED of colorwasher: 1=Max speed
 
 ANIM_SPEED = 1
 
@@ -50,17 +47,17 @@ KOALA_CHARMEM_DATA = KOALA_BITMAP_DATA + $1f40
 KOALA_COLORMEM_DATA = KOALA_BITMAP_DATA + $2328
 KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
-;--------------------------------------------------------------------------
-.macpack cbm			; adds support for scrcode
-.macpack mymacros		; my own macros
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.macpack cbm				; adds support for scrcode
+.macpack mymacros			; my own macros
 
 .segment "ABOUT_CODE"
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; _main
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 	jsr init
 
 @mainloop:
@@ -72,10 +69,9 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 	beq :+
 	jsr @do_sync
 :
-	; key pressed ?
-	jsr get_key
+	jsr get_key			; key pressed ?
 	bcc @mainloop
-	cmp #$47		; space
+	cmp #$47			; space
 	bne @mainloop
 
 	jmp __MAIN_CODE_LOAD__
@@ -103,38 +99,37 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
 .if (DEBUG & 2)
 	dec $d020
 .endif
-	dec sync50hz		; I don't think it is possible have more than one
-	bne :-			; timer IRQ, but just in case
-				
+	dec sync50hz			; I don't think it is possible have more than one
+	bne :-				; timer IRQ, but just in case
+
 	rts
 
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; IRQ handler
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 irq:
-	pha			; saves A, X, Y
+	pha				; saves A, X, Y
 	txa
 	pha
 	tya
 	pha
 
-	sei
-	asl $d019
+	sei				; disables interrupts
+	asl $d019			; clears raster interrupt
 	bcs @raster
 
-	; timer A interrupt
-	lda $dc0d		; clear the interrupt
-	cli
+	lda $dc0d			; clears timer A interrupt
+	cli				; enables interrupts
 
 	inc sync50hz
 
-	pla			; restores A, X, Y
+	pla				; restores A, X, Y
 	tay
 	pla
 	tax
 	pla
-	rti			; restores previous PC, status
+	rti				; restores previous PC, status
 
 @raster:
 	STABILIZE_RASTER
@@ -143,54 +138,43 @@ irq:
 		nop
 	.endrepeat
 
-	; set char mode
-	lda #%00011011
+	lda #%00011011			; set char mode
 	sta $d011
 
-	; set colors
-	ldx #SCROLL_BKG_COLOR
+	ldx #SCROLL_BKG_COLOR		; set border and background colors
 	stx $d020
 	stx $d021
 
-	; set the horizontal scroll
-	lda smooth_scroll_x
+	lda smooth_scroll_x		; set the horizontal scroll
 	sta $d016
 
-	; raster bars
-	ldx #$00
-
-	; paint the raster bars
-	ldy #(ROWS_PER_LETTER *8)
+	ldx #$00			; raster bars
+	ldy #(ROWS_PER_LETTER *8)	; paint the raster bars
 :       lda $d012
 :       cmp $d012
-	beq :-
+	beq :-				; wait until next raster line
 	lda raster_colors+12,x
 	sta $d021
 	inx
 	dey
 	bne :--
 
-	; color
 	lda #$00
-	sta $d020
+	sta $d020			; set border color
 	lda KOALA_BACKGROUND_DATA
-	sta $d021
+	sta $d021			; set background color
 
-	; no scroll, multi-color
-	lda #%00011000
+	lda #%00011000			; no scroll, multi-color
 	sta $d016
 
-	; hires bitmap mode
-	lda #%00111011
+	lda #%00111011			; set hires bitmap mode. needed for the logo
 	sta $d011
 
 	inc sync
 
 
-	; we have to re-schedule irq from irq basically because
-	; we are using a double IRQ
-	lda #<irq
-	sta $fffe
+	lda #<irq			; we have to re-schedule irq from irq basically because
+	sta $fffe			; we are using a double IRQ
 	lda #>irq
 	sta $ffff
 
@@ -199,49 +183,44 @@ irq:
 
 	asl $d019
 
-	pla			; restores A, X, Y
+	pla				; restores A, X, Y
 	tay
 	pla
 	tax
 	pla
-	rti			; restores previous PC, status
+	rti				; restores previous PC, status
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; scroll(void)
+;------------------------------------------------------------------------------;
 ; main scroll function
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc scroll
-	; speed control
 
-	sec
+	sec				; speed control
 	lda smooth_scroll_x
 	sbc #SCROLL_SPEED
 	and #07
 	sta smooth_scroll_x
 	bcc :+
 	rts
-
 :
+
 	jsr scroll_screen
 
 	lda chars_scrolled
 	cmp #%10000000
 	bne :+
 
-	; A and current_char will contain the char to print
-	; $f9/$fa points to the charset definition of the char
-	jsr setup_charset
-
+	jsr setup_charset		; A and current_char will contain the char to print
+					; $f9/$fa points to the charset definition of the char
 :
-	; basic setup
-	ldx #<(SCREEN_TOP+7*40+39)
+	ldx #<(SCREEN_TOP+7*40+39)	; basic setup
 	ldy #>(SCREEN_TOP+7*40+39)
 	stx @screen_address
 	sty @screen_address+1
 
-	; should not be bigger than 7 (8 rows)
-	ldy #.min(ROWS_PER_LETTER,7)
-
+	ldy #.min(ROWS_PER_LETTER,7)	; should not be bigger than 7 (8 rows)
 
 @loop:
 	lda ($f9),y
@@ -249,21 +228,18 @@ irq:
 	beq @empty_char
 
 ;	 lda current_char
-	; char to display
-	lda #$fe		; full char
+	lda #$fe			; A = char to display. $fe = full char
 	bne :+
 
 @empty_char:
-	lda #$ff		; empty char
+	lda #$ff			; A = char to display. $ff = empty char
 
 :
-	; self-changing value
-	; this value will be overwritten with the address of the screen
 @screen_address = *+1
-	sta $caca
+	sta $caca			; self-modifying value
+					; this value will be overwritten with the address of the screen
 
-	; next line for top scroller
-	sec
+	sec				; next line for top scroller
 	lda @screen_address
 	sbc #40
 	sta @screen_address
@@ -271,7 +247,7 @@ irq:
 	dec @screen_address+1
 :
 
-	dey			; next charset definition
+	dey				; next charset definition
 	bpl @loop
 
 	lsr chars_scrolled
@@ -292,18 +268,16 @@ irq:
 .endproc
 
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; scroll_screen(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; args: -
 ; modifies: A, X, Status
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 scroll_screen:
-	; move the chars to the left and right
-	ldx #0
+	ldx #0				; move the chars to the left and right
 
-	; doing a cpy #$ff
-	ldy #38
+	ldy #38				; doing a cpy #$ff
 
 @loop:
 	.repeat ROWS_PER_LETTER,i
@@ -316,33 +290,29 @@ scroll_screen:
 	bpl @loop
 	rts
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; setup_charset(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; Args: -
 ; Modifies A, X, Status
 ; returns A: the character to print
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc setup_charset
-	; put next char in column 40
 
-	; supports a scroller with more than 255 chars
-	clc
-	lda #<scroller_text
+	clc				; put next char in column 40
+	lda #<scroller_text		; supports a scroller with more than 255 chars
 	adc scroller_text_ptr_low
 	sta @address
 	lda #>scroller_text
 	adc scroller_text_ptr_hi
 	sta @address+1
 
-	; self-changing value
 @address = *+1
-	lda scroller_text
+	lda scroller_text		; self-modifying value
 	cmp #$ff
 	bne :+
 
-	; reached $ff. Then start from the beginning
-	lda #%10000000
+	lda #%10000000			; reached $ff. Then start from the beginning
 	sta chars_scrolled
 	lda #0
 	sta scroller_text_ptr_low
@@ -353,39 +323,34 @@ scroll_screen:
 
 	tax
 
-	; address = CHARSET + 8 * index
-	; multiply by 8 (LSB)
-	asl
-	asl
+	asl				; address = CHARSET + 8 * index
+	asl				; multiply by 8 (LSB)
 	asl
 	clc
-	adc #<(__MAIN_CHARSET_LOAD__ + 128*8)		; charset starting at pos 128
+	adc #<(__MAIN_CHARSET_LOAD__ + 128*8)	; charset starting at pos 128
 	sta $f9
 
-	; multiply by 8 (MSB)
-	; 256 / 8 = 32
-	; 32 = %00100000
 	txa
-	lsr
-	lsr
-	lsr
+	lsr				; multiply by 8 (MSB)
+	lsr				; 256 / 8 = 32
+	lsr				; 32 = %00100000
 	lsr
 	lsr
 
 	clc
-	adc #>(__MAIN_CHARSET_LOAD__ + 128*8)		; charset starting at pos 128
+	adc #>(__MAIN_CHARSET_LOAD__ + 128*8)	; charset starting at pos 128
 	sta $fa
 
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; anim_char(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; Args: -
 ; Modifies A, X, Status
 ; returns A: the character to print
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ANIM_TOTAL_FRAMES = 4
 .proc anim_char
 
@@ -400,12 +365,12 @@ ANIM_TOTAL_FRAMES = 4
 
 @animation:
 	lda anim_char_idx
-	asl			; multiply by 8 (next char)
+	asl				; multiply by 8 (next char)
 	asl
 	asl
 	tay
 
-	ldx #7			; 8 rows
+	ldx #7				; 8 rows
 @loop:
 	lda char_frames,y
 	sta $3800 + $fe * 8,x
@@ -425,12 +390,12 @@ ANIM_TOTAL_FRAMES = 4
 
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; anim_colorwash(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; Args: -
 ; A Color washer routine
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc anim_colorwash
 
 	dec colorwash_delay
@@ -441,8 +406,7 @@ ANIM_TOTAL_FRAMES = 4
 	lda #COLORWASH_DELAY
 	sta colorwash_delay
 
-	; washer top
-	lda raster_colors_top
+	lda raster_colors_top		; washer top
 	sta save_color_top
 
 	ldx #0
@@ -453,15 +417,14 @@ ANIM_TOTAL_FRAMES = 4
 	bne :-
 
 save_color_top = *+1
-	lda #00			; self modifying code
+	lda #00				; self modifying code
 	sta raster_colors_top+TOTAL_RASTER_LINES-1
 
-	; washer bottom
-	lda raster_colors_bottom+TOTAL_RASTER_LINES-1
+	lda raster_colors_bottom+TOTAL_RASTER_LINES-1 ; washer bottom
 	sta save_color_bottom
 
-	; x == TOTAL_RASTER_LINES... and I need it to be TOTAL_RASTER_LINES-1
-	dex
+	dex				; x == TOTAL_RASTER_LINES... 
+					; and I need it to be TOTAL_RASTER_LINES-1
 
 :	lda raster_colors_bottom,x
 	sta raster_colors_bottom+1,x
@@ -469,121 +432,91 @@ save_color_top = *+1
 	bpl :-
 
 save_color_bottom = *+1
-	lda #00			; self modifying code
+	lda #00				; self modifying code
 	sta raster_colors_bottom
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; init(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; Args: -
 ; Clear screen, interrupts, charset and others
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init
-	; must be BEFORE any screen-related function
-	lda #$20
+	lda #$20			; must be BEFORE any screen-related function
 	jsr clear_screen
 	lda #$00
 	jsr clear_color
 
-	; must be BEFORE init_charset / init_scroll_colors
-	jsr init_koala_colors
+	jsr init_koala_colors		; must be BEFORE init_charset / init_scroll_colors
 
-	; must be AFTER koala colors
-	jsr init_charset
+	jsr init_charset		; must be AFTER koala colors
 
-	; must be AFTER koala colors
-	jsr init_scroll_colors
+	jsr init_scroll_colors		; must be AFTER koala colors
 
-	;default values for scroll variables
-	jsr init_scroll_vars
+	jsr init_scroll_vars		; default values for scroll variables
 
-	; no sprites please
-	lda #$00
+	lda #$00			; no sprites please
 	sta $d015
 
-	; init music
-	lda #0
+	lda #0				; init music
 	jsr MUSIC_INIT
 
-	; colors
-	lda #0
+	lda #0				; colors
 	sta $d020
 	sta $d021
 
-	; default is:
-	;    %00010101
-	; charset at $3800
-	lda #%00011111
+	lda #%00011111			; charset at $3800
 	sta $d018
 
-	; no interrups
-	sei
+	sei				; no interrups
 	jsr sync_irq_timer
 
-	; turn off cia interrups
-	lda #$7f
+	lda #$7f			; turn off cia interrups
 	sta $dc0d
 	sta $dd0d
 
-	; enable raster irq
-	lda #01
+	lda #01				; enable raster irq
 	sta $d01a
 
-	;default is:
-	;    %00011011
-	; disable bitmap mode
-	; 25 rows
-	; disable extended color
-	; vertical scroll: default position
-	lda #%00011011
-	sta $d011
+	lda #%00011011			; disable bitmap mode, 25 rows, disable extended color
+	sta $d011			; and vertical scroll in default position
 
-        ; Vic bank 0: $0000-$3FFF
-	lda $dd00
+	lda $dd00			; Vic bank 0: $0000-$3FFF
 	and #$fc
 	ora #3
 	sta $dd00
 
-
-	; set Timer interrupt
 	lda #$01
-	sta $dc0e			; start time A
+	sta $dc0e			; start timer interrupt A
 	lda #$81
-	sta $dc0d			; enable time A interrupts
+	sta $dc0d			; enable timer A interrupts
 
-	;
-	; irq handler
-	; both for raster and timer interrupts
-	;
-	lda #<irq
-	sta $fffe
-	lda #>irq
+	lda #<irq			; IRQ handler
+	sta $fffe			; both for raster interrupts
+	lda #>irq			; and timer interrupts
 	sta $ffff
 
-	; raster interrupt
-	lda #RASTER_START+SCROLL_AT_LINE*8-2
+	lda #RASTER_START+SCROLL_AT_LINE*8-2 ; raster interrupt
 	sta $d012
 
-	; clear interrupts and ACK irq
-	lda $dc0d
+	lda $dc0d			; clear interrupts and ACK irq
 	lda $dd0d
 	asl $d019
 
-	; enable interrups again
-	cli
+	cli				; enable interrups again
 
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; init_koala_colors(void)
 ;--------------------------------------------------------------------------
 ; Args: -
 ; puts the koala colors in the correct address
 ; Assumes that bimap data was loaded in the correct position
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_koala_colors
 
 	; Koala format
@@ -595,8 +528,7 @@ save_color_bottom = *+1
 
 	ldx #$00
 @loop:
-	; $0400: colors %01, %10
-	lda KOALA_CHARMEM_DATA,x
+	lda KOALA_CHARMEM_DATA,x	; $0400: colors %01, %10
 	sta $0400,x
 	lda KOALA_CHARMEM_DATA+$0100,x
 	sta $0400+$0100,x
@@ -605,8 +537,7 @@ save_color_bottom = *+1
 	lda KOALA_CHARMEM_DATA+$02e8,x
 	sta $0400+$02e8,x
 
-	; $d800: color %11
-	lda KOALA_COLORMEM_DATA,x
+	lda KOALA_COLORMEM_DATA,x	; $d800: color %11
 	sta $d800,x
 	lda KOALA_COLORMEM_DATA+$0100,x
 	sta $d800+$100,x
@@ -620,23 +551,20 @@ save_color_bottom = *+1
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; init_scroll_colors(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; Args: -
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_scroll_colors
-	; foreground RAM color for scroll lines
-	ldx #0
-	; 9 lines: 40 * 9 = 360. 256 + 104
+	ldx #0				; foreground RAM color for scroll lines
+					; 9 lines: 40 * 9 = 360. 256 + 104
 @loop:
-	; clear color
-	lda #SCROLL_BKG_COLOR
+	lda #SCROLL_BKG_COLOR		; clear color
 	sta $d800 + SCROLL_AT_LINE * 40,x
 	sta $d800 + SCROLL_AT_LINE * 40 + (ROWS_PER_LETTER*40-256),x
 
-	; clear char
-	lda #$ff
+	lda #$ff			; $ff = clear char
 	sta $0400 + SCROLL_AT_LINE * 40,x
 	sta $0400 + SCROLL_AT_LINE * 40 + (ROWS_PER_LETTER*40-256),x
 
@@ -645,11 +573,11 @@ save_color_bottom = *+1
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; init_scroll_vars(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; Args: -
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_scroll_vars
 	lda #$07
 	sta smooth_scroll_x
@@ -667,12 +595,12 @@ save_color_bottom = *+1
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; init_charset(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; Args: -
 ; copies 3 custom chars to the correct address
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_charset
 	ldx #$07
 @loop:
@@ -685,9 +613,9 @@ save_color_bottom = *+1
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; variables
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; IMPORTANT: raster_colors must be at the beginning of the page in order to avoid extra cycles.
 .segment "ABOUT_DATA"
@@ -707,8 +635,7 @@ raster_colors_bottom:
 	.byte $01,$01,$01,$01,$01,$01,$01,$01
 	.byte $01,$01,$01,$01,$07,$07,$0f,$0f
 	.byte $0a,$0a,$08,$08,$02,$02,$09,$09
-	; FIXME: ignore, for overflow
-	.byte 0
+	.byte 0				; FIXME: ignore, for overflow
 
 TOTAL_RASTER_LINES = raster_colors_bottom-raster_colors_top
 

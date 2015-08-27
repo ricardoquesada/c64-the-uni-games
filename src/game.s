@@ -1,10 +1,10 @@
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ;
 ; The MUni Race: https://github.com/ricardoquesada/c64-the-muni-race
 ;
 ; game scene
 ;
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; exported by the linker
 .import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__
@@ -15,19 +15,19 @@
 ; from utils.s
 .import clear_screen, clear_color, get_key, read_joy2
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
-;--------------------------------------------------------------------------
-.macpack cbm			; adds support for scrcode
-.macpack mymacros		; my own macros
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.macpack cbm				; adds support for scrcode
+.macpack mymacros			; my own macros
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Constants
-;--------------------------------------------------------------------------
-.include "c64.inc"		; c64 constants
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.include "c64.inc"			; c64 constants
 
-RASTER_TOP = 12			; first raster line
-RASTER_BOTTOM = 50 + 8*3	; moving part of the screen
+RASTER_TOP = 12				; first raster line
+RASTER_BOTTOM = 50 + 8*3		; moving part of the screen
 RIDER_ANIMATION_SPEED = 8
 
 .segment "GAME_CODE"
@@ -42,12 +42,10 @@ RIDER_ANIMATION_SPEED = 8
 	lda #$00
 	sta sync
 
-	; enable raster irq
-	lda #01
+	lda #01				; Enable raster irq
 	sta $d01a
 
-	; raster irq vector
-	ldx #<irq_top
+	ldx #<irq_top			; raster irq vector
 	ldy #>irq_top
 	stx $fffe
 	sty $ffff
@@ -55,8 +53,7 @@ RIDER_ANIMATION_SPEED = 8
 	lda #RASTER_TOP
 	sta $d012
 
-	; clear interrupts and ACK irq
-	lda $dc0d
+	lda $dc0d			; clear interrupts and ACK irq
 	lda $dd0d
 	asl $d019
 
@@ -70,11 +67,11 @@ RIDER_ANIMATION_SPEED = 8
 	jsr animate_rider
 	jmp @mainloop
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; IRQ handler: RASTER_TOP
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc irq_top
-	pha			; saves A, X, Y
+	pha				; saves A, X, Y
 	txa
 	pha
 	tya
@@ -97,19 +94,19 @@ RIDER_ANIMATION_SPEED = 8
 
 	asl $d019
 
-	pla			; restores A, X, Y
+	pla				; restores A, X, Y
 	tay
 	pla
 	tax
 	pla
-	rti			; restores previous PC, status
+	rti				; restores previous PC, status
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; IRQ handler: RASTER_BOTTOM
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc irq_bottom
-	pha			; saves A, X, Y
+	pha				; saves A, X, Y
 	txa
 	pha
 	tya
@@ -117,12 +114,12 @@ RIDER_ANIMATION_SPEED = 8
 
 	STABILIZE_RASTER
 
-	lda #$00
-	sta $d020
+	lda #$00			; black
+	sta $d020			; border color
 	lda #14
-	sta $d021
+	sta $d021			; background color
 
-	lda #<irq_top
+	lda #<irq_top			; set new IRQ-raster vector
 	sta $fffe
 	lda #>irq_top
 	sta $ffff
@@ -134,26 +131,25 @@ RIDER_ANIMATION_SPEED = 8
 
 	asl $d019
 
-	pla			; restores A, X, Y
+	pla				; restores A, X, Y
 	tay
 	pla
 	tax
 	pla
-	rti			; restores previous PC, status
+	rti				; restores previous PC, status
 .endproc
 
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void init_screen()
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_screen
 
 	lda #14
 	sta $d020
 	sta $d021
 
-	; screen is at $8400
-	ldx #$00
+	ldx #$00			; screen is at $8400
 @loop:
 	lda #$20
 	sta $8400,x
@@ -165,7 +161,7 @@ RIDER_ANIMATION_SPEED = 8
 
 	ldx #40*2-1
 :	lda screen,x
-	ora #$80		; using second half of the romset
+	ora #$80			; using second half of the romset
 	sta $8400,x
 	dex
 	bpl :-
@@ -173,17 +169,15 @@ RIDER_ANIMATION_SPEED = 8
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
-; void init_screen() 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_screen()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_sprites
-	; in case rider 1 is selected (instead of 0)
-	; sprite pointer and sprite color need to be changed
-	lda selected_rider
-	cmp #$01
+	lda selected_rider		; in case rider 1 is selected (instead of 0)
+	cmp #$01			; sprite pointer and sprite color need to be changed
 	bne :+
 
-	lda #$08		; sprite pointer 8
+	lda #$08			; sprite pointer 8
 	sta $87f8
 
 	lda __MAIN_SPRITES_LOAD__ + 64 * 8 + 63 ; sprite color
@@ -200,9 +194,9 @@ RIDER_ANIMATION_SPEED = 8
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void animate_rider
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc animate_rider
 	dec animation_delay
 	beq @animate
@@ -213,7 +207,7 @@ RIDER_ANIMATION_SPEED = 8
 	sta animation_delay
 
 	lda $87f8
-	eor #%00000001		; new spriter pointer
+	eor #%00000001			; new spriter pointer
 	sta $87f8
 	rts
 .endproc

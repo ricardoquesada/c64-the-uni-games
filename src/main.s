@@ -1,35 +1,33 @@
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ;
 ; The MUni Race: https://github.com/ricardoquesada/c64-the-muni-race
 ;
 ; main screen
 ;
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; exported by the linker
-.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__, __HIGH_SCORES_CODE_LOAD__
+.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__
+.import __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__, __HIGH_SCORES_CODE_LOAD__
 
 ; from utils.s
 .import clear_screen, clear_color, get_key, read_joy2, detect_pal_paln_ntsc, vic_video_type, start_clean
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
-;--------------------------------------------------------------------------
-.macpack cbm			; adds support for scrcode
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.macpack cbm				; adds support for scrcode
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Constants
-;--------------------------------------------------------------------------
-.include "c64.inc"		; c64 constants
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.include "c64.inc"			; c64 constants
 SPRITE_ANIMATION_SPEED = 8
 
 
 .segment "CODE"
-	; no basic, no kernel, no interrupts
-	jsr start_clean
-
-	; things that are going to be executed only once in the whole game
-	jsr detect_pal_paln_ntsc
+	jsr start_clean			; no basic, no kernal, no interrupts
+	jsr detect_pal_paln_ntsc	; pal, pal-n or ntsc?
 
 
 	; disable NMI
@@ -53,68 +51,49 @@ disable_nmi:
 	jsr clear_color
 	jsr init_screen
 
-	; no scroll,single-color,40-cols
-	; default: %00001000
-	lda #%00001000
+	lda #%00001000			; no scroll,single-color,40-cols
 	sta $d016
 
-	; Vic bank 2: $8000-$BFFF
-	lda $dd00
+	lda $dd00			; Vic bank 2: $8000-$BFFF
 	and #$fc
 	ora #1
 	sta $dd00
 
-	; charset at $8800 (equal to $0800 for bank 0)
-	; default is:
-	;    %00010101
-	lda #%00010010
+	lda #%00010010			; charset at $8800 (equal to $0800 for bank 0)
 	sta $d018
 
-	;default is:
-	;    %00011011
-	; disable bitmap mode
-	; 25 rows
-	; disable extended color
-	; vertical scroll: default position
-	lda #%00011011
-	sta $d011
+	lda #%00011011			; disable bitmap mode, 25 rows, disable extended color
+	sta $d011			; and vertical scroll in default position
 
 	jsr init_color_wash
 
-	; background & border color
-	lda #$00
+	lda #$00			; background & border color
 	sta $d020
 	sta $d021
 
 
-	; turn off cia interrups
-	lda #$7f
+	lda #$7f			; turn off cia interrups
 	sta $dc0d
 	sta $dd0d
 
-	; enable raster irq
-	lda #01
+	lda #01				; enable raster irq
 	sta $d01a
 
-	; no IRQ
-	ldx #<irq_open_borders
-	ldy #>irq_open_borders
+	ldx #<irq_open_borders		; next IRQ-raster vector
+	ldy #>irq_open_borders		; needed to open the top/bottom borders
 	stx $fffe
 	sty $ffff
 	lda #$f9
 	sta $d012
 
-	; clear interrupts and ACK irq
-	lda $dc0d
+	lda $dc0d			; clear interrupts and ACK irq
 	lda $dd0d
 	asl $d019
 
-	; turn off volume
-	lda #$00
+	lda #$00			; turn off volume
 	sta SID_Amp
 
-	; default menu mode: main menu
-	lda #$00
+	lda #$00			; default menu mode: main menu
 	sta menu_mode
 	sta selected_rider
 	lda #SPRITE_ANIMATION_SPEED
@@ -129,12 +108,9 @@ disable_nmi:
 @main_loop:
 	jsr color_wash
 
-	; delay loop to make the color
-	; washer slower
-	ldy #$0a
-:	ldx #$00
-:	
-	dex
+	ldy #$0a			; delay loop to make the color
+:	ldx #$00			; washer slower
+:	dex
 	bne :-
 	dey	
 	bne :--
@@ -142,32 +118,29 @@ disable_nmi:
 	lda menu_mode
 	beq @main_menu_mode
 	
-	; "choose rider" mode
-	jsr animate_rider
+	jsr animate_rider		; "choose rider" mode
 	jsr read_joy2
 	eor #$ff
-	and #%00011100 ;	; only care about left,right,fire
+	and #%00011100 ;		; only care about left,right,fire
 	beq @main_loop
 
-	cmp #%00010000		; fire ?
+	cmp #%00010000			; fire ?
 	bne :+
 	jmp __GAME_CODE_LOAD__
 
 :
-	; joystick moved to the left or right.
-	; choose a new rider
-	jsr choose_new_rider
+	jsr choose_new_rider		; joystick moved to the left or right.  choose a new rider
 	jmp @main_loop
 
 @main_menu_mode:
 	jsr get_key
 	bcc @main_loop
 
-	cmp #$40                ; F1
+	cmp #$40			; F1
 	beq @set_choose_rider_mode
-	cmp #$50		; F3
+	cmp #$50			; F3
 	beq @jump_high_scores
-	cmp #$30                ; F7
+	cmp #$30			; F7
 	beq @jump_about
 	jmp @main_loop
 
@@ -185,48 +158,45 @@ disable_nmi:
 	jmp __ABOUT_CODE_LOAD__
 
 
-;--------------------------------------------------------------------------
-; raster IRQ
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; IRQ: irq_open_borders()
+;------------------------------------------------------------------------------;
 ; used to open the top/bottom borders
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export irq_open_borders
 irq_open_borders:
-	pha			; saves A, X, Y
+	pha				; saves A, X, Y
 	txa
 	pha
 	tya
 	pha
 
-	; open vertical borders trick
-	; first switch to 24 cols-mode...
-	lda $d011
-	and #$f7
+	lda $d011			; open vertical borders trick
+	and #$f7			; first switch to 24 cols-mode...
 	sta $d011
 
 :	lda $d012
 	cmp #$ff
 	bne :-
 
-	; ...a few raster lines switch to 25 cols-mode again
-	lda $d011
+	lda $d011			; ...a few raster lines switch to 25 cols-mode again
 	ora #$08
 	sta $d011
 
 	asl $d019
 
-	pla			; restores A, X, Y
+	pla				; restores A, X, Y
 	tay
 	pla
 	tax
 	pla
-	rti			; restores previous PC, status
+	rti				; restores previous PC, status
 
-;--------------------------------------------------------------------------
-; init_screen
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_screen()
+;------------------------------------------------------------------------------;
 ; paints the screen with the "main menu" screen
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_screen
 	ldx #$00
 @loop:
@@ -242,15 +212,13 @@ irq_open_borders:
 	bne @loop
 
 
-	lda #%10000000		; enable sprite 7
+	lda #%10000000			; enable sprite #7
 	sta VIC_SPR_ENA
-
-	; 9th bit
-	lda #%10000000
-	sta $d010
+	lda #%10000000			; set sprite #7 x-pos 9-bit ON
+	sta $d010			; since x pos > 255
 
 	lda #$40
-	sta VIC_SPR7_X
+	sta VIC_SPR7_X			; x= $140 = 320
 	lda #$f0
 	sta VIC_SPR7_Y
 
@@ -258,20 +226,15 @@ irq_open_borders:
 	and #$0f
 	sta VIC_SPR7_COLOR
 
-	; display PAL/NTSC logo
-	ldx #$0f		; sprite pointer to PAL (15)
-	lda vic_video_type	; ntsc, pal or paln?
-
-	cmp #$01		; Pal ?
-	beq @end		; yes.
-
-	cmp #$2f		; Pal-N?
-	beq @paln		; yes
-
-	cmp #$2e		; NTSC Old?
-	beq @ntscold		; yes
-				
-	ldx #$0e		; otherwise it is NTSC
+	ldx #$0f			; sprite pointer to PAL (15)
+	lda vic_video_type		; ntsc, pal or paln?
+	cmp #$01			; Pal ?
+	beq @end			; yes.
+	cmp #$2f			; Pal-N?
+	beq @paln			; yes
+	cmp #$2e			; NTSC Old?
+	beq @ntscold			; yes
+	ldx #$0e			; otherwise it is NTSC
 	bne @end
 
 @ntscold:
@@ -280,16 +243,16 @@ irq_open_borders:
 @paln:
 	ldx #$0d
 @end:
-	stx $87ff		; set sprite pointer
+	stx $87ff			; set sprite pointer
 
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; init_choose_rider_screen(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; displays the "choose rider" message
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_choose_rider_screen
 	ldx #20
 	ldy #19
@@ -312,17 +275,16 @@ irq_open_borders:
 	rts
 
 @delay:
-	; small delay to create a "sweeping" effect
-	txa
+	txa				; small delay to create a "sweeping" effect
 	pha
 	tya
 	pha
-	ldx #$12		; start of delay
+	ldx #$12			; start of delay
 :	ldy #$00
 :	dey
 	bne :-
 	dex
-	bne :--			; end of delay
+	bne :--				; end of delay
 	pla
 	tay
 	pla
@@ -330,91 +292,81 @@ irq_open_borders:
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; init_choose_rider_sprites(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; displays the sprite riders
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_choose_rider_sprites
 
 	lda VIC_SPR_ENA
-	ora #%00000111		; enable sprites 1,2,3
+	ora #%00000111			; enable sprites 1,2,3
 	sta VIC_SPR_ENA
 
-	; sprites 0,1: multicolor
-	; sprites 2: hi res
-	lda #%00000011
-	sta VIC_SPR_MCOLOR
+	lda #%00000011			; sprites 0,1: multicolor
+	sta VIC_SPR_MCOLOR		; sprites 2: hi res
 
-	; sprite 2 expanded in X and Y
-	lda #%00000100
-	sta VIC_SPR_EXP_X	; expand X
-	sta VIC_SPR_EXP_Y	; expand Y
+	lda #%00000100			; sprite 2 expanded in X and Y
+	sta VIC_SPR_EXP_X		; expand X
+	sta VIC_SPR_EXP_Y		; expand Y
 
-	; multicolor values
-	lda #$0a
+	lda #$0a			; multicolor values
 	sta VIC_SPR_MCOLOR0
 	lda #$0b
 	sta VIC_SPR_MCOLOR1
 
-	; 9th bit
-	lda $d010
+	lda $d010			; sprite #2. set "x" 9th bit on
 	ora #%00000010
 	sta $d010
 	
-	; sprite #0
-	lda #$48		; position x
+	lda #$48			; sprite #0: position x
 	sta VIC_SPR0_X
-	lda #$a4		; position y
+	lda #$a4			; sprite #0: position y
 	sta VIC_SPR0_Y
-	lda __MAIN_SPRITES_LOAD__ + 64 * 0 + 63; sprite color
+	lda __MAIN_SPRITES_LOAD__ + 64 * 0 + 63; sprite #0 color
 	and #$0f
 	sta VIC_SPR0_COLOR
-	; sprites are located at $8000... First sprite pointer is 0
-	lda #$00		; sprite pointer 0
-	sta $87f8
 
-	; sprite #1
-	lda #$0b		; position x
+	lda #$00			; sprites are located at $8000... First sprite pointer is 0
+	sta $87f8			; sprite #0 pointer = 0
+
+	lda #$0b			; sprite #1 position x
 	sta VIC_SPR1_X
-	lda #$a4		; position y
+	lda #$a4			; sprite #1 position y
 	sta VIC_SPR1_Y
-	lda __MAIN_SPRITES_LOAD__ + 64 * 8 + 63 ; sprite color
+	lda __MAIN_SPRITES_LOAD__ + 64 * 8 + 63 ; sprite #1 color
 	and #$0f
 	sta VIC_SPR1_COLOR
-	lda #$08		; sprite pointer 8
+	lda #$08			; sprite #1 pointer = 8
 	sta $87f9
 
-	; sprite #2
-	lda #$43		; position x
+	lda #$43			; sprite #2 position x
 	sta VIC_SPR2_X
-	lda #$a0		; position y
+	lda #$a0			; sprite #2 position y
 	sta VIC_SPR2_Y
-	lda __MAIN_SPRITES_LOAD__ + 64 * 7 + 63 ; sprite color
+	lda __MAIN_SPRITES_LOAD__ + 64 * 7 + 63 ; sprite #2 color
 	and #$0f
 	sta VIC_SPR2_COLOR
-	lda #$07		; sprite pointer 7
+	lda #$07			; sprite #2 pointer = 7
 	sta $87fa
 
 
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; init_color_wash(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; sets the screen color already 40 "washed" colors, so that the scrolls
 ; starts at the right position.
 ; This code is similar to call `jsr color_wash` for 40 times faster
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 COLORWASH_START_LINE = 0
 .proc init_color_wash
-	; set color screen
-	ldx #00
+	ldx #00				; set color screen
 	ldy #00
 @loop:
-	; 9 lines to scroll, starting from line 0
-	.repeat 9,i
+	.repeat 9,i			; 9 lines to scroll, starting from line 0
 		lda colors+(i*2),y
 		sta $d800+40*(i+COLORWASH_START_LINE),x
 	.endrepeat
@@ -428,32 +380,28 @@ COLORWASH_START_LINE = 0
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; color_wash(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; Scrolls the screen colors creating a kind of "rainbow" effect
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc color_wash
 	; scroll the colors
 	ldx #0
 @loop:
-	; 9 lines to scroll, starting from line COLORWASH_START_LINE
-	.repeat 9,i
+	.repeat 9,i			; 9 lines to scroll, starting from line COLORWASH_START_LINE
 		lda $d800+40*(i+COLORWASH_START_LINE)+1,x
 		sta $d800+40*(i+COLORWASH_START_LINE),x
 	.endrepeat
 	inx
-	cpx #40			; 40 columns
+	cpx #40				; 40 columns
 	bne @loop
 
-	; set the new colors at row 39
-	ldy color_idx
+	ldy color_idx			; set the new colors at row 39
 
-	; sprite #2 color
-	; change color at this moment, in order to avoid
-	; doing "ldy color_idx" again
-	lda colors,y
-	sta VIC_SPR2_COLOR
+	lda colors,y			; sprite #2 color
+	sta VIC_SPR2_COLOR		; change color at this moment, in order to avoid
+					; doing "ldy color_idx" again
 
 	.repeat 9,i
 		lda colors,y
@@ -461,25 +409,24 @@ COLORWASH_START_LINE = 0
 		iny
 		iny
 		tya
-		and #$3f	; 64 colors
+		and #$3f		; 64 colors
 		tay
 	.endrepeat
 
-	; set the new index color for the next iteration
-	ldy color_idx
+	ldy color_idx			; set the new index color for the next iteration
 	iny
 	tya
-	and #$3f		; 64 colors
+	and #$3f			; 64 colors
 	sta color_idx
 
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void animate_rider(void)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; animates the selected rider
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc animate_rider
 	dec animation_delay
 	beq @animate
@@ -490,17 +437,17 @@ COLORWASH_START_LINE = 0
 	sta animation_delay
 
 	ldx selected_rider
-	lda $87f8,x
-	eor #%00000001		; new spriter pointer
+	lda $87f8,x			; sprite #0 pointer
+	eor #%00000001			; new spriter pointer
 	sta $87f8,x
 	rts
 .endproc
 
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void choose_new_rider(joystick)
-;--------------------------------------------------------------------------
+;------------------------------------------------------------------------------;
 ; chooses a new rider
-;--------------------------------------------------------------------------
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc choose_new_rider
 	cmp #%00001000
 	beq @right
@@ -513,26 +460,22 @@ COLORWASH_START_LINE = 0
 	ldx #$01
 :
 	lda @position_x,x
-	sta VIC_SPR2_X		; set position X
+	sta VIC_SPR2_X			; set position X
 	lda @position_9,x
-	ora #%10000000		; sprite 7 must be On (it is the PAL/NTSC sprite)
-	sta $d010		; set 9th for position X
+	ora #%10000000			; sprite 7 must be On (it is the PAL/NTSC sprite)
+	sta $d010			; set 9th for position X
 	stx selected_rider
 	rts
 
-	; positions for the "select" sprite
-	; based on which rider is selected
-@position_x: .byte $43, $06
-@position_9: .byte %00000010, %00000110
+@position_x: .byte $43, $06		; positions for the "select" sprite
+@position_9: .byte %00000010, %00000110 ; based on which rider is selected
 .endproc
 	
 
 
-	; modes: $00: main menu, $01: choose rider menu
-menu_mode: .byte $00
-	; $00: cris holm, $01: krish labonte
+menu_mode: .byte $00			; modes: $00: main menu, $01: choose rider menu
 .export selected_rider
-selected_rider: .byte $00
+selected_rider: .byte $00		; $00: cris holm, $01: krish labonte
 animation_delay: .byte SPRITE_ANIMATION_SPEED
 
 color_idx: .byte $00
