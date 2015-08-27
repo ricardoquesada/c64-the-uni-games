@@ -17,12 +17,11 @@
 .export clear_screen
 .proc clear_screen
 	ldx #0
-:
-	sta $0400,x
-	sta $0500,x
-	sta $0600,x
+:	sta $0400,x			; clears the screen memory
+	sta $0500,x			; but assumes that VIC is using bank 0
+	sta $0600,x			; otherwise it won't work
 	sta $06e8,x
-	inx
+	inx				; 1000 bytes = 40*25
 	bne :-
 
 	rts
@@ -38,12 +37,11 @@
 .export clear_color
 .proc clear_color
 	ldx #0
-:
-	sta $d800,x
-	sta $d900,x
+:	sta $d800,x			; clears the screen color memory
+	sta $d900,x			; works for any VIC bank
 	sta $da00,x
 	sta $dae8,x
-	inx
+	inx				; 1000 bytes = 40*25
 	bne :-
 
 	rts
@@ -138,13 +136,13 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; char detect_pal_paln_ntsc(void)
 ;------------------------------------------------------------------------------;
-; It counts how many rasterlines were drawn in 312*63 (19656) cycles. 
+; It counts how many rasterlines were drawn in 312*63 (19656) cycles.
 ; 312*63-1 is passed to the timer since it requires one less.
 ;
 ; In PAL,      (312 by 63)  19656/63 = 312  -> 312 % 312   (00, $00)
 ; In PAL-N,    (312 by 65)  19656/65 = 302  -> 302 % 312   (46, $2e)
 ; In NTSC,     (263 by 65)  19656/65 = 302  -> 302 % 263   (39, $27)
-; In NTSC Old, (262 by 64)  19656/64 = 307  -> 307 % 262   (45, $2d) 
+; In NTSC Old, (262 by 64)  19656/64 = 307  -> 307 % 262   (45, $2d)
 ;
 ; Return values:
 ;   $01 --> PAL
@@ -166,12 +164,12 @@ vic_video_type: .byte $00
 	bmi :--
 
 	lda #$00
-	sta $dc0e
+	sta $dc0e			; stop timer A, in case it is running
 
 	lda #$00
-	sta $d01a			; no raster IRQ
+	sta $d01a			; disables raster IRQ
 	lda #$7f
-	sta $dc0d			; no timer IRQ
+	sta $dc0d			; disables timer A and B IRQ
 	sta $dd0d
 
 	lda #$00
@@ -190,7 +188,7 @@ vic_video_type: .byte $00
 	stx $fffe
 	sty $ffff
 
-	lda $dc0d			; clear possible interrupts
+	lda $dc0d			; ACK possible timer A and B interrupts
 	lda $dd0d
 
 
@@ -232,13 +230,12 @@ sync:		.byte $00
 	lda #$00
 	sta $d01a			; no raster IRQ
 	lda #$7f
-	sta $dc0d			; no timer IRQs
+	sta $dc0d			; no timer A and B IRQ
 	sta $dd0d
 
-			
-	asl $d019			; ack possible interrupts
-	lda $dc0d
-	lda $dd0d
+	asl $d019			; ACK raster interrupt
+	lda $dc0d			; ACK timer A interrupt
+	lda $dd0d			; ACK timer B interrupt
 	cli
 	rts
 .endproc
@@ -251,7 +248,7 @@ sync:		.byte $00
 ; and values from here:
 ;	http://codebase64.org/doku.php?id=base:playing_music_on_pal_and_ntsc
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-PAL_TIMER := (312*63)-1			; raster lines (312) * cycles_per_line(63) = 19656 
+PAL_TIMER := (312*63)-1			; raster lines (312) * cycles_per_line(63) = 19656
 PAL_N_TIMER := $4fc2-1 			; 19656 / (985248/1023445) - 1
 NTSC_TIMER := $4fb2			; 19656 / (985248/1022727) - 1
 
@@ -259,13 +256,13 @@ NTSC_TIMER := $4fb2			; 19656 / (985248/1022727) - 1
 .proc sync_irq_timer
 
 	lda #$00
-	sta $dc0e
+	sta $dc0e			; stop timer A
 
 	ldy #$08
 @wait:
-	cpy $d012
-	bne @wait
-	lda $d011
+	cpy $d012			; wait for a complete
+	bne @wait			; raster scan
+	lda $d011			; but, why is this needed ???
 	bmi @wait
 
 	lda vic_video_type
@@ -288,11 +285,11 @@ NTSC_TIMER := $4fb2			; 19656 / (985248/1022727) - 1
 	ldy #>PAL_TIMER
 
 @end:
-	sta $dc04
-	sty $dc05
+	sta $dc04			; set timer A (low)
+	sty $dc05			; set timer A (hi)
 
 	lda #$11
-	sta $dc0e
+	sta $dc0e			; start timer A
 	rts
 .endproc
 

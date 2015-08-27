@@ -68,17 +68,17 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_screen
 
-	ldx #0				; clear the screen
+	ldx #0				; clear the screen: 1000 bytes. 40*25
 	lda #$20
-:	sta $8400+$0000,x
-	sta $8400+$0100,x
+:	sta $8400+$0000,x		; can't call clear_screen
+	sta $8400+$0100,x		; since we are in VIC bank 2
 	sta $8400+$0200,x
 	sta $8400+$02e8,x
 	inx
 	bne :-
 
 	ldx #0
-:	lda high_scores_screen,x
+:	lda high_scores_screen,x	; display the "high scores" text at the top
 	sta $8400,x
 	inx
 	cpx #40				; draw 1 line
@@ -117,7 +117,7 @@
 	tya
 	pha
 
-	ldx #$10
+	ldx #$10			; small delay
 :	ldy #$00
 :	dey
 	bne :-
@@ -168,7 +168,7 @@
 	iny
 
 
-	lda #10				; print name 
+	lda #10				; print name
 	sta @tmp_counter
 
 	txa				; multiply x by 16, since each entry has 16 bytes
@@ -192,7 +192,7 @@
 	lda #6				; print score
 	sta @tmp_counter
 
-	iny
+	iny				; advance 3 chars
 	iny
 	iny
 

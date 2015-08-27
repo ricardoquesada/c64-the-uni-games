@@ -35,7 +35,7 @@ RIDER_ANIMATION_SPEED = 8
 	sei
 
 	lda #01
-	jsr clear_color
+	jsr clear_color			; clears the screen color ram
 	jsr init_screen
 	jsr init_sprites
 

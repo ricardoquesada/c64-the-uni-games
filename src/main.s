@@ -11,7 +11,8 @@
 .import __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__, __HIGH_SCORES_CODE_LOAD__
 
 ; from utils.s
-.import clear_screen, clear_color, get_key, read_joy2, detect_pal_paln_ntsc, vic_video_type, start_clean
+.import clear_screen, clear_color, get_key, read_joy2, detect_pal_paln_ntsc
+.import vic_video_type, start_clean
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
