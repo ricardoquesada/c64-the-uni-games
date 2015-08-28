@@ -28,7 +28,11 @@
 
 RASTER_TOP = 12				; first raster line
 RASTER_BOTTOM = 50 + 8*3		; moving part of the screen
-RIDER_ANIMATION_SPEED = 8
+
+ACTOR_MODE_JUMP = 0			; Actor modes: riding, jumping, etc.
+ACTOR_MODE_RIDE = 1
+
+ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower it goes
 
 .segment "GAME_CODE"
 
@@ -37,7 +41,7 @@ RIDER_ANIMATION_SPEED = 8
 	lda #01
 	jsr clear_color			; clears the screen color ram
 	jsr init_screen
-	jsr init_sprites
+	jsr init_game
 
 	lda #$00
 	sta sync
@@ -64,7 +68,7 @@ RIDER_ANIMATION_SPEED = 8
 	beq :-
 
 	dec sync
-	jsr animate_rider
+	jsr actor_update
 	jmp @mainloop
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -79,20 +83,20 @@ RIDER_ANIMATION_SPEED = 8
 
 	STABILIZE_RASTER
 
-	lda #00
-	sta $d020
+	lda #00				; black border and background
+	sta $d020			; to place the score and time
 	lda #00
 	sta $d021
 
-	lda #<irq_bottom
+	lda #<irq_bottom		; set a new irq vector
 	sta $fffe
 	lda #>irq_bottom
 	sta $ffff
 
-	lda #RASTER_BOTTOM
+	lda #RASTER_BOTTOM		; should be triggered when raster = RASTER_BOTTOM
 	sta $d012
 
-	asl $d019
+	asl $d019			; ACK raster interrupt
 
 	pla				; restores A, X, Y
 	tay
@@ -129,7 +133,7 @@ RIDER_ANIMATION_SPEED = 8
 
 	inc sync
 
-	asl $d019
+	asl $d019			; ACK raster interrupt
 
 	pla				; restores A, X, Y
 	tay
@@ -170,6 +174,24 @@ RIDER_ANIMATION_SPEED = 8
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_game()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc init_game
+	jsr init_sprites
+
+	lda #ACTOR_MODE_RIDE
+	sta actor_mode
+
+	ldx #00
+	stx <score
+	stx >score
+	stx <time
+	stx >time
+
+	rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void init_screen()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_sprites
@@ -195,15 +217,40 @@ RIDER_ANIMATION_SPEED = 8
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void animate_rider
+; void actor_update
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc animate_rider
+.proc actor_update
+	lda actor_mode
+	cmp #ACTOR_MODE_JUMP
+	beq @actor_jump
+	cmp #ACTOR_MODE_RIDE
+	beq @actor_animate
+
+@actor_jump:
+	jmp actor_jump
+
+@actor_animate:
+	jmp actor_animate
+	rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void actor_jump
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc actor_jump
+	rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void actor_animate
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc actor_animate
 	dec animation_delay
 	beq @animate
 	rts
 
 @animate:
-	lda #RIDER_ANIMATION_SPEED
+	lda #ACTOR_ANIMATION_SPEED
 	sta animation_delay
 
 	lda $87f8
@@ -212,9 +259,13 @@ RIDER_ANIMATION_SPEED = 8
 	rts
 .endproc
 
-animation_delay:	.byte RIDER_ANIMATION_SPEED
-smooth_scroll_x:	.byte $07
 sync:			.byte $00
+
+animation_delay:	.byte ACTOR_ANIMATION_SPEED
+actor_mode:		.byte ACTOR_MODE_RIDE
+score:			.word $0000
+time:			.word $0000
+smooth_scroll_x:	.byte $07
 
 screen:
 		;0123456789|123456789|123456789|123456789|
