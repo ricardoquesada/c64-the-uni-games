@@ -207,12 +207,17 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	sta VIC_SPR0_COLOR
 
 :
-	lda #%00000001
+	lda #%00000001			; sprite #0 enabled. rest disabled
 	sta VIC_SPR_ENA
 	lda #40
-	sta VIC_SPR0_X
-	lda #228
+	sta VIC_SPR0_X			; sprite #0 set position
+	lda #204
 	sta VIC_SPR0_Y
+
+	lda #%00000001			; sprite #0, expand X and Y
+	sta VIC_SPR_EXP_X
+	sta VIC_SPR_EXP_Y
+
 	rts
 .endproc
 
