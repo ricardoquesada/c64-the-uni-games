@@ -64,10 +64,17 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	cli
 
 @mainloop:
-:	lda sync
-	beq :-
+	lda sync
+	beq @mainloop
 
 	dec sync
+
+	jsr read_joy2
+	eor #$ff
+	beq :+
+	jsr process_events
+
+:
 	jsr actor_update
 	jmp @mainloop
 
@@ -202,12 +209,12 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	lda #$08			; sprite pointer 8
 	sta $87f8
 
-	lda __MAIN_SPRITES_LOAD__ + 64 * 8 + 63 ; sprite color
+	lda __MAIN_SPRITES_LOAD__ + 64 * 8 + 63
 	and #$0f
-	sta VIC_SPR0_COLOR
+	sta VIC_SPR0_COLOR		; sprite #0 color
 
 :
-	lda #%00000001			; sprite #0 enabled. rest disabled
+	lda #%00000001			; sprite #0 enabled. the rest, disabled
 	sta VIC_SPR_ENA
 	lda #40
 	sta VIC_SPR0_X			; sprite #0 set position
@@ -225,17 +232,69 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 ; void actor_update
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update
-	lda actor_mode
-	cmp #ACTOR_MODE_JUMP
-	beq @actor_jump
-	cmp #ACTOR_MODE_RIDE
-	beq @actor_animate
+	jsr actor_animate		; do the sprite frame animation
 
-@actor_jump:
-	jmp actor_jump
+	clc				; calculate new pos x and y
+	lda VIC_SPR0_X			; based on sprite velocity
+	adc actor_vel_x
+	sta VIC_SPR0_X
+	clc
+	lda VIC_SPR0_Y
+	adc actor_vel_y
+	sta VIC_SPR0_Y
+	rts
+.endproc
 
-@actor_animate:
-	jmp actor_animate
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void process_events(int)
+;------------------------------------------------------------------------------;
+; A = joy2 values
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc process_events
+	pha				; save A
+	and #%00010000			; button pressed ?
+	beq :+
+
+	jsr actor_jump
+
+:	pla				; restore A 
+	and #%00001100			; joy moved left or right ?
+	bne @joy_moved
+	jmp actor_did_not_move		; no movement
+
+
+@joy_moved:				; was the joy moved to right or left?
+	and #%00000100			; left ?
+	beq :+
+	jmp actor_move_left
+:	jmp actor_move_right	
+
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void actor_did_not_move
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc actor_did_not_move
+	lda #0
+	sta actor_vel_x			; actor vel x = 0
+	rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void actor_move_left
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc actor_move_left
+	lda #$ff			; actor vel x = -1
+	sta actor_vel_x	
+	rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void actor_move_right
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc actor_move_right
+	lda #1				; actor vel x = 1
+	sta actor_vel_x
 	rts
 .endproc
 
@@ -268,6 +327,8 @@ sync:			.byte $00
 
 animation_delay:	.byte ACTOR_ANIMATION_SPEED
 actor_mode:		.byte ACTOR_MODE_RIDE
+actor_vel_x:		.byte 0		; horizonal velocity in pixels per frame
+actor_vel_y:		.byte 0		; vertical velocity in pixels per frame
 score:			.word $0000
 time:			.word $0000
 smooth_scroll_x:	.byte $07
