@@ -182,18 +182,15 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 ; void init_game()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_game
-	jsr init_sprites
+	jsr init_sprites		; setup sprites
 
-	lda #$01
-	sta actor_can_start_jump	; actor is allowed to jump
+	jsr init_actor_update_y_nothing	; no Y movement by default
 
 	ldx #00
 	stx <score
 	stx >score
 	stx <time
 	stx >time
-
-	stx jump_table_idx
 
 	rts
 .endproc
@@ -348,12 +345,41 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_actor_update_y_nothing
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc init_actor_update_y_nothing
+	ldx #0				; reset the jump table idx
+	stx jump_table_idx
+
+	ldx #<actor_update_y_nothing	; setup the "do nothing" vector
+	ldy #>actor_update_y_nothing
+	stx actor_update_y+1
+	sty actor_update_y+2
+
+	lda #1
+	sta actor_can_start_jump	; enable jumping again
+	rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void actor_update_y_nothing
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y_nothing
 	rts				; do nothing
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_actor_update_y_up
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc init_actor_update_y_up
+	ldx #0				; sets up up 'actor_update_y_up'
+	stx jump_table_idx
+	ldx #<actor_update_y_up
+	ldy #>actor_update_y_up
+	stx actor_update_y+1
+	sty actor_update_y+2
+	rts
+.endproc
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void actor_update_y_up
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -365,16 +391,24 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	inx
 	stx jump_table_idx		; jump_table_idx++
 	cpx #JUMP_UP_HIGH_TABLE_SIZE	; end of table ?
-	bne :+
+	beq :+
+	rts				; no, return
 
-	ldx #0				; yes, so start going down
-	stx jump_table_idx		; update jump vector with "actor_update_y_down"
+:	jmp init_actor_update_y_down	; yes, so setup the 'go down'
+
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_actor_update_y_down
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc init_actor_update_y_down
+	ldx #0				; sets up up 'actor_update_y_down'
+	stx jump_table_idx
 	ldx #<actor_update_y_down
 	ldy #>actor_update_y_down
 	stx actor_update_y+1
 	sty actor_update_y+2
-
-:	rts
+	rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -388,19 +422,10 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	inx
 	stx jump_table_idx		; jump_table_idx++
 	cpx #JUMP_DOWN_HIGH_TABLE_SIZE	; end of table ?
-	bne :+
+	beq :+		
+	rts				; no, return
 
-	ldx #0				; yes, so start going down
-	stx jump_table_idx		; update jump vector with "actor_update_y_nothing"
-	ldx #<actor_update_y_nothing
-	ldy #>actor_update_y_nothing
-	stx actor_update_y+1
-	sty actor_update_y+2
-
-	lda #1
-	sta actor_can_start_jump	; once on the ground, actor can perform another jump
-
-:	rts
+:	jmp init_actor_update_y_nothing ; yes, so setup the 'do nothing'
 .endproc
 
 sync:			.byte $00
