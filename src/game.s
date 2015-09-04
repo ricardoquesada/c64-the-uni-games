@@ -29,10 +29,6 @@
 RASTER_TOP = 12				; first raster line
 RASTER_BOTTOM = 50 + 8*3		; moving part of the screen
 
-ACTOR_MODE_JUMP_LOW = 0			; Actor modes: riding, low jumping, high jump
-ACTOR_MODE_JUMP_HIGH = 1
-ACTOR_MODE_RIDE = 2
-
 ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower it goes
 
 .segment "GAME_CODE"
@@ -114,6 +110,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	rti				; restores previous PC, status
 .endproc
 
+
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; IRQ handler: RASTER_BOTTOM
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -187,15 +184,15 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .proc init_game
 	jsr init_sprites
 
-	lda #ACTOR_MODE_RIDE
-	sta actor_mode
+	lda #$01
+	sta actor_can_start_jump	; actor is allowed to jump
 
 	ldx #00
 	stx <score
 	stx >score
 	stx <time
 	stx >time
-	
+
 	stx jump_table_idx
 
 	rts
@@ -236,7 +233,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update
 	jsr actor_animate		; do the sprite frame animation
-	jsr actor_update_jump		; update actor_vel_y
+	jsr actor_update_y		; update actor_vel_y
 
 	clc				; calculate new pos x and y
 	lda VIC_SPR0_X			; based on sprite velocity
@@ -261,7 +258,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 
 	jsr actor_jump
 
-:	pla				; restore A 
+:	pla				; restore A
 	and #%00001100			; joy moved left or right ?
 	bne @joy_moved
 	jmp actor_did_not_move		; no movement
@@ -271,7 +268,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	and #%00000100			; left ?
 	beq :+
 	jmp actor_move_left
-:	jmp actor_move_right	
+:	jmp actor_move_right
 
 .endproc
 
@@ -289,7 +286,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_move_left
 	lda #$ff			; actor vel x = -1
-	sta actor_vel_x	
+	sta actor_vel_x
 	rts
 .endproc
 
@@ -306,15 +303,19 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 ; void actor_jump
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_jump
-	lda actor_mode			; actor already jumping ?
-	cmp #ACTOR_MODE_JUMP_HIGH
-	beq :+				; yes, do nothing
+	lda actor_can_start_jump	; allowed to start the jump ?
+	beq :+
 
-	lda #ACTOR_MODE_JUMP_HIGH	; if not, set actor in JUMP mode
-	sta actor_mode
+	ldx #<actor_update_y_up		; yes. init jump then
+	ldy #>actor_update_y_up
+	stx actor_update_y+1
+	sty actor_update_y+2		; update "vector jump" with "actor_update_y_up" vector
+
 	lda #0				; and reset the jump table index
 	sta jump_table_idx
-	lda VIC_SPR0_Y			; the whole jump is going to be relative to 
+	sta actor_can_start_jump	; can't start another jump while it is jumping
+
+	lda VIC_SPR0_Y			; the whole jump is going to be relative to
 	sta actor_pos_y			; this position
 
 :	rts
@@ -339,23 +340,65 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_jump
+; void actor_update_y
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_update_jump
-	lda actor_mode			; if actor not in JUMP mode
-	cmp #ACTOR_MODE_JUMP_HIGH	; then do nothing
-	bne :+
+.proc actor_update_y
+	jmp $caca			; self-modifying code. Jump table
+					; for movement Y
+.endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void actor_update_y_nothing
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc actor_update_y_nothing
+	rts				; do nothing
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void actor_update_y_up
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc actor_update_y_up
 	ldx jump_table_idx		; X = jump_table_idx
-	lda jump_high_table,x		; A = jump_table[x]
+	lda jump_up_high_table,x	; A = jump_table[x]
 	sta actor_vel_y			; update actor vel Y
 
 	inx
-	stx jump_table_idx		; jump_table_idx = jump_table_idx + 1
-	cpx #JUMP_HIGH_TABLE_SIZE	; end of table ?
-	bne :+				; if so, disable JUMP mode
-	lda #ACTOR_MODE_RIDE
-	sta actor_mode
+	stx jump_table_idx		; jump_table_idx++
+	cpx #JUMP_UP_HIGH_TABLE_SIZE	; end of table ?
+	bne :+
+
+	ldx #0				; yes, so start going down
+	stx jump_table_idx		; update jump vector with "actor_update_y_down"
+	ldx #<actor_update_y_down
+	ldy #>actor_update_y_down
+	stx actor_update_y+1
+	sty actor_update_y+2
+
+:	rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void actor_update_y_down
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc actor_update_y_down
+	ldx jump_table_idx		; X = jump_table_idx
+	lda jump_down_high_table,x	; A = jump_table[x]
+	sta actor_vel_y			; update actor vel Y
+
+	inx
+	stx jump_table_idx		; jump_table_idx++
+	cpx #JUMP_DOWN_HIGH_TABLE_SIZE	; end of table ?
+	bne :+
+
+	ldx #0				; yes, so start going down
+	stx jump_table_idx		; update jump vector with "actor_update_y_nothing"
+	ldx #<actor_update_y_nothing
+	ldy #>actor_update_y_nothing
+	stx actor_update_y+1
+	sty actor_update_y+2
+
+	lda #1
+	sta actor_can_start_jump	; once on the ground, actor can perform another jump
 
 :	rts
 .endproc
@@ -363,35 +406,42 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 sync:			.byte $00
 
 animation_delay:	.byte ACTOR_ANIMATION_SPEED
-actor_mode:		.byte ACTOR_MODE_RIDE
+actor_can_start_jump:	.byte $01	; whether or not actor can start a jump
 actor_vel_x:		.byte 0		; horizonal velocity in pixels per frame
 actor_vel_y:		.byte 0		; vertical velocity in pixels per frame
 actor_pos_y:		.byte 0		; actor Y position before the jump
+actor_pos_y_tbl:	.word $0000	; jump table for Y movement
 score:			.word $0000
 time:			.word $0000
 smooth_scroll_x:	.byte $07
 
 jump_table_idx:		.byte $00
 
-JUMP_HIGH_TABLE_SIZE = 32 + 24
-jump_high_table:
+JUMP_UP_HIGH_TABLE_SIZE = 32
+jump_up_high_table:
 ; autogenerated table: easing_table_generator.py -s32 -m50 -r easeInBounce:2
 .byte   3,  5,  8,  9, 11, 12, 12, 13
 .byte  12, 12, 11,  9,  8,  5,  3,  0
 .byte   6, 12, 17, 22, 26, 30, 34, 38
 .byte  40, 43, 45, 47, 48, 49, 50, 50
+
+JUMP_DOWN_HIGH_TABLE_SIZE = 24
+jump_down_high_table:
 ; autogenerated table: easing_table_generator.py -s24 -m50 -r easeOutQuad
 ; reversed
 .byte  50, 49, 48, 47, 46, 44, 43, 41
 .byte  39, 37, 35, 33, 30, 28, 25, 23
 .byte  20, 17, 14, 11,  9,  6,  3,  0
 
-JUMP_LOW_TABLE_SIZE = 20 * 2
-jump_low_table:
+JUMP_UP_LOW_TABLE_SIZE = 20
+jump_up_low_table:
 ; autogenerated table: easing_table_generator.py -s20 -m32 -r easeOutQuad
 .byte   2,  4,  7,  9, 11, 13, 15, 17
 .byte  19, 21, 23, 24, 26, 27, 28, 29
 .byte  30, 31, 32, 32
+
+JUMP_DOWN_LOW_TABLE_SIZE = 20
+jump_down_low_table:
 ; reversed
 .byte  32, 31, 30, 29, 28, 27, 26, 24
 .byte  23, 21, 19, 17, 15, 13, 11,  9
