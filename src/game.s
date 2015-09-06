@@ -187,7 +187,12 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	jsr init_actor_update_y_nothing	; no Y movement by default
 
 	lda #0
-	sta button_pressed_time		; reset button pressed time
+	sta button_elapsed_time		; reset button state
+	sta button_click
+	sta button_prev_state
+
+	lda #1
+	sta actor_can_start_jump	; enable jumping
 
 	ldx #00
 	stx <score
@@ -218,8 +223,9 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	sta VIC_SPR_ENA
 	lda #40
 	sta VIC_SPR0_X			; sprite #0 set position
-	lda #40				; should be 204
+	lda #204			; should be 204
 	sta VIC_SPR0_Y
+	sta actor_pos_y
 
 	lda #%00000001			; sprite #0, expand X and Y
 	sta VIC_SPR_EXP_X
@@ -229,7 +235,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update
+; void actor_update()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update
 	jsr actor_animate		; do the sprite frame animation
@@ -247,27 +253,50 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void process_events(int)
+; void process_events(byte joy2_values)
 ;------------------------------------------------------------------------------;
 ; A = joy2 values
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc process_events
 	pha				; save A
-	and #%00010000			; button pressed ?
-	beq @button_released
 
-	inc button_pressed_time		; yes, button pressed. LSB
-	bne @next_event			; count how many cycles the button is pressed
-	dec button_pressed_time		; if button_pressed_time > 255, then button_pressed_time = 255
-	bne @next_event			; jmp to @next_event... it is always true		
-	
-@button_released:
-	lda button_pressed_time		; if button_pressed_time == 0, it means that it wasn't released
-	beq @next_event
-	jsr actor_jump			; process jump. A has cycles button has pressed
-	lda #0
-	sta button_pressed_time		; and reset button_pressed_time
+	lda button_click		; button clicked already?
+	beq :+				; nope
 
+	inc button_elapsed_time		; 12 (or 0.2 seconds) cycles elapsed since last click ?
+	lda button_elapsed_time
+	cmp #12
+	bmi :+				; nope
+
+	lda #0				; yes. reset elapsed time
+	sta button_elapsed_time
+	lda button_click		; and do the jump
+	bne @do_the_jump		; A is either 1 or 2. This is a forced jump
+
+:
+	pla				; restore A
+	pha				; and push it again. needed for @next_event
+
+	and #%00010000			; has button state changed ?
+	cmp button_prev_state		; compare with previous state
+	sta button_prev_state		; store the new state
+	beq @next_event			; state changed? no, skip
+
+	lda button_prev_state		; state changed. button pressed or released?
+	beq @next_event			; button released, skip
+
+	inc button_click		; button_click++
+	lda button_click
+	cmp #2				; double click ?
+	bne @next_event			; no double-click, skip
+
+@do_the_jump:
+	jsr actor_jump			; A has number of jumps: single or double
+
+	lda #0				; reset button values after a jump
+	sta button_click
+	sta button_prev_state
+	sta button_elapsed_time
 
 @next_event:
 	pla				; restore A
@@ -285,7 +314,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_did_not_move
+; void actor_did_not_move()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_did_not_move
 	lda #0
@@ -294,7 +323,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_move_left
+; void actor_move_left()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_move_left
 	lda #$ff			; actor vel x = -1
@@ -303,7 +332,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_move_right
+; void actor_move_right()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_move_right
 	lda #1				; actor vel x = 1
@@ -312,7 +341,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_jump(byte cycles_button_pressed)
+; void actor_jump(byte number_of_clicks)
 ;------------------------------------------------------------------------------;
 ; A == cycles the button was pressed
 ; A < 20: low jump
@@ -327,9 +356,15 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	ldx VIC_SPR0_Y			; the whole jump is going to be relative to
 	stx actor_pos_y			; this position
 
-	cmp #20				; A < 20 ?
-	bmi @low_jump
-	
+	cmp #1				; A == 1 ?
+	beq @low_jump			; low jump
+
+	cmp #2				; A == 2 ?
+	beq @hi_jump			; high jump
+
+	jmp *				; else, error
+
+@hi_jump:
 	ldx #<actor_update_y_up_hi	; high jump vector
 	ldy #>actor_update_y_up_hi
 	jmp :+
@@ -343,7 +378,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_animate
+; void actor_animate()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_animate
 	dec animation_delay
@@ -361,7 +396,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_y
+; void actor_update_y()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y
 	jmp $caca			; self-modifying code. Jump table
@@ -369,7 +404,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_actor_update_y_nothing
+; void init_actor_update_y_nothing()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_actor_update_y_nothing
 	ldx #0				; reset the jump table idx
@@ -380,13 +415,12 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	stx actor_update_y+1
 	sty actor_update_y+2
 
-	lda #1
-	sta actor_can_start_jump	; enable jumping again
+	inc actor_can_start_jump	; enable jumping again
 	rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_y_nothing
+; void actor_update_y_nothing()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y_nothing
 	rts				; do nothing
@@ -400,10 +434,11 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 	sty actor_update_y+2
 	ldx #0				; sets up 'actor_update_y_up'
 	stx jump_table_idx
+	stx actor_can_start_jump	; no jump while still jumping
 	rts
 .endproc
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_y_up_hi
+; void actor_update_y_up_hi()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y_up_hi
 	ldx jump_table_idx		; X = jump_table_idx
@@ -420,7 +455,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_y_up_down
+; void actor_update_y_up_down()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y_up_down
 	ldx jump_table_idx		; X = jump_table_idx
@@ -437,7 +472,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_actor_update_y_down
+; void init_actor_update_y_down()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_actor_update_y_down
 	ldx #0				; sets up up 'actor_update_y_down'
@@ -450,7 +485,7 @@ ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_y_down
+; void actor_update_y_down()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y_down
 	ldx jump_table_idx		; X = jump_table_idx
@@ -470,7 +505,9 @@ sync:			.byte $00
 
 animation_delay:	.byte ACTOR_ANIMATION_SPEED
 actor_can_start_jump:	.byte $01	; whether or not actor can start a jump
-button_pressed_time:    .byte $00       ; how many cycles the button was pressed.
+button_elapsed_time:    .byte $00       ; how many cycles the button was pressed.
+button_click:		.byte $00       ; holds the number of button clicks: zero, single or double
+button_prev_state:	.byte $00	; last cycle button state to detect a button release / press
 actor_vel_x:		.byte 0		; horizonal velocity in pixels per frame
 actor_vel_y:		.byte 0		; vertical velocity in pixels per frame
 actor_pos_y:		.byte 0		; actor Y position before the jump
