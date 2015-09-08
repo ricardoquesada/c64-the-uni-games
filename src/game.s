@@ -31,6 +31,7 @@ RASTER_BOTTOM = 50 + 8*3		; moving part of the screen
 
 ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower it goes
 GROUND_Y = 200				; max Y position for actor
+DOUBLE_JUMP_TIME_LIMIT = 11		; double-click time limit measured in screen refresh
 
 .segment "GAME_CODE"
 
@@ -272,9 +273,9 @@ GROUND_Y = 200				; max Y position for actor
 	lda button_click		; button clicked already?
 	beq :+				; nope
 
-	inc button_elapsed_time		; 12 (or 0.2 seconds) cycles elapsed since last click ?
+	inc button_elapsed_time		; reached limit to do the double jump ?
 	lda button_elapsed_time
-	cmp #12
+	cmp #DOUBLE_JUMP_TIME_LIMIT
 	bmi :+				; nope
 
 	lda #0				; yes. reset elapsed time
