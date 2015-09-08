@@ -30,7 +30,7 @@ RASTER_TOP = 12				; first raster line
 RASTER_BOTTOM = 50 + 8*3		; moving part of the screen
 
 ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower it goes
-GROUND_Y = 204				; max Y position for actor
+GROUND_Y = 200				; max Y position for actor
 
 .segment "GAME_CODE"
 
@@ -169,12 +169,20 @@ GROUND_Y = 204				; max Y position for actor
 	inx
 	bne @loop
 
-	ldx #40*2-1
+	ldx #40*2-1			; 2 lines only
 :	lda screen,x
 	ora #$80			; using second half of the romset
 	sta $8400,x
 	dex
 	bpl :-
+
+	ldx #40*6-1			; 6 lines only
+:	lda terrain,x
+	ora #$80			; using second half of the romset
+	sta $8400+19*40,x		; start from the line 19
+	dex
+	cpx #$ff
+	bne :-
 
 	rts
 .endproc
@@ -344,9 +352,7 @@ GROUND_Y = 204				; max Y position for actor
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void actor_jump(byte number_of_clicks)
 ;------------------------------------------------------------------------------;
-; A == cycles the button was pressed
-; A < 20: low jump
-; A >= 20: high jump
+; A == number of jump. 1 == single jump. 2 == double jump
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_jump
 	ldx actor_can_start_jump	; allowed to start the jump ?
@@ -500,9 +506,9 @@ GROUND_Y = 204				; max Y position for actor
 	rts
 
 @stop_falling:
-	lda #GROUND_Y
+	lda #GROUND_Y			; sprite.y = GROUND_Y
 	sta VIC_SPR0_Y
-	jmp init_actor_update_y_nothing ; yes, so setup the 'do nothing'
+	jmp init_actor_update_y_nothing ; setup the 'do nothing'
 .endproc
 
 sync:			.byte $00
@@ -546,3 +552,13 @@ screen:
 		;0123456789|123456789|123456789|123456789|
 	scrcode " score                             time "
 	scrcode " 00000                              90  "
+
+terrain:
+		;0123456789|123456789|123456789|123456789|
+	scrcode "                               aa       "
+	scrcode "                               aa       "
+	scrcode "                               aa       "
+	scrcode "                aa    aaa               "
+	scrcode "                aa    aa                "
+	scrcode "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
