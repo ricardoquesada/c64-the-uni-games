@@ -9,9 +9,11 @@ However, if you want to see the progress of the game, feel free to clone it, rep
 
 ## How to compile it
 
-- Install [cc65](http://cc65.github.io/cc65/) and put it in the path. Requires cc65 v2.15 or newer (Don't install it from brew)
-- Install [Vice](http://vice-emu.sourceforge.net/) and make sure `c1541` and `x64` are in the path. On Mac do: `$ brew install vice`
-- Optional: Install [exomizer](http://hem.bredband.net/magli143/exo/) to generate compressed .prg files (`$ make dist`)
+- Install [cc65](http://cc65.github.io/cc65/) and put it in the path. Requires cc65 v2.15 or newer (Don't install it using `brew` since it is an old version)
+- Install [Vice](http://vice-emu.sourceforge.net/) and make sure `c1541` and `x64` are in the path.
+    - On Mac: `$ brew install vice`
+    - On Linux: `$ apt-get install vice` and follow [these instructions](http://iseborn.eu/wiki/index.php?title=Ubuntu/Install_and_set_up_VICE)
+- Optional: Install [exomizer](http://hem.bredband.net/magli143/exo/) to generate compressed .prg files. Only useful for `$ make dist`
 - Clone this project and `make test`:
 
 ```
