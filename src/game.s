@@ -31,7 +31,8 @@ RASTER_BOTTOM = 50 + 8*3		; moving part of the screen
 
 ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower it goes
 GROUND_Y = 200				; max Y position for actor
-DOUBLE_JUMP_TIME_LIMIT = 11		; double-click time limit measured in screen refresh
+JUMP_TIME_LIMIT = 11			; max cycles that jump can be pressed
+ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 
 .segment "GAME_CODE"
 
@@ -198,8 +199,6 @@ DOUBLE_JUMP_TIME_LIMIT = 11		; double-click time limit measured in screen refres
 
 	lda #0
 	sta button_elapsed_time		; reset button state
-	sta button_click
-	sta button_prev_state
 
 	lda #1
 	sta actor_can_start_jump	; enable jumping
@@ -270,43 +269,19 @@ DOUBLE_JUMP_TIME_LIMIT = 11		; double-click time limit measured in screen refres
 .proc process_events
 	pha				; save A
 
-	lda button_click		; button clicked already?
-	beq :+				; nope
+	and #%00010000			; button clicked ?
+	beq @next_event			; nope
 
-	inc button_elapsed_time		; reached limit to do the double jump ?
-	lda button_elapsed_time
-	cmp #DOUBLE_JUMP_TIME_LIMIT
-	bmi :+				; nope
+	lda button_elapsed_time		; button_elapsed_time < JUMP_TIME_LIMIT ?
+	cmp #JUMP_TIME_LIMIT		; needed to jump higher
+	bpl @next_event			; nope
 
-	lda #0				; yes. reset elapsed time
-	sta button_elapsed_time
-	lda button_click		; and do the jump
-	bne @do_the_jump		; A is either 1 or 2. This is a forced jump
+	inc button_elapsed_time		; reached max time that actor can jump ?
+	lda #ACTOR_JUMP_IMPULSE		; while button is pressed 
+	sta actor_vel_y			; velocity.y = ACTOR_JUMP_IMPULSE
+					; the longer the button is pressed, the higher it jumps
 
-:
-	pla				; restore A
-	pha				; and push it again. needed for @next_event
-
-	and #%00010000			; has button state changed ?
-	cmp button_prev_state		; compare with previous state
-	sta button_prev_state		; store the new state
-	beq @next_event			; state changed? no, skip
-
-	lda button_prev_state		; state changed. button pressed or released?
-	beq @next_event			; button released, skip
-
-	inc button_click		; button_click++
-	lda button_click
-	cmp #2				; double click ?
-	bne @next_event			; no double-click, skip
-
-@do_the_jump:
-	jsr actor_jump			; A has number of jumps: single or double
-
-	lda #0				; reset button values after a jump
-	sta button_click
-	sta button_prev_state
-	sta button_elapsed_time
+	jsr actor_jump
 
 @next_event:
 	pla				; restore A
@@ -351,9 +326,7 @@ DOUBLE_JUMP_TIME_LIMIT = 11		; double-click time limit measured in screen refres
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_jump(byte number_of_clicks)
-;------------------------------------------------------------------------------;
-; A == number of jump. 1 == single jump. 2 == double jump
+; void actor_jump(void)
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_jump
 	ldx actor_can_start_jump	; allowed to start the jump ?
@@ -361,24 +334,8 @@ DOUBLE_JUMP_TIME_LIMIT = 11		; double-click time limit measured in screen refres
 	rts				; no, return
 
 :
-	cmp #1				; A == 1 ?
-	beq @low_jump			; low jump
-
-	cmp #2				; A == 2 ?
-	beq @hi_jump			; high jump
-
-	jmp *				; else, error
-
-@hi_jump:
-	ldx #<actor_update_y_up_hi	; high jump vector
-	ldy #>actor_update_y_up_hi
-	jmp :+
-
-@low_jump:
-	ldx #<actor_update_y_up_low	; low jump vector
-	ldy #>actor_update_y_up_low
-
-:
+	ldx #<actor_update_y_up		; jump vector
+	ldy #>actor_update_y_up
 	jmp init_actor_update_y_up
 .endproc
 
@@ -413,7 +370,7 @@ DOUBLE_JUMP_TIME_LIMIT = 11		; double-click time limit measured in screen refres
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_actor_update_y_nothing
 	ldx #0				; reset the jump table idx
-	stx jump_table_idx
+	stx button_elapsed_time
 	stx actor_vel_y
 
 	ldx #<actor_update_y_nothing	; setup the "do nothing" vector
@@ -439,40 +396,28 @@ DOUBLE_JUMP_TIME_LIMIT = 11		; double-click time limit measured in screen refres
 	stx actor_update_y+1
 	sty actor_update_y+2
 	ldx #0				; sets up 'actor_update_y_up'
-	stx jump_table_idx
 	stx actor_can_start_jump	; no jump while still jumping
 	rts
 .endproc
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_y_up_hi()
+; void actor_update_y_up()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_update_y_up_hi
-	ldx jump_table_idx		; X = jump_table_idx
-	cpx #JUMP_UP_HIGH_TABLE_SIZE	; end of table ?
+.proc actor_update_y_up
+	dec @counter
 	beq :+
+	rts
 
-	lda jump_up_high_table,x	; A = jump_table[x]
-	sta actor_vel_y			; update actor vel Y
-	inc jump_table_idx		; jump_table_idx++
-	rts				; no, return
+:	lda #$05
+	sta @counter
+	dec actor_vel_y
+	beq :+
+	rts
 
 :	jmp init_actor_update_y_down	; yes, so setup the 'go down'
-.endproc
 
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_y_up_low()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_update_y_up_low
-	ldx jump_table_idx		; X = jump_table_idx
-	cpx #JUMP_UP_LOW_TABLE_SIZE	; end of table ?
-	beq :+
+@counter:
+	.byte $05
 
-	lda jump_up_low_table,x		; A = jump_table[x]
-	sta actor_vel_y			; update actor vel Y
-	inc jump_table_idx		; jump_table_idx++
-	rts				; no, return
-
-:	jmp init_actor_update_y_down	; yes, so setup the 'go down'
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -480,7 +425,6 @@ DOUBLE_JUMP_TIME_LIMIT = 11		; double-click time limit measured in screen refres
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_actor_update_y_down
 	ldx #0				; sets up up 'actor_update_y_down'
-	stx jump_table_idx
 	ldx #<actor_update_y_down
 	ldy #>actor_update_y_down
 	stx actor_update_y+1
@@ -492,14 +436,12 @@ DOUBLE_JUMP_TIME_LIMIT = 11		; double-click time limit measured in screen refres
 ; void actor_update_y_down()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y_down
-	ldx jump_table_idx		; X = jump_table_idx
-	cpx #JUMP_DOWN_TABLE_SIZE	; end of table ?
-	beq :+				; yes, so go to next step
-
-	lda jump_down_table,x		; A = jump_table[x]
-	sta actor_vel_y			; update actor vel Y
-	inc jump_table_idx		; jump_table_idx++
-	rts				; no, return
+	dec @counter			; counter == 0?
+	bne :+				; no ?
+ 
+	lda #$05			; counter = 5
+	sta @counter			; actor_vel_y++
+	dec actor_vel_y			; increase velocity as the actor keeps falling 
 
 :	lda VIC_SPR0_Y			; keep falling down until spr0.y >= GROUND_Y
 	cmp #GROUND_Y
@@ -510,6 +452,10 @@ DOUBLE_JUMP_TIME_LIMIT = 11		; double-click time limit measured in screen refres
 	lda #GROUND_Y			; sprite.y = GROUND_Y
 	sta VIC_SPR0_Y
 	jmp init_actor_update_y_nothing ; setup the 'do nothing'
+
+@counter:
+	.byte $05
+
 .endproc
 
 sync:			.byte $00
@@ -517,37 +463,11 @@ sync:			.byte $00
 animation_delay:	.byte ACTOR_ANIMATION_SPEED
 actor_can_start_jump:	.byte $01	; whether or not actor can start a jump
 button_elapsed_time:    .byte $00       ; how many cycles the button was pressed.
-button_click:		.byte $00       ; holds the number of button clicks: zero, single or double
-button_prev_state:	.byte $00	; last cycle button state to detect a button release / press
 actor_vel_x:		.byte 0		; horizonal velocity in pixels per frame
 actor_vel_y:		.byte 0		; vertical velocity in pixels per frame
 score:			.word $0000
 time:			.word $0000
 smooth_scroll_x:	.byte $07
-
-jump_table_idx:		.byte $00
-
-jump_up_high_table:
-; autogenerated table: easing_table_generator.py -s40 -m50 -aFalse easeInBounce:2
-.byte   2,  3,  1,  2,  1,  1,  1,  1
-.byte   0,  1,255,  0,255,255,255,255
-.byte 254,255,253,254,  5,  5,  4,  4
-.byte   4,  4,  3,  3,  3,  3,  2,  2
-.byte   2,  1,  2,  1,  1,  1,  0,  0
-JUMP_UP_HIGH_TABLE_SIZE = * - jump_up_high_table
-
-jump_up_low_table:
-; autogenerated table: easing_table_generator.py -s16 -m28 -aFalse easeOutQuad
-.byte   2,  3,  2,  3,  2,  2,  2,  2
-.byte   2,  2,  1,  2,  1,  1,  1,  0
-JUMP_UP_LOW_TABLE_SIZE = * - jump_up_low_table
-
-jump_down_table:
-; autogenerated table: easing_table_generator.py -s16 -m28 -aFalse easeOutQuad
-; reversed
-.byte   0,255,255,255,254,255,254,254
-.byte 254,254,254,254,253,254,253,254
-JUMP_DOWN_TABLE_SIZE = * - jump_down_table
 
 screen:
 		;0123456789|123456789|123456789|123456789|
