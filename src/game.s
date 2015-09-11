@@ -26,7 +26,7 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .include "c64.inc"			; c64 constants
 
-DEBUG = 0				; bitwise: 1=raster-sync code. 2=50hz code (music)
+DEBUG = 1				; bitwise: 1=raster-sync code. 2=50hz code (music)
 
 RASTER_TOP = 12				; first raster line
 RASTER_BOTTOM = 50 + 8*3		; moving part of the screen
@@ -66,11 +66,12 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 	cli
 
 @mainloop:
+:	lda sync
+	beq :-
+
 .if (DEBUG & 1)
 	dec $d020
 .endif
-:	lda sync
-	beq :-
 
 	dec sync
 
@@ -135,6 +136,7 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 
 	STABILIZE_RASTER
 
+	sei
 	lda #$00			; black
 	sta $d020			; border color
 	lda #14
@@ -148,9 +150,10 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 	lda #RASTER_TOP
 	sta $d012
 
-	inc sync
-
 	asl $d019			; ACK raster interrupt
+
+	inc sync
+	cli
 
 	pla				; restores A, X, Y
 	tay
