@@ -26,6 +26,8 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .include "c64.inc"			; c64 constants
 
+DEBUG = 0				; bitwise: 1=raster-sync code. 2=50hz code (music)
+
 RASTER_TOP = 12				; first raster line
 RASTER_BOTTOM = 50 + 8*3		; moving part of the screen
 
@@ -64,8 +66,11 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 	cli
 
 @mainloop:
-	lda sync
-	beq @mainloop
+.if (DEBUG & 1)
+	dec $d020
+.endif
+:	lda sync
+	beq :-
 
 	dec sync
 
@@ -76,6 +81,10 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 
 :
 	jsr actor_update
+
+.if (DEBUG & 1)
+	inc $d020
+.endif
 	jmp @mainloop
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -195,12 +204,11 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 .proc init_game
 	jsr init_sprites		; setup sprites
 
-	jsr init_actor_update_y_nothing	; no Y movement by default
+	jsr init_actor_update_y_down	; by default go down
 
 	lda #0
 	sta button_elapsed_time		; reset button state
-
-	sta button_released		; eanble "high jumping"
+	sta button_released		; enable "high jumping"
 
 	lda #1
 	sta actor_can_start_jump	; enable jumping
@@ -379,34 +387,6 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_actor_update_y_nothing()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc init_actor_update_y_nothing
-	ldx #0				; reset the jump table idx
-	stx button_elapsed_time
-	stx actor_vel_y
-
-	ldx #<actor_update_y_nothing	; setup the "do nothing" vector
-	ldy #>actor_update_y_nothing
-	stx actor_update_y+1
-	sty actor_update_y+2
-
-	ldx #0				; reset jump state
-	stx button_released		; button_released = 0
-	inx
-	stx actor_can_start_jump	; actor_can_start_jump = 1
-
-	rts
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_y_nothing()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_update_y_nothing
-	rts				; do nothing
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void actor_update_y_up()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y_up
@@ -443,19 +423,30 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 ; void actor_update_y_down()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y_down
+	jsr check_collision_floor	; touching floor ?
+	bcs @stop_falling		; if so, stop falling
+
 	dec @counter			; counter == 0?
 	bne :+				; no ?
  
 	lda #$05			; counter = 5
 	sta @counter			; actor_vel_y++
 	dec actor_vel_y			; increase velocity as the actor keeps falling 
-
-:	jsr check_collision_floor	; touching floor ?
-	bcs @stop_falling		; if so, stop falling
-	rts
+:	rts
 
 @stop_falling:
-	jmp init_actor_update_y_nothing ; setup the 'do nothing'
+	ldx #0
+	stx button_elapsed_time
+	stx actor_vel_y			; no vertical movement
+	stx button_released		; button_released = 0
+	inx
+	stx actor_can_start_jump	; actor_can_start_jump = 1
+
+	lda VIC_SPR0_Y
+	and #%11111000
+	sta VIC_SPR0_Y
+
+	rts
 
 @counter:
 	.byte $05
@@ -550,10 +541,9 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 ; Y = result MSB
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc mult40
-	cmp #25
+	cmp #25				; if A >= 24, then A = 24
 	bmi :+
-	jmp *				; should not happen
-
+	lda #24
 :
 	asl				; r = y * 40 is the same thing as doing
 	tax				; r = y * 32 + y * 8, but looking up the result
@@ -591,9 +581,9 @@ screen:
 terrain:
 		;0123456789|123456789|123456789|123456789|
 	scrcode "                               aa       "
-	scrcode "                               aa       "
-	scrcode "                               aa       "
-	scrcode "                aa    aaa               "
+	scrcode "                          aaaaaaa       "
+	scrcode "                      aaaaa    aa       "
+	scrcode "                  aaaa                  "
 	scrcode "                aa    aa                "
 	scrcode "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
