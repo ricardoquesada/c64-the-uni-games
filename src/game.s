@@ -40,6 +40,7 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 
 	sei
 
+
 	lda #01
 	jsr clear_color			; clears the screen color ram
 	jsr init_screen
@@ -47,6 +48,10 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 
 	lda #$00
 	sta sync
+
+	lda #$7f			; turn off cia interrups
+	sta $dc0d
+	sta $dd0d
 
 	lda #01				; Enable raster irq
 	sta $d01a
@@ -136,7 +141,6 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 
 	STABILIZE_RASTER
 
-	sei
 	lda #$00			; black
 	sta $d020			; border color
 	lda #14
@@ -153,7 +157,6 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 	asl $d019			; ACK raster interrupt
 
 	inc sync
-	cli
 
 	pla				; restores A, X, Y
 	tay
@@ -529,9 +532,6 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 	sec
 
 @end:
-	nop				; FIXME: adding nops, otherwise it crashes?
-	nop
-	nop
 	rts
 
 .endproc
@@ -588,5 +588,5 @@ terrain:
 	scrcode "                      aaaaa    aa       "
 	scrcode "                  aaaa                  "
 	scrcode "                aa    aa                "
-	scrcode "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	scrcode "aaaa    aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
