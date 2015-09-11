@@ -32,7 +32,7 @@ RASTER_BOTTOM = 50 + 8*3		; moving part of the screen
 ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower it goes
 GROUND_Y = 200				; max Y position for actor
 JUMP_TIME_LIMIT = 11			; max cycles that jump can be pressed
-ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
+ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 
 .segment "GAME_CODE"
 
@@ -200,6 +200,8 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 	lda #0
 	sta button_elapsed_time		; reset button state
 
+	sta button_released		; eanble "high jumping"
+
 	lda #1
 	sta actor_can_start_jump	; enable jumping
 
@@ -270,7 +272,10 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 	pha				; save A
 
 	and #%00010000			; button clicked ?
-	beq @next_event			; nope
+	beq @no_button			; nope
+
+	lda button_released		; was the button released when already in the air ?
+	bne @next_event			; yes?... so no more jumping
 
 	lda button_elapsed_time		; button_elapsed_time < JUMP_TIME_LIMIT ?
 	cmp #JUMP_TIME_LIMIT		; needed to jump higher
@@ -280,8 +285,14 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 	lda #ACTOR_JUMP_IMPULSE		; while button is pressed 
 	sta actor_vel_y			; velocity.y = ACTOR_JUMP_IMPULSE
 					; the longer the button is pressed, the higher it jumps
-
 	jsr actor_jump
+	jmp @next_event	
+
+@no_button:
+	lda actor_can_start_jump	; if actor is on the air
+	bne @next_event			; and button is not pressed
+	lda #1				; then button cannot be pressed again
+	sta button_released
 
 @next_event:
 	pla				; restore A
@@ -295,7 +306,6 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 	beq :+
 	jmp actor_move_left
 :	jmp actor_move_right
-
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -330,13 +340,16 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_jump
 	ldx actor_can_start_jump	; allowed to start the jump ?
-	bne :+				; yes
-	rts				; no, return
+	beq :+				; no
 
-:
-	ldx #<actor_update_y_up		; jump vector
-	ldy #>actor_update_y_up
-	jmp init_actor_update_y_up
+	ldx #<actor_update_y_up		; yes, can jump
+	ldy #>actor_update_y_up		; setup update vector
+	stx actor_update_y+1
+	sty actor_update_y+2
+	ldx #0
+	stx actor_can_start_jump	; no more jumping while in air
+
+:	rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -378,7 +391,11 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 	stx actor_update_y+1
 	sty actor_update_y+2
 
-	inc actor_can_start_jump	; enable jumping again
+	ldx #0				; reset jump state
+	stx button_released		; button_released = 0
+	inx
+	stx actor_can_start_jump	; actor_can_start_jump = 1
+
 	rts
 .endproc
 
@@ -389,16 +406,6 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 	rts				; do nothing
 .endproc
 
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_actor_update_y_up(x: <jump vector, y: >jump vector)
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc init_actor_update_y_up
-	stx actor_update_y+1
-	sty actor_update_y+2
-	ldx #0				; sets up 'actor_update_y_up'
-	stx actor_can_start_jump	; no jump while still jumping
-	rts
-.endproc
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void actor_update_y_up()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -461,10 +468,11 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 sync:			.byte $00
 
 animation_delay:	.byte ACTOR_ANIMATION_SPEED
-actor_can_start_jump:	.byte $01	; whether or not actor can start a jump
+actor_can_start_jump:	.byte $01	; boolean. whether or not actor can start a jump
 button_elapsed_time:    .byte $00       ; how many cycles the button was pressed.
 actor_vel_x:		.byte 0		; horizonal velocity in pixels per frame
 actor_vel_y:		.byte 0		; vertical velocity in pixels per frame
+button_released:	.byte 0		; boolean. whether or not the button was released while in the air
 score:			.word $0000
 time:			.word $0000
 smooth_scroll_x:	.byte $07
