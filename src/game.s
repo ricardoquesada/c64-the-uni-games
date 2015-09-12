@@ -280,15 +280,13 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 	bcs @toggle_8_bit		; if carry set, toggle 8 bit
 
 @negative_vel:
-	plp
-	bcs @update_y
+	plp				; restore carry
+	bcs @update_y			; if carry set on negative vel, no changes
 
 @toggle_8_bit:	
-	lda sprites_msb+0
+	lda sprites_msb+0		; toggle sprite.x 8 bit
 	eor #%00000001
 	sta sprites_msb+0
-	jmp @update_y
-
 
 @update_y:
 	sec
@@ -557,7 +555,7 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 	adc @screen_base+1
 	sta @screen_base+1
 
-.if (::DEBUG & 3)
+.if (::DEBUG & 2)
 	bcc :+
 	jmp *				; should not happen
 :
@@ -635,12 +633,12 @@ screen:
 
 terrain:
 		;0123456789|123456789|123456789|123456789|
-	scrcode "                             aaa        "
 	scrcode "                          aaaaaaaa      "
 	scrcode "                      aaaaaaaaaaaaaa    "
 	scrcode "                  aaaaaaaaaaaaaaaaaaaa  "
 	scrcode "                aaaaaaaaaaaaaaaaaaaaaaaa"
-	scrcode "aaaa        aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	scrcode "aaaa   aa   aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	scrcode "aaaa   aa   aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 
 ; global sprite values
