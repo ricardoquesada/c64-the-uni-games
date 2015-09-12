@@ -34,7 +34,7 @@ RASTER_BOTTOM = 50 + 8*3		; moving part of the screen
 ACTOR_ANIMATION_SPEED = 8		; animation speed. the bigger the number, the slower it goes
 GROUND_Y = 200				; max Y position for actor
 JUMP_TIME_LIMIT = 11			; max cycles that jump can be pressed
-ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
+ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 
 .segment "GAME_CODE"
 
@@ -81,11 +81,10 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 	dec sync
 
 	jsr read_joy2
-	eor #$ff			; joy2 moved or pressed ?
-	beq :+				; no
-	jsr process_events
+	eor #$ff			; invert joy2 value
+	jsr process_events		; call process events, even if no event is generated
 
-:	jsr actor_update		; update main actor
+	jsr actor_update		; update main actor
 
 	jsr render_sprites		; render sprites
 
@@ -213,12 +212,12 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 
 	jsr init_actor_update_y_down	; by default go down
 
-	lda #0
-	sta button_elapsed_time		; reset button state
-	sta button_released		; enable "high jumping"
+	ldx #0
+	stx button_elapsed_time		; reset button state
+	stx button_released		; enable "high jumping"
 
-	lda #1
-	sta actor_can_start_jump	; enable jumping
+	inx
+	stx actor_can_start_jump	; enable jumping
 
 	ldx #00
 	stx <score
@@ -317,6 +316,7 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 	dey
 	dex
 	bpl @loop
+	rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -324,6 +324,7 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 ;------------------------------------------------------------------------------;
 ; A = joy2 values
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+
 .proc process_events
 	pha				; save A
 
@@ -332,6 +333,7 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 
 	lda button_released		; was the button released when already in the air ?
 	bne @next_event			; yes?... so no more jumping
+
 
 	lda button_elapsed_time		; button_elapsed_time < JUMP_TIME_LIMIT ?
 	cmp #JUMP_TIME_LIMIT		; needed to jump higher
