@@ -266,10 +266,28 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 	jsr actor_animate		; do the sprite frame animation
 	jsr actor_update_y		; update actor_vel_y
 
-	clc				; calculate new pos x and y
+	clc
 	lda sprites_x+0			; X = X + vel_x
 	adc actor_vel_x
 	sta sprites_x+0
+
+	php				; save carry
+	lda actor_vel_x			; velocity was negative ?
+	bmi @negative_vel		; yes, so test carry according to that
+
+	plp				; restore carry
+	bcc @update_y			; velocity was positive. if carry clear no changes
+	bcs @toggle_8_bit		; if carry set, toggle 8 bit
+
+@negative_vel:
+	plp
+	bcs @update_y
+
+@toggle_8_bit:	
+	lda sprites_msb+0
+	eor #%00000001
+	sta sprites_msb+0
+	jmp @update_y
 
 
 @update_y:
@@ -290,12 +308,12 @@ ACTOR_JUMP_IMPULSE = 4			; higher the number, higher the initial jump
 	ldy #$0e
 		
 @loop:	lda sprites_y,x
-	sta $d001,y			; write y
+	sta VIC_SPR0_Y,y		; write y
 	lda sprites_x,x
-	sta $d000,y			; write x
+	sta VIC_SPR0_X,y		; write x
 	lda sprites_msb,x
 	cmp #$01			; no msb=carry clear  / msb=carry set
-	rol $d010			; carry -> $d010, repeat 8 times and all bits are set
+	rol VIC_SPR_HI_X		; carry -> $d010, repeat 8 times and all bits are set
 		
 	dey
 	dey
