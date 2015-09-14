@@ -4,6 +4,10 @@
 ;
 ; game scene
 ;
+; Zero Page global registers:
+;   $f9/$fa -> modified temporary in collision detection.
+;		can be altered by other tmp functions
+;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; exported by the linker
@@ -39,7 +43,6 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 .segment "GAME_CODE"
 
 	sei
-
 
 	lda #01
 	jsr clear_color			; clears the screen color ram
@@ -474,7 +477,8 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y_down
 	jsr check_collision_floor	; touching floor ?
-	bcs @stop_falling		; if so, stop falling
+	and #%00001000			; bit 3 is the bottom collision bit
+	bne @stop_falling		; if ON, there is collision. So stop falling
 
 	dec @counter			; counter == 0?
 	bne :+				; no ?
@@ -505,35 +509,26 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void check_collision_floor()
 ;------------------------------------------------------------------------------;
-; returns Carry Set on collision
-;         Carry clear on no collision
+; returns A:
+;	Bit 0=ON if Top collision 
+;	Bit 1=ON if Down collision 
+;	Bit 2=ON if Left collision 
+;	Bit 3=ON if Right collision 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc check_collision_floor
 
+	lda #0
+	sta @ret_value			; reset return value
+
 	ldx #<$8400			; restore screen base value
 	ldy #>$8400
-	stx @screen_base
-	sty @screen_base+1
-
-	lda sprites_msb+0		; C = 1 only if 8th bit is on
-	sec
-	bne :+				; bit on ? then Carry Set
-	clc				; if not, Clear Carry
-
-:	lda sprites_x+0			; convert pixels coords to chars coords
-	ror				; x = actor.x / 8 taking into account 8th bit
-	lsr
-	lsr
-
-	clc
-	adc @screen_base		; screen_base = screen_base + x
-	sta @screen_base
-	bcc :+
-	inc @screen_base+1
+	stx $f9				; zero page register ($f9) -> $8400
+	sty $fa
 
 
-:	lda sprites_y+0			; convert pixels coords to chars coords
-	lsr				; y = actor.y / 8
+
+:	lda sprites_y+0			; FIRST: y = actor.y / 8 
+	lsr				; convert pixels coords to chars coords
 	lsr
 	lsr
 	tay
@@ -546,16 +541,16 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 
 	txa				; LSB: screen_base = ret + screenbase
 	clc
-	adc @screen_base
-	sta @screen_base
+	adc $f9
+	sta $f9
 	bcc :+
-	inc @screen_base+1
+	inc $fa
 
 :
 	tya				; MSB: screen_base = ret + screenbase
 	clc
-	adc @screen_base+1
-	sta @screen_base+1
+	adc $fa
+	sta $fa
 
 .if (::DEBUG & 2)
 	bcc :+
@@ -563,23 +558,44 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 :
 .endif
 
+	lda sprites_msb+0		; SECOND: x = actor.x / 8 
+	sec				; C = 1 only if 8th bit is on
+	bne :+				; bit on ? then Carry Set
+	clc				; if not, Clear Carry
 
-@screen_base = *+1
-	lda $8400			; self-modifying value
-	tax
+:	lda sprites_x+0			; convert pixels coords to chars coords
+	ror				; x = actor.x / 8 taking into account 8th bit
+	lsr
+	lsr
+	tay				; put value in Y and use it ($f9),y
+
+
+	ldx #0
+
+@check_collision:
+	lda ($f9),y			; $f9/$fa points to screen position.
+
 	cmp #$20			; space?
-	clc				; by default no collision
-	beq @end
+	beq @continue
 
-	sec
+	cmp #$a0			; another kind of space?
+	beq @continue
 
-	cmp #$a0
-	clc
-	beq @end
-	sec
+	lda @ret_value
+	ora #%00001000			; turn on bottom collision bit
+	sta @ret_value			; if the char is no a space
 
-@end:
+@continue:
+	iny				; Y++, used in ($f9),y
+	inx
+	cpx #2				; do the test in 2 bytes	
+	bne @check_collision
+
+	lda @ret_value			; load return value
 	rts
+
+@ret_value:
+	.byte $00
 
 .endproc
 
@@ -639,8 +655,8 @@ terrain:
 	scrcode "                      aaaaaaaaaaaaaa    "
 	scrcode "                  aaaaaaaaaaaaaaaaaaaa  "
 	scrcode "                aaaaaaaaaaaaaaaaaaaaaaaa"
-	scrcode "aaaa   aa   aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	scrcode "aaaa   aa   aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	scrcode "       a    aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	scrcode "aaaa   a    aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 
 ; global sprite values
