@@ -554,11 +554,8 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 .endif
 
 	lda sprites_msb+0		; SECOND: x = actor.x / 8 
-	sec				; C = 1 only if 8th bit is on
-	bne :+				; bit on ? then Carry Set
-	clc				; if not, Clear Carry
-
-:	lda sprites_x+0			; convert pixels coords to chars coords
+	cmp #01				; C=On if MSB is On. Needed for 'ror'
+	lda sprites_x+0
 	ror				; x = actor.x / 8 taking into account 8th bit
 	lsr
 	lsr
@@ -566,7 +563,6 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 
 
 	ldx #0
-
 @check_bottom_collision:
 	lda ($f9),y			; $f9/$fa points to screen position.
 
