@@ -276,9 +276,15 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 
 :	pla				; restores, saves A
 	pha
-	and #%00001100			; left or right ?
+	and #%00001000			; right ?
 	beq :+				; no, next test
-	jsr @left_right_collision
+	jsr @right_collision
+
+:	pla				; restores, saves A
+	pha
+	and #%00000100			; left ?
+	beq :+				; no, next test
+	jsr @left_collision
 
 :	pla				; restores A
 	and #%00000001			; top ?
@@ -306,10 +312,15 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 	sta sprites_y+0
 	rts
 
-@left_right_collision:
-	inc $d020
+@right_collision:
 	lda sprites_x+0
 	and #%11111000
+	sta sprites_x+0
+	rts
+
+@left_collision:
+	lda sprites_x+0
+	ora #%00000111
 	sta sprites_x+0
 	rts
 .endproc
@@ -576,33 +587,55 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 	bne @check_bottom_collision
 
 
-			
+
+@start_right_collision:
+	dey
 	sec				; setup for right collision
 	lda $f9				; ($f9),y -= 40
 	sbc #40
 	sta $f9
-	bcc :+
-	dec $fa
-:
-@check_right_collision:
+	lda $fa
+	sbc #00
+	sta $fa
+
+
 	lda ($f9),y			; $f9/$fa points to screen position.
 
 	cmp #$20			; space?
-	beq :+				; no collision then
+	beq @start_left_collision	; no collision then
 
 	cmp #$a0			; another kind of space?
-	beq :+				; no collision then
+	beq @start_left_collision	; no collision then
 
 	lda @ret_value			; if not space, then
-	ora #%00000000			; turn on right collision bit
+	ora #%00001000			; turn on right collision bit
 	sta @ret_value
-	lda ($f9),y
-	tax
-	inx
-	txa
-	sta ($f9),y
 
-:
+
+@start_left_collision:
+	dey
+	dey
+	lda ($f9),y			; $f9/$fa points to screen position.
+
+	cmp #$20			; space?
+	beq @end			; no collision then
+
+	cmp #$a0			; another kind of space?
+	beq @end			; no collision then
+
+	lda @ret_value			; if not space, then
+	ora #%00000100			; turn on left collision bit
+	sta @ret_value
+
+;	lda ($f9),y
+;	tax
+;	inx
+;	txa
+;	sta ($f9),y
+
+
+
+@end:
 	lda @ret_value			; load return value
 	rts
 @ret_value:
@@ -634,11 +667,13 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 .byte <$0000,<$0028,<$0050,<$0078,<$00a0,<$00c8,<$00f0,<$0118
 .byte <$0140,<$0168,<$0190,<$01b8,<$01e0,<$0208,<$0230,<$0258
 .byte <$0280,<$02a8,<$02d0,<$02f8,<$0320,<$0348,<$0370,<$0398
+.byte <$03c0
 ; MSB values
 @mult_40_hi:
 .byte >$0000,>$0028,>$0050,>$0078,>$00a0,>$00c8,>$00f0,>$0118
 .byte >$0140,>$0168,>$0190,>$01b8,>$01e0,>$0208,>$0230,>$0258
 .byte >$0280,>$02a8,>$02d0,>$02f8,>$0320,>$0348,>$0370,>$0398
+.byte >$03c0
 
 .endproc
 
