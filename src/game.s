@@ -213,8 +213,6 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 .proc init_game
 	jsr init_sprites		; setup sprites
 
-	jsr init_actor_update_y_down	; by default go down
-
 	ldx #0
 	stx button_elapsed_time		; reset button state
 	stx button_released		; enable "high jumping"
@@ -267,34 +265,52 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 .proc actor_update
 	jsr actor_animate		; do the sprite frame animation
 	jsr actor_update_y		; update actor_vel_y
+	jsr actor_update_pos		; updates actor position based on vel_x and vel_y
 
-	clc
-	lda sprites_x+0			; X = X + vel_x
-	adc actor_vel_x
+	jsr check_collision_detection	; check collision
+
+	pha				; saves A, the collision bits
+	and #%00000010			; bottom ?
+	beq :+				; no, next test
+	jsr @bottom_collision 
+
+:	pla				; restores, saves A
+	pha
+	and #%00001100			; left or right ?
+	beq :+				; no, next test
+	jsr @left_right_collision
+
+:	pla				; restores A
+	and #%00000001			; top ?
+	beq :+				; no, next test
+	jsr @top_collision
+
+
+:
+	rts
+
+
+@top_collision:
+	rts				; FIXME: not implemented
+
+@bottom_collision:
+	ldx #0				; if bottom collision, stop falling
+	stx button_elapsed_time
+	stx actor_vel_y			; no vertical movement
+	stx button_released		; button_released = 0
+	inx
+	stx actor_can_start_jump	; actor_can_start_jump = 1
+
+	lda sprites_y+0
+	and #%11111000
+	sta sprites_y+0
+	rts
+
+@left_right_collision:
+	inc $d020
+	lda sprites_x+0
+	and #%11111000
 	sta sprites_x+0
-
-	php				; save carry
-	lda actor_vel_x			; velocity was negative ?
-	bmi @negative_vel		; yes, so test carry according to that
-
-	plp				; restore carry
-	bcc @update_y			; velocity was positive. if carry clear no changes
-	bcs @toggle_8_bit		; if carry set, toggle 8 bit
-
-@negative_vel:
-	plp				; restore carry
-	bcs @update_y			; if carry set on negative vel, no changes
-
-@toggle_8_bit:	
-	lda sprites_msb+0		; toggle sprite.x 8 bit
-	eor #%00000001
-	sta sprites_msb+0
-
-@update_y:
-	sec
-	lda sprites_y+0			; Y = Y - vel_y
-	sbc actor_vel_y
-	sta sprites_y+0 
 	rts
 .endproc
 
@@ -403,10 +419,6 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 	ldx actor_can_start_jump	; allowed to start the jump ?
 	beq :+				; no
 
-	ldx #<actor_update_y_up		; yes, can jump
-	ldy #>actor_update_y_up		; setup update vector
-	stx actor_update_y+1
-	sty actor_update_y+2
 	ldx #0
 	stx actor_can_start_jump	; no more jumping while in air
 
@@ -432,82 +444,61 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void actor_update_pos()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc actor_update_pos
+	clc
+	lda sprites_x+0			; X = X + vel_x
+	adc actor_vel_x
+	sta sprites_x+0
+
+	php				; save carry
+	lda actor_vel_x			; velocity was negative ?
+	bmi @negative_vel		; yes, so test carry according to that
+
+	plp				; restore carry
+	bcc @update_y			; velocity was positive. if carry clear no changes
+	bcs @toggle_8_bit		; if carry set, toggle 8 bit
+
+@negative_vel:
+	plp				; restore carry
+	bcs @update_y			; if carry set on negative vel, no changes
+
+@toggle_8_bit:	
+	lda sprites_msb+0		; toggle sprite.x 8 bit
+	eor #%00000001
+	sta sprites_msb+0
+
+@update_y:
+	sec
+	lda sprites_y+0			; Y = Y - vel_y
+	sbc actor_vel_y
+	sta sprites_y+0 
+	rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void actor_update_y()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y
-	jmp $caca			; self-modifying code. Jump table
-					; for movement Y
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_y_up()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_update_y_up
 	dec @counter
-	beq :+
-	rts
+	bne :+
 
-:	lda #$05
+	lda #$05
 	sta @counter
+
 	dec actor_vel_y
-	beq :+
-	rts
 
-:	jmp init_actor_update_y_down	; yes, so setup the 'go down'
-
-@counter:
-	.byte $05
-
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_actor_update_y_down()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc init_actor_update_y_down
-	ldx #0				; sets up up 'actor_update_y_down'
-	ldx #<actor_update_y_down
-	ldy #>actor_update_y_down
-	stx actor_update_y+1
-	sty actor_update_y+2
-	rts
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_y_down()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_update_y_down
-	jsr check_collision_floor	; touching floor ?
-	and #%00001000			; bit 3 is the bottom collision bit
-	bne @stop_falling		; if ON, there is collision. So stop falling
-
-	dec @counter			; counter == 0?
-	bne :+				; no ?
- 
-	lda #$05			; counter = 5
-	sta @counter			; actor_vel_y++
-	dec actor_vel_y			; increase velocity as the actor keeps falling 
 :	rts
 
-@stop_falling:
-	ldx #0
-	stx button_elapsed_time
-	stx actor_vel_y			; no vertical movement
-	stx button_released		; button_released = 0
-	inx
-	stx actor_can_start_jump	; actor_can_start_jump = 1
-
-	lda sprites_y
-	and #%11111000
-	sta sprites_y
-
-	rts
-
 @counter:
 	.byte $05
+
 .endproc
 
+
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void check_collision_floor()
+; void check_collision_detection()
 ;------------------------------------------------------------------------------;
 ; returns A:
 ;	Bit 0=ON if Top collision 
@@ -515,7 +506,7 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 ;	Bit 2=ON if Left collision 
 ;	Bit 3=ON if Right collision 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc check_collision_floor
+.proc check_collision_detection
 
 	lda #0
 	sta @ret_value			; reset return value
@@ -524,8 +515,6 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 	ldy #>$8400
 	stx $f9				; zero page register ($f9) -> $8400
 	sty $fa
-
-
 
 :	lda sprites_y+0			; FIRST: y = actor.y / 8 
 	lsr				; convert pixels coords to chars coords
@@ -539,16 +528,11 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 	tya 
 	jsr mult40			; ret = A * 40.  ret is a 16-bit stored in LSB=X, MSB=Y
 
-	txa				; LSB: screen_base = ret + screenbase
 	clc
+	txa				; LSB: screen_base = ret + screenbase
 	adc $f9
 	sta $f9
-	bcc :+
-	inc $fa
-
-:
 	tya				; MSB: screen_base = ret + screenbase
-	clc
 	adc $fa
 	sta $fa
 
@@ -572,28 +556,55 @@ ACTOR_JUMP_IMPULSE = 3			; higher the number, higher the initial jump
 
 	ldx #0
 
-@check_collision:
+@check_bottom_collision:
 	lda ($f9),y			; $f9/$fa points to screen position.
 
 	cmp #$20			; space?
-	beq @continue
+	beq :+				; no collision then
 
 	cmp #$a0			; another kind of space?
-	beq @continue
+	beq :+				; no collision then
 
-	lda @ret_value
-	ora #%00001000			; turn on bottom collision bit
-	sta @ret_value			; if the char is no a space
+	lda @ret_value			; if not space, then
+	ora #%00000010			; turn on bottom collision bit
+	sta @ret_value
 
-@continue:
+:
 	iny				; Y++, used in ($f9),y
 	inx
 	cpx #2				; do the test in 2 bytes	
-	bne @check_collision
+	bne @check_bottom_collision
 
+
+			
+	sec				; setup for right collision
+	lda $f9				; ($f9),y -= 40
+	sbc #40
+	sta $f9
+	bcc :+
+	dec $fa
+:
+@check_right_collision:
+	lda ($f9),y			; $f9/$fa points to screen position.
+
+	cmp #$20			; space?
+	beq :+				; no collision then
+
+	cmp #$a0			; another kind of space?
+	beq :+				; no collision then
+
+	lda @ret_value			; if not space, then
+	ora #%00000000			; turn on right collision bit
+	sta @ret_value
+	lda ($f9),y
+	tax
+	inx
+	txa
+	sta ($f9),y
+
+:
 	lda @ret_value			; load return value
 	rts
-
 @ret_value:
 	.byte $00
 
