@@ -90,13 +90,14 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
 
         dec sync
 
+        jsr update_scroll               ; screen horizontal scroll
         jsr ut_read_joy2
         eor #$ff                        ; invert joy2 value
         jsr process_events              ; call process events, even if no event is generated
 
         jsr update_actor                ; update main actor
-        jsr update_scroll               ; screen horizontal scroll
         jsr render_sprites              ; render sprites
+        jsr update_time                 ; updates playing time
 
 .if (DEBUG & 1)
         inc $d020
@@ -114,6 +115,9 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
         pha
 
         STABILIZE_RASTER
+
+        lda #%00001000                  ; no scroll,single-color,40-cols
+        sta $d016
 
         lda #00                         ; black border and background
         sta $d020                       ; to place the score and time
@@ -150,6 +154,9 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
         pha
 
         STABILIZE_RASTER
+
+        lda smooth_scroll_x             ; scroll x
+        sta $d016
 
         lda #$00                        ; black
         sta $d020                       ; border color
@@ -279,7 +286,7 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
         pha                             ; saves A, the collision bits
         and #%00000010                  ; bottom ?
         beq :+                          ; no, next test
-        jsr @bottom_collision 
+        jsr @bottom_collision
 
 :       pla                             ; restores, saves A
         pha
@@ -322,24 +329,87 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
 @right_collision:
         lda sprites_x+0
         and #%11111000
+        ldx smooth_scroll_x
+        ora @right_mask,x
         sta sprites_x+0
         rts
 
 @left_collision:
         lda sprites_x+0
-        ora #%00000111
+        and #%11111000
+        ldx smooth_scroll_x
+        ora @left_mask,x
         sta sprites_x+0
         rts
+
+@right_mask:
+.byte   $00, $01, $02, $03, $04, $05, $06, $06
+@left_mask:
+.byte   $07, $01, $02, $03, $04, $05, $06, $07
+
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void update_scroll()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_scroll
-        lda smooth_scroll_x            ; set the horizontal scroll
-        sta $d016
+SCROLL_SPEED = 1
+
+        sec                             ; speed control
+        lda smooth_scroll_x
+        sbc #SCROLL_SPEED
+        and #07
+        sta smooth_scroll_x
+        cmp #$06
+        beq :+
+        rts
+:
+        .repeat 8,i
+                lda $8400+40*(17+i)
+                sta $8400+40*(17+i)+39
+        .endrepeat
+
+        ldx #0                          ; move the chars to the left and right
+@loop:
+        .repeat 8,i
+                lda $8400+40*(17+i)+1,x
+                sta $8400+40*(17+i)+0,x
+        .endrepeat
+
+        inx
+        cpx #39
+        bne @loop
+
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; update_time
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc update_time
+
+        lda $dc09                       ; seconds. digit
+        tax
+        ora #$b0
+        sta $8400 + 40 * 01 + 26
+
+        txa                             ; seconds. Ten digit
+        lsr
+        lsr
+        lsr
+        lsr
+        ora #$b0
+        sta $8400 + 40 * 01 + 25
+
+        lda $dc0a                       ; minutes. digit
+        tax
+        and #%00001111
+        ora #$b0
+        sta $8400 + 40 * 01 + 23
+
         rts
 
+@temp: .byte 0
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -570,9 +640,11 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
 :
 .endif
 
-        lda sprites_msb+0               ; SECOND: x = actor.x / 8 
-        cmp #01                         ; C=On if MSB is On. Needed for 'ror'
-        lda sprites_x+0
+        lda sprites_x+0                 ; SECOND: x = actor.x / 8
+        sec
+        sbc smooth_scroll_x             ; take into account x scroll position
+        ldx sprites_msb+0
+        cpx #01                         ; C=On if MSB is On. Needed for 'ror'
         ror                             ; x = actor.x / 8 taking into account 8th bit
         lsr
         lsr
@@ -645,8 +717,6 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
 ;       inx
 ;       txa
 ;       sta ($f9),y
-
-
 
 @end:
         lda @ret_value                  ; load return value
