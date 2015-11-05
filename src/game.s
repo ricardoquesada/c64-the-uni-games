@@ -698,7 +698,7 @@ terrain:
 	scrcode "                  aaaaaaaaaaaaaaaaaaaa  "
 	scrcode "                aaaaaaaaaaaaaaaaaaaaaaaa"
 	scrcode "       a    aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	scrcode "aaaa   a    aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	scrcode "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 
 ; global sprite values
