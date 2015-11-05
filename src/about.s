@@ -170,9 +170,6 @@ irq:
         lda #%00111011                  ; set hires bitmap mode. needed for the logo
         sta $d011
 
-        inc sync
-
-
         lda #<irq                       ; we have to re-schedule irq from irq basically because
         sta $fffe                       ; we are using a double IRQ
         lda #>irq
@@ -182,6 +179,8 @@ irq:
         sta $d012
 
         asl $d019
+
+        inc sync
 
         pla                             ; restores A, X, Y
         tay

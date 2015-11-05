@@ -32,8 +32,8 @@
 
 DEBUG = 3                               ; bitwise: 1=raster-sync code. 2=asserts
 
-RASTER_TOP = 12                         ; first raster line
-RASTER_BOTTOM = 50 + 8*3                ; moving part of the screen
+RASTER_TOP = 50 + 8 * 25                ; first raster line
+RASTER_BOTTOM = 50 + 8 * 3              ; moving part of the screen
 
 ACTOR_ANIMATION_SPEED = 8               ; animation speed. the bigger the number, the slower it goes
 GROUND_Y = 200                          ; max Y position for actor
@@ -90,14 +90,15 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
 
         dec sync
 
+        jsr update_time                 ; updates playing time
         jsr update_scroll               ; screen horizontal scroll
+
         jsr ut_read_joy2
         eor #$ff                        ; invert joy2 value
         jsr process_events              ; call process events, even if no event is generated
 
         jsr update_actor                ; update main actor
         jsr render_sprites              ; render sprites
-        jsr update_time                 ; updates playing time
 
 .if (DEBUG & 1)
         inc $d020
@@ -133,6 +134,8 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
         sta $d012
 
         asl $d019                       ; ACK raster interrupt
+
+        inc sync
 
         pla                             ; restores A, X, Y
         tay
@@ -172,8 +175,6 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
         sta $d012
 
         asl $d019                       ; ACK raster interrupt
-
-        inc sync
 
         pla                             ; restores A, X, Y
         tay
@@ -355,15 +356,17 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
 .proc update_scroll
 SCROLL_SPEED = 1
 
-        sec                             ; speed control
+        sec
         lda smooth_scroll_x
-        sbc #SCROLL_SPEED
-        and #07
+        sbc #$01
+        and #%00000111
         sta smooth_scroll_x
-        cmp #$06
-        beq :+
+        bcc :+
         rts
 :
+        lda #07
+        sta smooth_scroll_x
+
         .repeat 8,i
                 lda $8400+40*(17+i)
                 sta $8400+40*(17+i)+39
@@ -391,7 +394,7 @@ SCROLL_SPEED = 1
         lda $dc09                       ; seconds. digit
         tax
         ora #$b0
-        sta $8400 + 40 * 01 + 26
+        sta $8400 + 40 * 01 + 38
 
         txa                             ; seconds. Ten digit
         lsr
@@ -399,13 +402,13 @@ SCROLL_SPEED = 1
         lsr
         lsr
         ora #$b0
-        sta $8400 + 40 * 01 + 25
+        sta $8400 + 40 * 01 + 37
 
         lda $dc0a                       ; minutes. digit
         tax
         and #%00001111
         ora #$b0
-        sta $8400 + 40 * 01 + 23
+        sta $8400 + 40 * 01 + 35
 
         rts
 
@@ -776,7 +779,7 @@ smooth_scroll_x:        .byte $07
 screen:
                 ;0123456789|123456789|123456789|123456789|
         scrcode " score                             time "
-        scrcode " 00000                              90  "
+        scrcode " 00000                             0:00 "
 
 terrain:
                 ;0123456789|123456789|123456789|123456789|
