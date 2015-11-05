@@ -11,8 +11,8 @@
 .import __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__, __HIGH_SCORES_CODE_LOAD__
 
 ; from utils.s
-.import clear_screen, clear_color, get_key, read_joy2, detect_pal_paln_ntsc
-.import vic_video_type, start_clean
+.import ut_clear_color, ut_get_key, ut_read_joy2, ut_detect_pal_paln_ntsc
+.import ut_vic_video_type, ut_start_clean
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -27,8 +27,8 @@ SPRITE_ANIMATION_SPEED = 8
 
 
 .segment "CODE"
-        jsr start_clean                 ; no basic, no kernal, no interrupts
-        jsr detect_pal_paln_ntsc        ; pal, pal-n or ntsc?
+        jsr ut_start_clean              ; no basic, no kernal, no interrupts
+        jsr ut_detect_pal_paln_ntsc     ; pal, pal-n or ntsc?
 
 
         ; disable NMI
@@ -49,7 +49,7 @@ disable_nmi:
         sei
 
         lda #$01
-        jsr clear_color
+        jsr ut_clear_color
         jsr init_screen
 
         lda #%00001000                  ; no scroll,single-color,40-cols
@@ -120,7 +120,7 @@ disable_nmi:
         beq @main_menu_mode
 
         jsr animate_rider               ; "choose rider" mode
-        jsr read_joy2
+        jsr ut_read_joy2
         eor #$ff
         and #%00011100 ;                ; only care about left,right,fire
         beq @main_loop
@@ -134,7 +134,7 @@ disable_nmi:
         jmp @main_loop
 
 @main_menu_mode:
-        jsr get_key
+        jsr ut_get_key
         bcc @main_loop
 
         cmp #$40                        ; F1
@@ -228,7 +228,7 @@ irq_open_borders:
         sta VIC_SPR7_COLOR
 
         ldx #$0f                        ; sprite pointer to PAL (15)
-        lda vic_video_type              ; ntsc, pal or paln?
+        lda ut_vic_video_type           ; ntsc, pal or paln?
         cmp #$01                        ; Pal ?
         beq @end                        ; yes.
         cmp #$2f                        ; Pal-N?

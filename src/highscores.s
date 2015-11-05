@@ -13,7 +13,7 @@
 .import __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__
 
 ; from utils.s
-.import clear_screen, clear_color, get_key, read_joy2
+.import ut_clear_color, ut_get_key
 
 ; from main.s
 .import irq_open_borders
@@ -50,11 +50,11 @@
         cli
 
         lda #$01
-        jsr clear_color
+        jsr ut_clear_color
         jsr init_screen
 
 @main_loop:
-        jsr get_key
+        jsr ut_get_key
         bcc @main_loop
 
         cmp #$47                        ; space ?

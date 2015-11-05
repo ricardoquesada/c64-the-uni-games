@@ -17,7 +17,7 @@
 .import selected_rider
 
 ; from utils.s
-.import clear_screen, clear_color, get_key, read_joy2
+.import ut_clear_screen, ut_clear_color, ut_get_key, ut_read_joy2, ut_setup_tod
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -45,9 +45,16 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
         sei
 
         lda #01
-        jsr clear_color                 ; clears the screen color ram
+        jsr ut_clear_color              ; clears the screen color ram
         jsr init_screen
         jsr init_game
+
+        jsr ut_setup_tod                ; must be called AFTER detect_pal_...
+        lda #0
+        sta $dc0b                       ; Set TOD-Clock to 0 (hours)
+        sta $dc0a                       ;- (minutes)
+        sta $dc09                       ;- (seconds)
+        sta $dc08                       ;- (deciseconds)
 
         lda #$00
         sta sync
@@ -83,7 +90,7 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
 
         dec sync
 
-        jsr read_joy2
+        jsr ut_read_joy2
         eor #$ff                        ; invert joy2 value
         jsr process_events              ; call process events, even if no event is generated
 
@@ -329,7 +336,10 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
 ; void update_scroll()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_scroll
+        lda smooth_scroll_x            ; set the horizontal scroll
+        sta $d016
         rts
+
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -519,10 +529,10 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
 ; void check_collision_detection()
 ;------------------------------------------------------------------------------;
 ; returns A:
-;       Bit 0=ON if Top collision 
-;       Bit 1=ON if Down collision 
-;       Bit 2=ON if Left collision 
-;       Bit 3=ON if Right collision 
+;       Bit 0=ON if Top collision
+;       Bit 1=ON if Down collision
+;       Bit 2=ON if Left collision
+;       Bit 3=ON if Right collision
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc check_collision_detection
 
@@ -534,7 +544,7 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
         stx $f9                         ; zero page register ($f9) -> $8400
         sty $fa
 
-:       lda sprites_y+0                 ; FIRST: y = actor.y / 8 
+:       lda sprites_y+0                 ; FIRST: y = actor.y / 8
         lsr                             ; convert pixels coords to chars coords
         lsr
         lsr
@@ -543,7 +553,7 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
 ;       dey
         dey                             ; since sprite coordinates start before screen, we need to compesate
 
-        tya 
+        tya
         jsr mult40                      ; ret = A * 40.  ret is a 16-bit stored in LSB=X, MSB=Y
 
         clc

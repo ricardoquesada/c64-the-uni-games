@@ -15,7 +15,7 @@
 .import __MAIN_CODE_LOAD__, __MAIN_CHARSET_LOAD__
 
 ; from utils.s
-.import clear_screen, clear_color, get_key, sync_irq_timer
+.import ut_clear_screen, ut_clear_color, ut_get_key, ut_sync_irq_timer
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Constants
@@ -69,7 +69,7 @@ KOALA_BACKGROUND_DATA = KOALA_BITMAP_DATA + $2710
         beq :+
         jsr @do_sync
 :
-        jsr get_key                     ; key pressed ?
+        jsr ut_get_key                  ; key pressed ?
         bcc @mainloop
         cmp #$47                        ; space
         bne @mainloop
@@ -445,9 +445,9 @@ save_color_bottom = *+1
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init
         lda #$20                        ; must be BEFORE any screen-related function
-        jsr clear_screen
+        jsr ut_clear_screen
         lda #$00
-        jsr clear_color
+        jsr ut_clear_color
 
         jsr init_koala_colors           ; must be BEFORE init_charset / init_scroll_colors
 
@@ -471,7 +471,7 @@ save_color_bottom = *+1
         sta $d018
 
         sei                             ; no interrups
-        jsr sync_irq_timer
+        jsr ut_sync_irq_timer
 
         lda #$7f                        ; turn off cia interrups
         sta $dc0d

@@ -9,13 +9,13 @@
 .segment "CODE"
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; clear_screen(int char_used_to_clean)
+; ut_clear_screen(int char_used_to_clean)
 ;------------------------------------------------------------------------------;
 ; Args: A char used to clean the screen.
 ; Clears the screen
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export clear_screen
-.proc clear_screen
+.export ut_clear_screen
+.proc ut_clear_screen
         ldx #0
 :       sta $0400,x                     ; clears the screen memory
         sta $0500,x                     ; but assumes that VIC is using bank 0
@@ -29,13 +29,13 @@
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; clear_color(int foreground_color)
+; ut_clear_color(int foreground_color)
 ;------------------------------------------------------------------------------;
 ; Args: A color to be used. Only lower 3 bits are used.
 ; Changes foreground RAM color
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export clear_color
-.proc clear_color
+.export ut_clear_color
+.proc ut_clear_color
         ldx #0
 :       sta $d800,x                     ; clears the screen color memory
         sta $d900,x                     ; works for any VIC bank
@@ -48,7 +48,7 @@
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; char get_key(void)
+; char ut_get_key(void)
 ;------------------------------------------------------------------------------;
 ; reads a key from the keyboard
 ; Carry set if keyboard detected. Othewise Carry clear
@@ -56,8 +56,8 @@
 ; Code by Groepaz. Copied from:
 ; http://codebase64.org/doku.php?id=base:reading_the_keyboard&s[]=keyboard
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export get_key
-.proc get_key
+.export ut_get_key
+.proc ut_get_key
         lda #$0
         sta $dc03                       ; port b ddr (input)
         lda #$ff
@@ -123,18 +123,18 @@
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; char read_joy2(void)
+; char ut_read_joy2(void)
 ;------------------------------------------------------------------------------;
 ; reads the joystick in port2
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export read_joy2
-.proc read_joy2
+.export ut_read_joy2
+.proc ut_read_joy2
         lda $dc00
         rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; char detect_pal_paln_ntsc(void)
+; char ut_detect_pal_paln_ntsc(void)
 ;------------------------------------------------------------------------------;
 ; It counts how many rasterlines were drawn in 312*63 (19656) cycles.
 ; 312*63-1 is passed to the timer since it requires one less.
@@ -151,11 +151,11 @@
 ;   $2e --> NTSC-OLD
 ;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export vic_video_type
-vic_video_type: .byte $01
+.export ut_vic_video_type
+ut_vic_video_type: .byte $01
 
-.export detect_pal_paln_ntsc
-.proc detect_pal_paln_ntsc
+.export ut_detect_pal_paln_ntsc
+.proc ut_detect_pal_paln_ntsc
         sei                             ; disable interrupts
 
         lda #0
@@ -204,7 +204,7 @@ vic_video_type: .byte $01
 
         lda #$1b                        ; enable the display again
         sta $d011
-        lda vic_video_type              ; load ret value
+        lda ut_vic_video_type           ; load ret value
         rts
 
 timer_irq:
@@ -214,7 +214,7 @@ timer_irq:
         lda $dc0d                       ; clear timer A interrupt
 
         lda $d012
-        sta vic_video_type
+        sta ut_vic_video_type
 
         inc sync
         cli
@@ -222,12 +222,12 @@ timer_irq:
         pla                             ; restores A
         rti
 
-sync:           .byte $00
+sync:  .byte $00
 
 .endproc
 
-.export start_clean
-.proc start_clean
+.export ut_start_clean
+.proc ut_start_clean
         sei                             ; disable interrupts
         lda #$35                        ; no basic, no kernal
         sta $01
@@ -247,18 +247,19 @@ sync:           .byte $00
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void sync_irq_timer()
+; void ut_sync_irq_timer()
 ;------------------------------------------------------------------------------;
 ; code taken from zoo mania game source code: http://csdb.dk/release/?id=121860
 ; and values from here:
 ;       http://codebase64.org/doku.php?id=base:playing_music_on_pal_and_ntsc
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export ut_sync_irq_timer
+.proc ut_sync_irq_timer
+
 PAL_TIMER := (312*63)-1                 ; raster lines (312) * cycles_per_line(63) = 19656
 PAL_N_TIMER := $4fc2-1                  ; 19656 / (985248/1023445) - 1
 NTSC_TIMER := $4fb2                     ; 19656 / (985248/1022727) - 1
 
-.export sync_irq_timer
-.proc sync_irq_timer
 
         lda #$00
         sta $dc0e                       ; stop timer A
@@ -270,7 +271,7 @@ NTSC_TIMER := $4fb2                     ; 19656 / (985248/1022727) - 1
         lda $d011                       ; but, why is this needed ???
         bmi @wait
 
-        lda vic_video_type
+        lda ut_vic_video_type
         cmp #$01
         beq @pal
         cmp #$2f
@@ -299,13 +300,13 @@ NTSC_TIMER := $4fb2                     ; 19656 / (985248/1022727) - 1
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void setup_tod()
+; void ut_setup_tod()
 ;------------------------------------------------------------------------------;
 ; code taken from:
 ; http://codebase64.org/doku.php?id=base:initialize_tod_clock_on_all_platforms;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export setup_tod
-.proc setup_tod
+.export ut_setup_tod
+.proc ut_setup_tod
         sei
         lda #<@INT_NMI          ; Setup NMI vector
         sta $fffa               ; to catch unwanted NMIs
