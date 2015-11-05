@@ -39,6 +39,7 @@ ACTOR_ANIMATION_SPEED = 8               ; animation speed. the bigger the number
 GROUND_Y = 200                          ; max Y position for actor
 JUMP_TIME_LIMIT = 11                    ; max cycles that jump can be pressed
 ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial jump
+SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
 
 .segment "GAME_CODE"
 
@@ -328,25 +329,39 @@ ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial 
         rts
 
 @right_collision:
+        clc
+        lda scroll_speed                ; scroll speed
+        adc actor_vel_x                 ;
+        sta @total_vel_r                ; total speed = scroll speed + actor_x speed
+
+        sec
         lda sprites_x+0
-        and #%11111000
-        ldx smooth_scroll_x
-        ora @right_mask,x
+@total_vel_r = * + 1
+        sbc #$01                        ; self modifying code
+                                        ; scroll velocity + actor vel x
         sta sprites_x+0
-        rts
+        bcs :+
+        lda #0
+        sta sprites_msb+0
+:       rts
 
 @left_collision:
-        lda sprites_x+0
-        and #%11111000
-        ldx smooth_scroll_x
-        ora @left_mask,x
-        sta sprites_x+0
-        rts
+        clc
+        lda actor_vel_x
+        eor #$ff                        ; actor_vel_x = -actor_vel-x
+        adc scroll_speed
+        sta @total_vel_l
 
-@right_mask:
-.byte   $00, $01, $02, $03, $04, $05, $06, $06
-@left_mask:
-.byte   $07, $01, $02, $03, $04, $05, $06, $07
+        clc
+        lda sprites_x+0
+@total_vel_l = * + 1
+        adc #$01                        ; self modifying code
+                                        ; scroll velocity + actor_vel_x
+        sta sprites_x+0
+        bcc :+
+        lda #1
+        sta sprites_msb+0
+:       rts
 
 .endproc
 
@@ -358,7 +373,7 @@ SCROLL_SPEED = 1
 
         sec
         lda smooth_scroll_x
-        sbc #$01
+        sbc scroll_speed
         and #%00000111
         sta smooth_scroll_x
         bcc :+
@@ -774,7 +789,8 @@ actor_vel_y:            .byte 0         ; vertical velocity in pixels per frame
 button_released:        .byte 0         ; boolean. whether or not the button was released while in the air
 score:                  .word $0000
 time:                   .word $0000
-smooth_scroll_x:        .byte $07
+smooth_scroll_x:        .byte $05
+scroll_speed:           .byte SCROLL_SPEED
 
 screen:
                 ;0123456789|123456789|123456789|123456789|
