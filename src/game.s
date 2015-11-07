@@ -32,6 +32,8 @@
 
 DEBUG = 7                               ; bitwise: 1=raster-sync code. 2=asserts. 4=colllision detection
 
+SCREEN_BASE = $8400                     ; screen starts at $8400
+
 RASTER_TOP = 50 + 8 * 25 + 1            ; first raster line
 RASTER_BOTTOM = 50 + 8 * 3              ; moving part of the screen
 
@@ -193,27 +195,27 @@ _mainloop:
         sta $d020
         sta $d021
 
-        ldx #$00                        ; screen is at $8400
+        ldx #$00                        ; screen starts at SCREEN_BASE
 _loop:
         lda #$20
-        sta $8400,x
-        sta $8400+$0100,x
-        sta $8400+$0200,x
-        sta $8400+$02e8,x
+        sta SCREEN_BASE,x
+        sta SCREEN_BASE+$0100,x
+        sta SCREEN_BASE+$0200,x
+        sta SCREEN_BASE+$02e8,x
         inx
         bne _loop
 
         ldx #40*2-1                     ; 2 lines only
 :       lda screen,x
         ora #$80                        ; using second half of the romset
-        sta $8400,x
+        sta SCREEN_BASE,x
         dex
         bpl :-
 
         ldx #40*6-1                     ; 6 lines only
 :       lda terrain,x
         ora #$80                        ; using second half of the romset
-        sta $8400+19*40,x               ; start from the line 19
+        sta SCREEN_BASE+19*40,x         ; start from the line 19
         dex
         cpx #$ff
         bne :-
@@ -380,15 +382,15 @@ SCROLL_SPEED = 1
         sta smooth_scroll_x
 
         .repeat 8,i
-                lda $8400+40*(17+i)
-                sta $8400+40*(17+i)+39
+                lda SCREEN_BASE+40*(17+i)
+                sta SCREEN_BASE+40*(17+i)+39
         .endrepeat
 
         ldx #0                          ; move the chars to the left and right
 _loop:
         .repeat 8,i
-                lda $8400+40*(17+i)+1,x
-                sta $8400+40*(17+i)+0,x
+                lda SCREEN_BASE+40*(17+i)+1,x
+                sta SCREEN_BASE+40*(17+i)+0,x
         .endrepeat
 
         inx
@@ -407,7 +409,7 @@ _loop:
         tax
         and #%00001111
         ora #($80 + $30)
-        sta $8400 + 40 * 01 + 38
+        sta SCREEN_BASE + 40 * 01 + 38
 
         txa                             ; seconds. Ten digit
         lsr
@@ -415,12 +417,12 @@ _loop:
         lsr
         lsr
         ora #($80 + $30)
-        sta $8400 + 40 * 01 + 37
+        sta SCREEN_BASE + 40 * 01 + 37
 
         lda $dc0a                       ; minutes. digit
         and #%00001111
         ora #$b0
-        sta $8400 + 40 * 01 + 35
+        sta SCREEN_BASE + 40 * 01 + 35
 
         rts
 .endproc
@@ -621,9 +623,9 @@ _counter: .byte $05
         lda #0
         sta _ret_value                  ; reset return value
 
-        ldx #<$8400                     ; restore screen base value
-        ldy #>$8400
-        stx $f9                         ; zero page register ($f9) -> $8400
+        ldx #<SCREEN_BASE               ; restore screen base value
+        ldy #>SCREEN_BASE
+        stx $f9                         ; zero page register ($f9) -> SCREEN_BASE
         sty $fa
 
 :       lda sprites_y+0                 ; FIRST: y = actor.y / 8
@@ -741,7 +743,7 @@ _end:
         bcc :+
         iny                             ; '1'
 :       tya
-        sta $8400 + 20,x
+        sta SCREEN_BASE + 20,x
         pla 
         dex
         bpl :--
