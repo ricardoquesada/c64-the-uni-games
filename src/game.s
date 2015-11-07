@@ -32,7 +32,7 @@
 
 DEBUG = 7                               ; bitwise: 1=raster-sync code. 2=asserts. 4=colllision detection
 
-RASTER_TOP = 50 + 8 * 25                ; first raster line
+RASTER_TOP = 50 + 8 * 25 + 1            ; first raster line
 RASTER_BOTTOM = 50 + 8 * 3              ; moving part of the screen
 
 ACTOR_ANIMATION_SPEED = 8               ; animation speed. the bigger the number, the slower it goes
@@ -81,7 +81,7 @@ SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
 
         cli
 
-@mainloop:
+_mainloop:
 :       lda sync
         beq :-
 
@@ -104,7 +104,7 @@ SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
 .if (DEBUG & 1)
         inc $d020
 .endif
-        jmp @mainloop
+        jmp _mainloop
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; IRQ handler: RASTER_TOP
@@ -116,7 +116,7 @@ SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
         tya
         pha
 
-        STABILIZE_RASTER
+        sei
 
         lda #%00001000                  ; no scroll,single-color,40-cols
         sta $d016
@@ -137,6 +137,8 @@ SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
         asl $d019                       ; ACK raster interrupt
 
         inc sync
+
+        cli
 
         pla                             ; restores A, X, Y
         tay
@@ -159,13 +161,15 @@ SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
 
         STABILIZE_RASTER
 
-        lda smooth_scroll_x             ; scroll x
-        sta $d016
-
         lda #$00                        ; black
         sta $d020                       ; border color
         lda #14
         sta $d021                       ; background color
+
+        sei
+
+        lda smooth_scroll_x             ; scroll x
+        sta $d016
 
         lda #<irq_top                   ; set new IRQ-raster vector
         sta $fffe
@@ -176,6 +180,8 @@ SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
         sta $d012
 
         asl $d019                       ; ACK raster interrupt
+
+        cli
 
         pla                             ; restores A, X, Y
         tay
@@ -196,14 +202,14 @@ SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
         sta $d021
 
         ldx #$00                        ; screen is at $8400
-@loop:
+_loop:
         lda #$20
         sta $8400,x
         sta $8400+$0100,x
         sta $8400+$0200,x
         sta $8400+$02e8,x
         inx
-        bne @loop
+        bne _loop
 
         ldx #40*2-1                     ; 2 lines only
 :       lda screen,x
@@ -387,7 +393,7 @@ SCROLL_SPEED = 1
         .endrepeat
 
         ldx #0                          ; move the chars to the left and right
-@loop:
+_loop:
         .repeat 8,i
                 lda $8400+40*(17+i)+1,x
                 sta $8400+40*(17+i)+0,x
@@ -395,7 +401,7 @@ SCROLL_SPEED = 1
 
         inx
         cpx #39
-        bne @loop
+        bne _loop
 
         rts
 .endproc
@@ -425,8 +431,6 @@ SCROLL_SPEED = 1
         sta $8400 + 40 * 01 + 35
 
         rts
-
-@temp: .byte 0
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -438,7 +442,7 @@ SCROLL_SPEED = 1
         ldx #$07
         ldy #$0e
 
-@loop:  lda sprites_y,x
+_loop:  lda sprites_y,x
         sta VIC_SPR0_Y,y                ; write y
         lda sprites_x,x
         sta VIC_SPR0_X,y                ; write x
@@ -449,7 +453,7 @@ SCROLL_SPEED = 1
         dey
         dey
         dex
-        bpl @loop
+        bpl _loop
         rts
 .endproc
 
@@ -463,37 +467,37 @@ SCROLL_SPEED = 1
         pha                             ; save A
 
         and #%00010000                  ; button clicked ?
-        beq @no_button                  ; nope
+        beq _no_button                  ; nope
 
         lda button_released             ; was the button released when already in the air ?
-        bne @next_event                 ; yes?... so no more jumping
+        bne _next_event                 ; yes?... so no more jumping
 
 
         lda button_elapsed_time         ; button_elapsed_time < JUMP_TIME_LIMIT ?
         cmp #JUMP_TIME_LIMIT            ; needed to jump higher
-        bpl @next_event                 ; nope
+        bpl _next_event                 ; nope
 
         inc button_elapsed_time         ; reached max time that actor can jump ?
         lda #ACTOR_JUMP_IMPULSE         ; while button is pressed 
         sta actor_vel_y                 ; velocity.y = ACTOR_JUMP_IMPULSE
                                         ; the longer the button is pressed, the higher it jumps
         jsr actor_jump
-        jmp @next_event 
+        jmp _next_event 
 
-@no_button:
+_no_button:
         lda actor_can_start_jump        ; if actor is on the air
-        bne @next_event                 ; and button is not pressed
+        bne _next_event                 ; and button is not pressed
         lda #1                          ; then button cannot be pressed again
         sta button_released
 
-@next_event:
+_next_event:
         pla                             ; restore A
         and #%00001100                  ; joy moved left or right ?
-        bne @joy_moved
+        bne _joy_moved
         jmp actor_did_not_move          ; no movement
 
 
-@joy_moved:                             ; was the joy moved to right or left?
+_joy_moved:                             ; was the joy moved to right or left?
         and #%00000100                  ; left ?
         beq :+
         jmp actor_move_left
@@ -545,10 +549,10 @@ SCROLL_SPEED = 1
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_animate
         dec animation_delay
-        beq @animate
+        beq _animate
         rts
 
-@animate:
+_animate:
         lda #ACTOR_ANIMATION_SPEED
         sta animation_delay
 
@@ -569,22 +573,22 @@ SCROLL_SPEED = 1
 
         php                             ; save carry
         lda actor_vel_x                 ; velocity was negative ?
-        bmi @negative_vel               ; yes, so test carry according to that
+        bmi _negative_vel               ; yes, so test carry according to that
 
         plp                             ; restore carry
-        bcc @update_y                   ; velocity was positive. if carry clear no changes
-        bcs @toggle_8_bit               ; if carry set, toggle 8 bit
+        bcc _update_y                   ; velocity was positive. if carry clear no changes
+        bcs _toggle_8_bit               ; if carry set, toggle 8 bit
 
-@negative_vel:
+_negative_vel:
         plp                             ; restore carry
-        bcs @update_y                   ; if carry set on negative vel, no changes
+        bcs _update_y                   ; if carry set on negative vel, no changes
 
-@toggle_8_bit:  
+_toggle_8_bit:  
         lda sprites_msb+0               ; toggle sprite.x 8 bit
         eor #%00000001
         sta sprites_msb+0
 
-@update_y:
+_update_y:
         sec
         lda sprites_y+0                 ; Y = Y - vel_y
         sbc actor_vel_y
@@ -596,18 +600,17 @@ SCROLL_SPEED = 1
 ; void actor_update_y()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc actor_update_y
-        dec @counter
+        dec _counter
         bne :+
 
         lda #$05
-        sta @counter
+        sta _counter
 
         dec actor_vel_y
 
 :       rts
 
-@counter:
-        .byte $05
+_counter: .byte $05
 
 .endproc
 
@@ -624,7 +627,7 @@ SCROLL_SPEED = 1
 .proc check_collision_detection
 
         lda #0
-        sta @ret_value                  ; reset return value
+        sta _ret_value                  ; reset return value
 
         ldx #<$8400                     ; restore screen base value
         ldy #>$8400
@@ -669,7 +672,7 @@ SCROLL_SPEED = 1
 
 
         ldx #0
-@check_bottom_collision:
+_check_bottom_collision:
         lda ($f9),y                     ; $f9/$fa points to screen position.
 
         cmp #$20                        ; space?
@@ -678,19 +681,19 @@ SCROLL_SPEED = 1
         cmp #$a0                        ; another kind of space?
         beq :+                          ; no collision then
 
-        lda @ret_value                  ; if not space, then
+        lda _ret_value                  ; if not space, then
         ora #%00000010                  ; turn on bottom collision bit
-        sta @ret_value
+        sta _ret_value
 
 :
         iny                             ; Y++, used in ($f9),y
         inx
         cpx #2                          ; do the test in 2 bytes        
-        bne @check_bottom_collision
+        bne _check_bottom_collision
 
 
 
-@start_right_collision:
+_start_right_collision:
         dey
         sec                             ; setup for right collision
         lda $f9                         ; ($f9),y -= 40
@@ -704,30 +707,30 @@ SCROLL_SPEED = 1
         lda ($f9),y                     ; $f9/$fa points to screen position.
 
         cmp #$20                        ; space?
-        beq @start_left_collision       ; no collision then
+        beq _start_left_collision       ; no collision then
 
         cmp #$a0                        ; another kind of space?
-        beq @start_left_collision       ; no collision then
+        beq _start_left_collision       ; no collision then
 
-        lda @ret_value                  ; if not space, then
+        lda _ret_value                  ; if not space, then
         ora #%00001000                  ; turn on right collision bit
-        sta @ret_value
+        sta _ret_value
 
 
-@start_left_collision:
+_start_left_collision:
         dey
         dey
         lda ($f9),y                     ; $f9/$fa points to screen position.
 
         cmp #$20                        ; space?
-        beq @end                        ; no collision then
+        beq _end                        ; no collision then
 
         cmp #$a0                        ; another kind of space?
-        beq @end                        ; no collision then
+        beq _end                        ; no collision then
 
-        lda @ret_value                  ; if not space, then
+        lda _ret_value                  ; if not space, then
         ora #%00000100                  ; turn on left collision bit
-        sta @ret_value
+        sta _ret_value
 
 ;       lda ($f9),y
 ;       tax
@@ -735,11 +738,11 @@ SCROLL_SPEED = 1
 ;       txa
 ;       sta ($f9),y
 
-@end:
+_end:
 
 .if (::DEBUG & 4)
         ldx #3                          ; print 4 bits of the coll detection                 
-        lda @ret_value                  
+        lda _ret_value
 :       ror
         pha
         ldy #($80 + $30)                ; '0'
@@ -752,10 +755,10 @@ SCROLL_SPEED = 1
         bpl :--
 .endif
 
-        lda @ret_value                  ; load return value
+        lda _ret_value                  ; load return value
         rts
 
-@ret_value:     .byte $00
+_ret_value:     .byte $00
 
 .endproc
 
@@ -772,20 +775,20 @@ SCROLL_SPEED = 1
         lda #24
 :
         tax                             ; r = y * 32 + y * 8, but looking up the result
-        lda @mult_40_lo,x               ; in table is faster
-        ldy @mult_40_hi,x
+        lda _mult_40_lo,x               ; in table is faster
+        ldy _mult_40_hi,x
         tax
         rts
 
 ; autogenerated table: mult_table_generator.py -f0 -t24 -2 40
 ; LSB values
-@mult_40_lo:
+_mult_40_lo:
 .byte <$0000,<$0028,<$0050,<$0078,<$00a0,<$00c8,<$00f0,<$0118
 .byte <$0140,<$0168,<$0190,<$01b8,<$01e0,<$0208,<$0230,<$0258
 .byte <$0280,<$02a8,<$02d0,<$02f8,<$0320,<$0348,<$0370,<$0398
 .byte <$03c0
 ; MSB values
-@mult_40_hi:
+_mult_40_hi:
 .byte >$0000,>$0028,>$0050,>$0078,>$00a0,>$00c8,>$00f0,>$0118
 .byte >$0140,>$0168,>$0190,>$01b8,>$01e0,>$0208,>$0230,>$0258
 .byte >$0280,>$02a8,>$02d0,>$02f8,>$0320,>$0348,>$0370,>$0398
@@ -832,5 +835,4 @@ sprites_msb:    .byte $00, $00, $00, $00, $00, $00, $00, $00
 no_col_pos_x:   .byte $00
 no_col_pos_y:   .byte $00
 no_col_pos_msb: .byte $00
-
 
