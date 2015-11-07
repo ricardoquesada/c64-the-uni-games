@@ -116,8 +116,6 @@ _mainloop:
         tya
         pha
 
-        sei
-
         lda #%00001000                  ; no scroll,single-color,40-cols
         sta $d016
 
@@ -137,8 +135,6 @@ _mainloop:
         asl $d019                       ; ACK raster interrupt
 
         inc sync
-
-        cli
 
         pla                             ; restores A, X, Y
         tay
@@ -166,8 +162,6 @@ _mainloop:
         lda #14
         sta $d021                       ; background color
 
-        sei
-
         lda smooth_scroll_x             ; scroll x
         sta $d016
 
@@ -180,8 +174,6 @@ _mainloop:
         sta $d012
 
         asl $d019                       ; ACK raster interrupt
-
-        cli
 
         pla                             ; restores A, X, Y
         tay
