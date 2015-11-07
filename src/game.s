@@ -30,7 +30,7 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .include "c64.inc"                      ; c64 constants
 
-DEBUG = 3                               ; bitwise: 1=raster-sync code. 2=asserts
+DEBUG = 7                               ; bitwise: 1=raster-sync code. 2=asserts. 4=colllision detection
 
 RASTER_TOP = 50 + 8 * 25                ; first raster line
 RASTER_BOTTOM = 50 + 8 * 3              ; moving part of the screen
@@ -288,34 +288,38 @@ SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
         pha                             ; saves A, the collision bits
         and #%00000010                  ; bottom ?
         beq :+                          ; no, next test
-        jsr @bottom_collision
+        jsr _bottom_collision
 
 :       pla                             ; restores, saves A
         pha
         and #%00001000                  ; right ?
         beq :+                          ; no, next test
-        jsr @right_collision
+        jsr _right_collision
 
 :       pla                             ; restores, saves A
         pha
         and #%00000100                  ; left ?
         beq :+                          ; no, next test
-        jsr @left_collision
+        jsr _left_collision
 
 :       pla                             ; restores A
         and #%00000001                  ; top ?
         beq :+                          ; no, next test
-        jsr @top_collision
+        jmp _top_collision
+
+:       rts
 
 
-:
-        rts
-
-
-@top_collision:
+_top_collision:
         rts                             ; FIXME: not implemented
 
-@bottom_collision:
+_bottom_collision:
+        lda sprites_y+0
+;        clc
+;        adc actor_vel_y
+        and #%11111000
+        sta sprites_y+0                 ; go up
+
         ldx #0                          ; if bottom collision, stop falling
         stx button_elapsed_time
         stx actor_vel_y                 ; no vertical movement
@@ -323,40 +327,35 @@ SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
         inx
         stx actor_can_start_jump        ; actor_can_start_jump = 1
 
-        lda sprites_y+0
-        and #%11111000
-        sta sprites_y+0
         rts
 
-@right_collision:
+_right_collision:
         clc
         lda scroll_speed                ; scroll speed
         adc actor_vel_x                 ;
-        sta @total_vel_r                ; total speed = scroll speed + actor_x speed
+        sta _total_vel_r                ; total speed = scroll speed + actor_x speed
 
         sec
         lda sprites_x+0
-@total_vel_r = * + 1
-        sbc #$01                        ; self modifying code
-                                        ; scroll velocity + actor vel x
+_total_vel_r = * + 1
+        sbc #$00                        ; self modifying code. scroll velocity + actor vel x
         sta sprites_x+0
         bcs :+
         lda #0
         sta sprites_msb+0
 :       rts
 
-@left_collision:
+_left_collision:
         clc
         lda actor_vel_x
         eor #$ff                        ; actor_vel_x = -actor_vel-x
         adc scroll_speed
-        sta @total_vel_l
+        sta _total_vel_l
 
         clc
         lda sprites_x+0
-@total_vel_l = * + 1
-        adc #$01                        ; self modifying code
-                                        ; scroll velocity + actor_vel_x
+_total_vel_l = * + 1
+        adc #$00                        ; self modifying code. scroll velocity + actor_vel_x
         sta sprites_x+0
         bcc :+
         lda #1
@@ -408,7 +407,8 @@ SCROLL_SPEED = 1
 
         lda $dc09                       ; seconds. digit
         tax
-        ora #$b0
+        and #%00001111
+        ora #($80 + $30)
         sta $8400 + 40 * 01 + 38
 
         txa                             ; seconds. Ten digit
@@ -416,11 +416,10 @@ SCROLL_SPEED = 1
         lsr
         lsr
         lsr
-        ora #$b0
+        ora #($80 + $30)
         sta $8400 + 40 * 01 + 37
 
         lda $dc0a                       ; minutes. digit
-        tax
         and #%00001111
         ora #$b0
         sta $8400 + 40 * 01 + 35
@@ -737,10 +736,26 @@ SCROLL_SPEED = 1
 ;       sta ($f9),y
 
 @end:
+
+.if (::DEBUG & 4)
+        ldx #3                          ; print 4 bits of the coll detection                 
+        lda @ret_value                  
+:       ror
+        pha
+        ldy #($80 + $30)                ; '0'
+        bcc :+
+        iny                             ; '1'
+:       tya
+        sta $8400 + 20,x
+        pla 
+        dex
+        bpl :--
+.endif
+
         lda @ret_value                  ; load return value
         rts
-@ret_value:
-        .byte $00
+
+@ret_value:     .byte $00
 
 .endproc
 
@@ -799,7 +814,7 @@ screen:
 
 terrain:
                 ;0123456789|123456789|123456789|123456789|
-        scrcode "                          aaaaaaaa      "
+        scrcode "                          aaaaaaaaaa    "
         scrcode "                      aaaaaaaaaaaaaa    "
         scrcode "                  aaaaaaaaaaaaaaaaaaaa  "
         scrcode "                aaaaaaaaaaaaaaaaaaaaaaaa"
@@ -811,4 +826,11 @@ terrain:
 sprites_y:      .byte $00, $00, $00, $00, $00, $00, $00, $00
 sprites_x:      .byte $00, $00, $00, $00, $00, $00, $00, $00
 sprites_msb:    .byte $00, $00, $00, $00, $00, $00, $00, $00
+
+
+; last well known position without collision
+no_col_pos_x:   .byte $00
+no_col_pos_y:   .byte $00
+no_col_pos_msb: .byte $00
+
 
