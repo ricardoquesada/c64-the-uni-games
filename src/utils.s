@@ -210,7 +210,6 @@ ut_vic_video_type: .byte $01
 timer_irq:
         pha                             ; only saves A
 
-        sei
         lda $dc0d                       ; clear timer A interrupt
 
         lda $d012

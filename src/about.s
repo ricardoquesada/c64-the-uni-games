@@ -115,7 +115,6 @@ irq:
         tya
         pha
 
-        sei                             ; disables interrupts
         asl $d019                       ; clears raster interrupt
         bcs @raster
 

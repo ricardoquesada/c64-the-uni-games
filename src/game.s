@@ -433,8 +433,8 @@ _loop:
 ; code taken from here: http://codebase64.org/doku.php?id=base:moving_sprites
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc render_sprites
-        ldx #$07
-        ldy #$0e
+        ldx #$00
+        ldy #$00
 
 _loop:  lda sprites_y,x
         sta VIC_SPR0_Y,y                ; write y
