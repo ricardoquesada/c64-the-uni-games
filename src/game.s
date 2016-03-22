@@ -11,10 +11,7 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; exported by the linker
-.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__, __MAIN_SPRITES_LOAD__
-
-; from main.s
-.import selected_rider
+.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __MAIN_SPRITES_LOAD__
 
 ; from utils.s
 .import ut_clear_screen, ut_clear_color, ut_get_key, ut_read_joy2, ut_setup_tod
@@ -30,18 +27,26 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .include "c64.inc"                      ; c64 constants
 
-DEBUG = 7                               ; bitwise: 1=raster-sync code. 2=asserts. 4=colllision detection
+DEBUG = 7                               ; bitwise: 1=raster-sync code. 2=asserts
+                                        ; 4=colllision detection
 
 SCREEN_BASE = $8400                     ; screen starts at $8400
 
-RASTER_TOP = 50 + 8 * 25 + 1            ; first raster line
-RASTER_BOTTOM = 50 + 8 * 3              ; moving part of the screen
+
+SCROLL_ROW_P1= 3
+RASTER_TOP_P1 = 50 + 8 * 21 - 2         ; first raster line
+RASTER_BOTTOM_P1 = 50 + 8 * SCROLL_ROW_P1 - 2; moving part of the screen
+
+SCROLL_ROW_P2 = 15
+RASTER_TOP_P2 = 50 + 8 * 9 - 2          ; first raster line
+RASTER_BOTTOM_P2 = 50 + 8 * SCROLL_ROW_P2 - 2; moving part of the screen
 
 ACTOR_ANIMATION_SPEED = 8               ; animation speed. the bigger the number, the slower it goes
-GROUND_Y = 200                          ; max Y position for actor
-JUMP_TIME_LIMIT = 11                    ; max cycles that jump can be pressed
-ACTOR_JUMP_IMPULSE = 3                  ; higher the number, higher the initial jump
-SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
+SCROLL_SPEED_P1 = $0100                 ; $0100 = normal speed. $0200 = 2x speed
+                                        ; $0080 = half speed
+SCROLL_SPEED_P2 = $0100                 ; $0100 = normal speed. $0200 = 2x speed
+                                        ; $0080 = half speed
+ACCEL_SPEED = $20                       ; how fast the speed will increase
 
 .segment "GAME_CODE"
 
@@ -62,19 +67,20 @@ SCROLL_SPEED = 1                        ; scroll speed. higher numbers, faster
         lda #$00
         sta sync
 
-        lda #$7f                        ; turn off cia interrups
-        sta $dc0d
-        sta $dd0d
+        lda #$7f
+        sta $dc0d                       ; turn off cia 1 interrupts
+        sta $dd0d                       ; turn off cia 2 interrupts
 
         lda #01                         ; Enable raster irq
         sta $d01a
 
-        ldx #<irq_top                   ; raster irq vector
-        ldy #>irq_top
+
+        ldx #<irq_top_p1                ; raster irq vector
+        ldy #>irq_top_p1
         stx $fffe
         sty $ffff
 
-        lda #RASTER_TOP
+        lda #RASTER_TOP_P1
         sta $d012
 
         lda $dc0d                       ; clear interrupts and ACK irq
@@ -93,15 +99,11 @@ _mainloop:
 
         dec sync
 
+        jsr process_events
         jsr update_time                 ; updates playing time
         jsr update_scroll               ; screen horizontal scroll
+        jsr update_players              ; sprite animations, physics
 
-        jsr ut_read_joy2
-        eor #$ff                        ; invert joy2 value
-        jsr process_events              ; call process events, even if no event is generated
-
-        jsr update_actor                ; update main actor
-        jsr render_sprites              ; render sprites
 
 .if (DEBUG & 1)
         inc $d020
@@ -109,29 +111,34 @@ _mainloop:
         jmp _mainloop
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; IRQ handler: RASTER_TOP
+; IRQ handlers
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc irq_top
+.proc irq_top_p1
         pha                             ; saves A, X, Y
         txa
         pha
         tya
         pha
 
-        lda #%00001000                  ; no scroll,single-color,40-cols
-        sta $d016
+        STABILIZE_RASTER
+
+        .repeat 26
+                nop
+        .endrepeat
 
         lda #00                         ; black border and background
         sta $d020                       ; to place the score and time
-        lda #00
         sta $d021
 
-        lda #<irq_bottom                ; set a new irq vector
+        lda #%00001000                  ; no scroll,single-color,40-cols
+        sta $d016
+
+        lda #<irq_bottom_p1             ; set a new irq vector
         sta $fffe
-        lda #>irq_bottom
+        lda #>irq_bottom_p1
         sta $ffff
 
-        lda #RASTER_BOTTOM              ; should be triggered when raster = RASTER_BOTTOM
+        lda #RASTER_BOTTOM_P1           ; should be triggered when raster = RASTER_BOTTOM
         sta $d012
 
         asl $d019                       ; ACK raster interrupt
@@ -146,11 +153,7 @@ _mainloop:
         rti                             ; restores previous PC, status
 .endproc
 
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; IRQ handler: RASTER_BOTTOM
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc irq_bottom
+.proc irq_bottom_p1
         pha                             ; saves A, X, Y
         txa
         pha
@@ -159,20 +162,99 @@ _mainloop:
 
         STABILIZE_RASTER
 
-        lda #$00                        ; black
-        sta $d020                       ; border color
+        .repeat 26
+                nop
+        .endrepeat
+
         lda #14
+        sta $d020                       ; border color
         sta $d021                       ; background color
 
-        lda smooth_scroll_x             ; scroll x
+        lda smooth_scroll_x_p1+1        ; scroll x
         sta $d016
 
-        lda #<irq_top                   ; set new IRQ-raster vector
+        lda #<irq_top_p2                ; set new IRQ-raster vector
         sta $fffe
-        lda #>irq_top
+        lda #>irq_top_p2
         sta $ffff
 
-        lda #RASTER_TOP
+        lda #RASTER_TOP_P2
+        sta $d012
+
+        asl $d019                       ; ACK raster interrupt
+
+        pla                             ; restores A, X, Y
+        tay
+        pla
+        tax
+        pla
+        rti                             ; restores previous PC, status
+.endproc
+
+.proc irq_top_p2
+        pha                             ; saves A, X, Y
+        txa
+        pha
+        tya
+        pha
+
+        STABILIZE_RASTER
+
+        .repeat 26
+                nop
+        .endrepeat
+
+        lda #00                         ; black border and background
+        sta $d020                       ; to place the score and time
+        sta $d021
+
+        lda #%00001000                  ; no scroll,single-color,40-cols
+        sta $d016
+
+        lda #<irq_bottom_p2             ; set a new irq vector
+        sta $fffe
+        lda #>irq_bottom_p2
+        sta $ffff
+
+        lda #RASTER_BOTTOM_P2           ; should be triggered when raster = RASTER_BOTTOM
+        sta $d012
+
+        asl $d019                       ; ACK raster interrupt
+
+        pla                             ; restores A, X, Y
+        tay
+        pla
+        tax
+        pla
+        rti                             ; restores previous PC, status
+.endproc
+
+.proc irq_bottom_p2
+        pha                             ; saves A, X, Y
+        txa
+        pha
+        tya
+        pha
+
+        STABILIZE_RASTER
+
+        .repeat 26
+                nop
+        .endrepeat
+
+        lda #14
+        sta $d020                       ; border color
+        sta $d021                       ; background color
+
+        lda smooth_scroll_x_p2+1        ; scroll x
+        sta $d016
+
+        lda #<irq_top_p1                ; set new IRQ-raster vector
+        sta $fffe
+        lda #>irq_top_p1
+        sta $ffff
+
+        lda #RASTER_TOP_P1
         sta $d012
 
         asl $d019                       ; ACK raster interrupt
@@ -190,6 +272,9 @@ _mainloop:
 ; void init_screen()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_screen
+
+        lda #%00010100                  ; screen: $0400, charset $1800
+        sta $d018
 
         lda #14
         sta $d020
@@ -212,13 +297,20 @@ _loop:
         dex
         bpl :-
 
-        ldx #40*6-1                     ; 6 lines only
-:       lda terrain,x
-        ora #$80                        ; using second half of the romset
-        sta SCREEN_BASE+19*40,x         ; start from the line 19
-        dex
-        cpx #$ff
-        bne :-
+        ldx #0
+_loop2:
+        .repeat 6, YY
+            lda level1 + 256 * YY,x
+            sta SCREEN_BASE + 40 * SCROLL_ROW_P1 + 40 * YY, x
+            sta SCREEN_BASE + 40 * SCROLL_ROW_P2 + 40 * YY, x
+            tay
+            lda level1_colors,y
+            sta $d800 + 40 * SCROLL_ROW_P1 + 40 * YY, x
+            sta $d800 + 40 * SCROLL_ROW_P2 + 40 * YY, x
+        .endrepeat
+        inx
+        cpx #40
+        bne _loop2
 
         rts
 .endproc
@@ -228,13 +320,6 @@ _loop:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_game
         jsr init_sprites                ; setup sprites
-
-        ldx #0
-        stx button_elapsed_time         ; reset button state
-        stx button_released             ; enable "high jumping"
-
-        inx
-        stx actor_can_start_jump        ; enable jumping
 
         ldx #00
         stx <score
@@ -246,121 +331,157 @@ _loop:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_screen()
+; void init_sprites()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_sprites
-        lda selected_rider              ; in case rider 1 is selected (instead of 0)
-        cmp #$01                        ; sprite pointer and sprite color need to be changed
-        bne :+
 
-        lda #$08                        ; sprite pointer 8
-        sta $87f8
+        ldx #0
+loop:
+        txa                             ; y = x * 2
+        asl
+        tay
 
-        lda __MAIN_SPRITES_LOAD__ + 64 * 8 + 63
-        and #$0f
-        sta VIC_SPR0_COLOR              ; sprite #0 color
+        lda frames,x
+        sta $87f8,x
 
-:
-        lda #%00000001                  ; sprite #0 enabled. the rest, disabled
+        lda colors,x
+        sta VIC_SPR0_COLOR,x            ; sprite color
+
+        lda sprites_x,x
+        sta VIC_SPR0_X,y
+
+        lda sprites_y,x
+        sta VIC_SPR0_Y,y
+
+        inx
+        cpx #8
+        bne loop
+
+
+        lda #%11111111                  ; sprite enabled
         sta VIC_SPR_ENA
-        lda #%00000001                  ; sprite #0, expand X and Y
-        sta VIC_SPR_EXP_X
-        sta VIC_SPR_EXP_Y
+        lda #%00000000
+        sta VIC_SPR_HI_X                ; sprite hi x
+        sta VIC_SPR_MCOLOR              ; multicolor enabled
+        sta VIC_SPR_EXP_X               ; sprite expanded X
+        sta VIC_SPR_EXP_Y               ; sprite expanded Y
 
-        lda #40
-        sta sprites_x+0                 ; sprite #0 set position
-        lda #GROUND_Y-30
-        sta sprites_y+0
 
         rts
+sprites_x:  .byte 80, 80, 80, 80        ; player 1
+            .byte 80, 80, 80, 80        ; player 2
+sprites_y:  .byte (SCROLL_ROW_P1+5)*8+36    ; player 1
+            .byte (SCROLL_ROW_P1+5)*8+36
+            .byte (SCROLL_ROW_P1+5)*8+36
+            .byte (SCROLL_ROW_P1+5)*8+36
+            .byte (SCROLL_ROW_P2+5)*8+36    ; player 2
+            .byte (SCROLL_ROW_P2+5)*8+36
+            .byte (SCROLL_ROW_P2+5)*8+36
+            .byte (SCROLL_ROW_P2+5)*8+36
+frames:     .byte 0, 1, 2, 3            ; player 1
+            .byte 0, 1, 2, 3            ; player 2
+colors:     .byte 1, 1, 2, 7            ; player 1
+            .byte 1, 1, 2, 7            ; player 2
+
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void update_actor()
+; process_events
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc update_actor
-        jsr actor_animate               ; do the sprite frame animation
-        jsr actor_update_y              ; update actor_vel_y
-        jsr actor_update_pos            ; updates actor position based on vel_x and vel_y
+.proc process_events
+        jsr process_p1
+        jmp process_p2
 
-        jsr check_collision_detection   ; check collision
+process_p1:
+        lda $dc01                       ; ready from joy1
+        and #%00001100                  ; and get only right and left bits
+        cmp expected_joy_p1
+        beq increase_velocity_p1
+        jmp decrease_speed_p1
 
-        pha                             ; saves A, the collision bits
-        and #%00000010                  ; bottom ?
-        beq :+                          ; no, next test
-        jsr _bottom_collision
+increase_velocity_p1:
+        eor #%00001100                  ; cycles between left and right -> %01 -> %10
+        sta expected_joy_p1
 
-:       pla                             ; restores, saves A
-        pha
-        and #%00001000                  ; right ?
-        beq :+                          ; no, next test
-        jsr _right_collision
+        lda #0
+        sta resistance_idx_p1
 
-:       pla                             ; restores, saves A
-        pha
-        and #%00000100                  ; left ?
-        beq :+                          ; no, next test
-        jsr _left_collision
-
-:       pla                             ; restores A
-        and #%00000001                  ; top ?
-        beq :+                          ; no, next test
-        jmp _top_collision
-
+        clc
+        lda scroll_speed_p1             ; increase
+        adc #ACCEL_SPEED
+        sta scroll_speed_p1             ; LSB
+        bcc :+
+        inc scroll_speed_p1+1           ; MSB
 :       rts
 
+decrease_speed_p1:
+        ldx resistance_idx_p1
+        sec
+        lda scroll_speed_p1            ; subtract
+        sbc resistance_tbl,x
+        sta scroll_speed_p1            ; LSB
 
-_top_collision:
-        rts                             ; FIXME: not implemented
+        bcs @end_p1                    ; shortcut for MSB
+        dec scroll_speed_p1+1          ; MSB
 
-_bottom_collision:
-        lda sprites_y+0
-;        clc
-;        adc actor_vel_y
-        and #%11111000
-        sta sprites_y+0                 ; go up
+        bpl @end_p1                    ; if < 0, then 0
+        lda #0
+        sta scroll_speed_p1
+        sta scroll_speed_p1+1
 
-        ldx #0                          ; if bottom collision, stop falling
-        stx button_elapsed_time
-        stx actor_vel_y                 ; no vertical movement
-        stx button_released             ; button_released = 0
+@end_p1:
         inx
-        stx actor_can_start_jump        ; actor_can_start_jump = 1
-
+        cpx #TOTAL_RESISTANCE
+        bne :+
+        ldx #TOTAL_RESISTANCE-1
+:       stx resistance_idx_p1
         rts
 
-_right_collision:
-        clc
-        lda scroll_speed                ; scroll speed
-        adc actor_vel_x                 ;
-        sta _total_vel_r                ; total speed = scroll speed + actor_x speed
 
-        sec
-        lda sprites_x+0
-_total_vel_r = * + 1
-        sbc #$00                        ; self modifying code. scroll velocity + actor vel x
-        sta sprites_x+0
-        bcs :+
+process_p2:
+        lda $dc00                       ; ready from joy2
+        and #%00001100                  ; and get only right and left bits
+        cmp expected_joy_p2
+        beq increase_velocity_p2
+        jmp decrease_speed_p2
+
+increase_velocity_p2:
+        eor #%00001100                  ; cycles between left and right -> %01 -> %10
+        sta expected_joy_p2
+
         lda #0
-        sta sprites_msb+0
-:       rts
-
-_left_collision:
-        clc
-        lda actor_vel_x
-        eor #$ff                        ; actor_vel_x = -actor_vel-x
-        adc scroll_speed
-        sta _total_vel_l
+        sta resistance_idx_p2
 
         clc
-        lda sprites_x+0
-_total_vel_l = * + 1
-        adc #$00                        ; self modifying code. scroll velocity + actor_vel_x
-        sta sprites_x+0
+        lda scroll_speed_p2             ; increase
+        adc #ACCEL_SPEED
+        sta scroll_speed_p2             ; LSB
         bcc :+
-        lda #1
-        sta sprites_msb+0
+        inc scroll_speed_p2+1           ; MSB
 :       rts
+
+decrease_speed_p2:
+        ldx resistance_idx_p2
+        sec
+        lda scroll_speed_p2            ; subtract
+        sbc resistance_tbl,x
+        sta scroll_speed_p2            ; LSB
+
+        bcs @end_p2                    ; shortcut for MSB
+        dec scroll_speed_p2+1          ; MSB
+
+        bpl @end_p2                    ; if < 0, then 0
+        lda #0
+        sta scroll_speed_p2
+        sta scroll_speed_p2+1
+
+@end_p2:
+        inx
+        cpx #TOTAL_RESISTANCE
+        bne :+
+        ldx #TOTAL_RESISTANCE-1
+:       stx resistance_idx_p2
+        rts
 
 .endproc
 
@@ -368,34 +489,80 @@ _total_vel_l = * + 1
 ; void update_scroll()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_scroll
-SCROLL_SPEED = 1
+        jsr update_scroll_p1
+        jmp update_scroll_p2
 
-        sec
-        lda smooth_scroll_x
-        sbc scroll_speed
-        and #%00000111
-        sta smooth_scroll_x
-        bcc :+
+update_scroll_p1:
+        sec                                 ; 16-bit substract
+        lda smooth_scroll_x_p1              ; LSB
+        sbc scroll_speed_p1
+        sta smooth_scroll_x_p1
+        lda smooth_scroll_x_p1+1            ; MSB
+        sbc scroll_speed_p1+1
+        and #%00000111                      ; scroll-x
+        sta smooth_scroll_x_p1+1
+        bcc :+                              ; only scroll, result is negative
         rts
 :
-        lda #07
-        sta smooth_scroll_x
-
-        .repeat 8,i
-                lda SCREEN_BASE+40*(17+i)
-                sta SCREEN_BASE+40*(17+i)+39
-        .endrepeat
-
         ldx #0                          ; move the chars to the left and right
-_loop:
-        .repeat 8,i
-                lda SCREEN_BASE+40*(17+i)+1,x
-                sta SCREEN_BASE+40*(17+i)+0,x
+@loop:
+        .repeat 6,i
+                lda SCREEN_BASE+40*(SCROLL_ROW_P1+i)+1,x
+                sta SCREEN_BASE+40*(SCROLL_ROW_P1+i)+0,x
+                lda $d800+40*(SCROLL_ROW_P1+i)+1,x
+                sta $d800+40*(SCROLL_ROW_P1+i)+0,x
         .endrepeat
 
         inx
         cpx #39
-        bne _loop
+        bne @loop
+
+        ldx scroll_idx_p1
+        inc scroll_idx_p1
+        .repeat 6,i
+                lda level1 + 256 * i,x
+                sta SCREEN_BASE+40*(SCROLL_ROW_P1+i)+39
+                tay
+                lda level1_colors,y
+                sta $d800+40*(SCROLL_ROW_P1+i)+39
+        .endrepeat
+
+        rts
+
+update_scroll_p2:
+        sec                                 ; 16-bit substract
+        lda smooth_scroll_x_p2              ; LSB
+        sbc scroll_speed_p2
+        sta smooth_scroll_x_p2
+        lda smooth_scroll_x_p2+1            ; MSB
+        sbc scroll_speed_p2+1
+        and #%00000111                      ; scroll-x
+        sta smooth_scroll_x_p2+1
+        bcc :+
+        rts
+:
+        ldx #0                          ; move the chars to the left and right
+@loop:
+        .repeat 6,i
+                lda SCREEN_BASE+40*(SCROLL_ROW_P2+i)+1,x
+                sta SCREEN_BASE+40*(SCROLL_ROW_P2+i)+0,x
+                lda $d800+40*(SCROLL_ROW_P2+i)+1,x
+                sta $d800+40*(SCROLL_ROW_P2+i)+0,x
+        .endrepeat
+
+        inx
+        cpx #39
+        bne @loop
+
+        ldx scroll_idx_p2
+        inc scroll_idx_p2
+        .repeat 6,i
+                lda level1 + 256 * i,x
+                sta SCREEN_BASE+40*(SCROLL_ROW_P2+i)+39
+                tay
+                lda level1_colors,y
+                sta $d800+40*(SCROLL_ROW_P2+i)+39
+        .endrepeat
 
         rts
 .endproc
@@ -428,405 +595,98 @@ _loop:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void render_sprites()
-;------------------------------------------------------------------------------;
-; code taken from here: http://codebase64.org/doku.php?id=base:moving_sprites
+; void update_players()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc render_sprites
-        ldx #$00
-        ldy #$00
+.proc update_players
+        jsr update_frame
+        jmp update_position_y
 
-_loop:  lda sprites_y,x
-        sta VIC_SPR0_Y,y                ; write y
-        lda sprites_x,x
-        sta VIC_SPR0_X,y                ; write x
-        lda sprites_msb,x
-        cmp #$01                        ; no msb=carry clear  / msb=carry set
-        rol VIC_SPR_HI_X                ; carry -> $d010, repeat 8 times and all bits are set
+update_position_y:
+        lda $d01f
+        and #%00110000                          ; tire or rim on ground?
+        bne collision                           ; yes 
 
-        dey
-        dey
-        dex
-        bpl _loop
+                                                ; go down (gravity)
+        inc VIC_SPR4_Y                          ; tire
+        inc VIC_SPR5_Y                          ; rim
+        inc VIC_SPR6_Y                          ; head
+        inc VIC_SPR7_Y                          ; hair
         rts
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void process_events(byte joy2_values)
-;------------------------------------------------------------------------------;
-; A = joy2 values
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-
-.proc process_events
-        pha                             ; save A
-
-        and #%00010000                  ; button clicked ?
-        beq _no_button                  ; nope
-
-        lda button_released             ; was the button released when already in the air ?
-        bne _next_event                 ; yes?... so no more jumping
-
-
-        lda button_elapsed_time         ; button_elapsed_time < JUMP_TIME_LIMIT ?
-        cmp #JUMP_TIME_LIMIT            ; needed to jump higher
-        bpl _next_event                 ; nope
-
-        inc button_elapsed_time         ; reached max time that actor can jump ?
-        lda #ACTOR_JUMP_IMPULSE         ; while button is pressed 
-        sta actor_vel_y                 ; velocity.y = ACTOR_JUMP_IMPULSE
-                                        ; the longer the button is pressed, the higher it jumps
-        jsr actor_jump
-        jmp _next_event 
-
-_no_button:
-        lda actor_can_start_jump        ; if actor is on the air
-        bne _next_event                 ; and button is not pressed
-        lda #1                          ; then button cannot be pressed again
-        sta button_released
-
-_next_event:
-        pla                             ; restore A
-        and #%00001100                  ; joy moved left or right ?
-        bne _joy_moved
-        jmp actor_did_not_move          ; no movement
-
-
-_joy_moved:                             ; was the joy moved to right or left?
-        and #%00000100                  ; left ?
-        beq :+
-        jmp actor_move_left
-:       jmp actor_move_right
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_did_not_move()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_did_not_move
-        lda #0
-        sta actor_vel_x                 ; actor vel x = 0
+collision:  
+        cmp #%00110000                          ; only the tire is touching ground?
+        bne end                                 ; if only tire, then end
+                                                ; otherwise go up
+        dec VIC_SPR4_Y                          ; go up, and return
+        dec VIC_SPR5_Y                          ; go up, and return
+        dec VIC_SPR6_Y                          ; go up, and return
+        dec VIC_SPR7_Y                          ; go up, and return
+end:
         rts
-.endproc
 
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_move_left()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_move_left
-        lda #$ff                        ; actor vel x = -1
-        sta actor_vel_x
-        rts
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_move_right()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_move_right
-        lda #1                          ; actor vel x = 1
-        sta actor_vel_x
-        rts
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_jump(void)
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_jump
-        ldx actor_can_start_jump        ; allowed to start the jump ?
-        beq :+                          ; no
-
-        ldx #0
-        stx actor_can_start_jump        ; no more jumping while in air
-
-:       rts
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_animate()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_animate
+update_frame:
         dec animation_delay
-        beq _animate
+        beq :+
         rts
-
-_animate:
+:
         lda #ACTOR_ANIMATION_SPEED
         sta animation_delay
 
-        lda $87f8
-        eor #%00000001                  ; new spriter pointer
-        sta $87f8
-        rts
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_pos()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_update_pos
+        ldx animation_idx
+        lda VIC_SPR6_Y
         clc
-        lda sprites_x+0                 ; X = X + vel_x
-        adc actor_vel_x
-        sta sprites_x+0
+        adc animation_tbl,x
+        sta VIC_SPR6_Y
+        sta VIC_SPR7_Y
 
-        php                             ; save carry
-        lda actor_vel_x                 ; velocity was negative ?
-        bmi _negative_vel               ; yes, so test carry according to that
-
-        plp                             ; restore carry
-        bcc _update_y                   ; velocity was positive. if carry clear no changes
-        bcs _toggle_8_bit               ; if carry set, toggle 8 bit
-
-_negative_vel:
-        plp                             ; restore carry
-        bcs _update_y                   ; if carry set on negative vel, no changes
-
-_toggle_8_bit:  
-        lda sprites_msb+0               ; toggle sprite.x 8 bit
-        eor #%00000001
-        sta sprites_msb+0
-
-_update_y:
-        sec
-        lda sprites_y+0                 ; Y = Y - vel_y
-        sbc actor_vel_y
-        sta sprites_y+0 
-        rts
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void actor_update_y()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc actor_update_y
-        dec _counter
-        bne :+
-
-        lda #$05
-        sta _counter
-
-        dec actor_vel_y
-
-:       rts
-
-_counter: .byte $05
-
-.endproc
-
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void check_collision_detection()
-;------------------------------------------------------------------------------;
-; returns A:
-;       Bit 0=ON if Top collision
-;       Bit 1=ON if Down collision
-;       Bit 2=ON if Left collision
-;       Bit 3=ON if Right collision
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc check_collision_detection
-
-        lda #0
-        sta _ret_value                  ; reset return value
-
-        ldx #<SCREEN_BASE               ; restore screen base value
-        ldy #>SCREEN_BASE
-        stx $f9                         ; zero page register ($f9) -> SCREEN_BASE
-        sty $fa
-
-:       lda sprites_y+0                 ; FIRST: y = actor.y / 8
-        lsr                             ; convert pixels coords to chars coords
-        lsr
-        lsr
-        tay
-
-;       dey
-        dey                             ; since sprite coordinates start before screen, we need to compesate
-
-        tya
-        jsr mult40                      ; ret = A * 40.  ret is a 16-bit stored in LSB=X, MSB=Y
-
-        clc
-        txa                             ; LSB: screen_base = ret + screenbase
-        adc $f9
-        sta $f9
-        tya                             ; MSB: screen_base = ret + screenbase
-        adc $fa
-        sta $fa
-
-.if (::DEBUG & 2)
-        bcc :+
-        jmp *                           ; should not happen
-:
-.endif
-
-        lda sprites_x+0                 ; SECOND: x = actor.x / 8
-        sec
-        sbc smooth_scroll_x             ; take into account x scroll position
-        ldx sprites_msb+0
-        cpx #01                         ; C=On if MSB is On. Needed for 'ror'
-        ror                             ; x = actor.x / 8 taking into account 8th bit
-        lsr
-        lsr
-        tay                             ; put value in Y and use it ($f9),y
-
-
-        ldx #0
-_check_bottom_collision:
-        lda ($f9),y                     ; $f9/$fa points to screen position.
-
-        cmp #$20                        ; space?
-        beq :+                          ; no collision then
-
-        cmp #$a0                        ; another kind of space?
-        beq :+                          ; no collision then
-
-        lda _ret_value                  ; if not space, then
-        ora #%00000010                  ; turn on bottom collision bit
-        sta _ret_value
-
-:
-        iny                             ; Y++, used in ($f9),y
         inx
-        cpx #2                          ; do the test in 2 bytes        
-        bne _check_bottom_collision
-
-
-
-_start_right_collision:
-        dey
-        sec                             ; setup for right collision
-        lda $f9                         ; ($f9),y -= 40
-        sbc #40
-        sta $f9
-        lda $fa
-        sbc #00
-        sta $fa
-
-
-        lda ($f9),y                     ; $f9/$fa points to screen position.
-
-        cmp #$20                        ; space?
-        beq _start_left_collision       ; no collision then
-
-        cmp #$a0                        ; another kind of space?
-        beq _start_left_collision       ; no collision then
-
-        lda _ret_value                  ; if not space, then
-        ora #%00001000                  ; turn on right collision bit
-        sta _ret_value
-
-
-_start_left_collision:
-        dey
-        dey
-        lda ($f9),y                     ; $f9/$fa points to screen position.
-
-        cmp #$20                        ; space?
-        beq _end                        ; no collision then
-
-        cmp #$a0                        ; another kind of space?
-        beq _end                        ; no collision then
-
-        lda _ret_value                  ; if not space, then
-        ora #%00000100                  ; turn on left collision bit
-        sta _ret_value
-
-;       lda ($f9),y
-;       tax
-;       inx
-;       txa
-;       sta ($f9),y
-
-_end:
-
-.if (::DEBUG & 4)
-        ldx #3                          ; print 4 bits of the coll detection                 
-        lda _ret_value
-:       ror
-        pha
-        ldy #($80 + $30)                ; '0'
-        bcc :+
-        iny                             ; '1'
-:       tya
-        sta SCREEN_BASE + 20,x
-        pla 
-        dex
-        bpl :--
-.endif
-
-        lda _ret_value                  ; load return value
+        cpx #TOTAL_ANIMATION
+        bne :+
+        ldx #0
+:       stx animation_idx
         rts
-
-_ret_value:     .byte $00
-
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void mult40(byte number_to_be_multiplied)
-;------------------------------------------------------------------------------;
-; A = number to be multiplied by 40 (A is value between 0 and 24)
-; X = result LSB 
-; Y = result MSB
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc mult40
-        cmp #25                         ; if A >= 24, then A = 24
-        bmi :+
-        lda #24
-:
-        tax                             ; r = y * 32 + y * 8, but looking up the result
-        lda _mult_40_lo,x               ; in table is faster
-        ldy _mult_40_hi,x
-        tax
-        rts
-
-; autogenerated table: mult_table_generator.py -f0 -t24 -2 40
-; LSB values
-_mult_40_lo:
-.byte <$0000,<$0028,<$0050,<$0078,<$00a0,<$00c8,<$00f0,<$0118
-.byte <$0140,<$0168,<$0190,<$01b8,<$01e0,<$0208,<$0230,<$0258
-.byte <$0280,<$02a8,<$02d0,<$02f8,<$0320,<$0348,<$0370,<$0398
-.byte <$03c0
-; MSB values
-_mult_40_hi:
-.byte >$0000,>$0028,>$0050,>$0078,>$00a0,>$00c8,>$00f0,>$0118
-.byte >$0140,>$0168,>$0190,>$01b8,>$01e0,>$0208,>$0230,>$0258
-.byte >$0280,>$02a8,>$02d0,>$02f8,>$0320,>$0348,>$0370,>$0398
-.byte >$03c0
-
 .endproc
 
 
 sync:                   .byte $00
 
 animation_delay:        .byte ACTOR_ANIMATION_SPEED
-actor_can_start_jump:   .byte $01       ; boolean. whether or not actor can start a jump
-button_elapsed_time:    .byte $00       ; how many cycles the button was pressed.
-actor_vel_x:            .byte 0         ; horizonal velocity in pixels per frame
-actor_vel_y:            .byte 0         ; vertical velocity in pixels per frame
-button_released:        .byte 0         ; boolean. whether or not the button was released while in the air
 score:                  .word $0000
 time:                   .word $0000
-smooth_scroll_x:        .byte $05
-scroll_speed:           .byte SCROLL_SPEED
+smooth_scroll_x_p1:     .word $0000     ; MSB is used for $d016
+smooth_scroll_x_p2:     .word $0000     ; MSB is used for $d016
+scroll_speed_p1:        .word SCROLL_SPEED_P1  ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
+scroll_speed_p2:        .word SCROLL_SPEED_P2  ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
+scroll_idx_p1:          .byte 0
+scroll_idx_p2:          .byte 0
+expected_joy_p1:        .byte %00001000 ; joy value. default left
+expected_joy_p2:        .byte %00001000 ; joy value. default left
+resistance_idx_p2:      .byte 0         ; index in resistance table
+resistance_idx_p1:      .byte 0         ; index in resistance table
+resistance_tbl:                         ; how fast the unicycle will desacelerate
+; autogenerated table: easing_table_generator.py -s64 -m32 -aTrue bezier:0,0.1,0.9,1
+.byte   0,  0,  1,  1,  1,  1,  2,  2
+.byte   3,  3,  3,  4,  4,  5,  5,  6
+.byte   6,  7,  8,  8,  9,  9, 10, 11
+.byte  11, 12, 13, 13, 14, 15, 15, 16
+.byte  17, 17, 18, 19, 19, 20, 21, 21
+.byte  22, 23, 23, 24, 24, 25, 26, 26
+.byte  27, 27, 28, 28, 29, 29, 29, 30
+.byte  30, 31, 31, 31, 31, 32, 32, 32
+TOTAL_RESISTANCE = * - resistance_tbl
+animation_idx:          .byte 0         ; index in the animation table
+animation_tbl:
+        .byte 255,1,1,255               ; go up, down, down, up
+TOTAL_ANIMATION = * - animation_tbl
 
 screen:
                 ;0123456789|123456789|123456789|123456789|
         scrcode " score                             time "
         scrcode " 00000                             0:00 "
 
-terrain:
-                ;0123456789|123456789|123456789|123456789|
-        scrcode "                          aaaaaaaaaa    "
-        scrcode "                      aaaaaaaaaaaaaa    "
-        scrcode "                  aaaaaaaaaaaaaaaaaaaa  "
-        scrcode "                aaaaaaaaaaaaaaaaaaaaaaaa"
-        scrcode "       a    aaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-        scrcode "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+level1:
+    ; 256x6 map
+    .incbin "level1-map.bin"
 
-
-; global sprite values
-sprites_y:      .byte $00, $00, $00, $00, $00, $00, $00, $00
-sprites_x:      .byte $00, $00, $00, $00, $00, $00, $00, $00
-sprites_msb:    .byte $00, $00, $00, $00, $00, $00, $00, $00
-
-
-; last well known position without collision
-no_col_pos_x:   .byte $00
-no_col_pos_y:   .byte $00
-no_col_pos_msb: .byte $00
+level1_colors:
+    .incbin "level1-colors.bin"
 

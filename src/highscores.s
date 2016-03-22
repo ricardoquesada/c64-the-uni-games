@@ -9,7 +9,7 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; exported by the linker
-.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __SIDMUSIC_LOAD__
+.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__
 .import __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__
 
 ; from utils.s
@@ -17,6 +17,8 @@
 
 ; from main.s
 .import irq_open_borders
+
+SCREEN_BASE = $8400                     ; screen address
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -33,16 +35,8 @@
 
         sei
 
-        lda #01                         ; enable raster irq
+        lda #00                         ; disable raster irq
         sta $d01a
-
-        ldx #<irq_open_borders          ; raster IRQ to open top/bottom borders
-        ldy #>irq_open_borders
-        stx $fffe
-        sty $ffff
-        lda #$f9
-        sta $d012
-
         lda $dc0d                       ; clear interrupts and ACK irq
         lda $dd0d
         asl $d019
@@ -70,22 +64,22 @@
 
         ldx #0                          ; clear the screen: 1000 bytes. 40*25
         lda #$20
-:       sta $8400+$0000,x               ; can't call clear_screen
-        sta $8400+$0100,x               ; since we are in VIC bank 2
-        sta $8400+$0200,x
-        sta $8400+$02e8,x
+:       sta SCREEN_BASE+$0000,x               ; can't call clear_screen
+        sta SCREEN_BASE+$0100,x               ; since we are in VIC bank 2
+        sta SCREEN_BASE+$0200,x
+        sta SCREEN_BASE+$02e8,x
         inx
         bne :-
 
         ldx #0
 :       lda high_scores_screen,x        ; display the "high scores" text at the top
-        sta $8400,x
+        sta SCREEN_BASE,x
         inx
         cpx #40                         ; draw 1 line
         bne :-
 
-        ldx #<($8400 + 40 * 3)          ; init "save" pointer
-        ldy #>($8400 + 40 * 3)          ; start writing at 3rd line
+        ldx #<(SCREEN_BASE + 40 * 3)          ; init "save" pointer
+        ldy #>(SCREEN_BASE + 40 * 3)          ; start writing at 3rd line
         stx $f9
         sty $fa
 
@@ -146,24 +140,18 @@
         sta ($f9),y                     ; otherwise, skip to second number
         ora #$40
         iny
-        sta ($f9),y                     ; wide char: print 2nd part of digit
-        iny
         lda #00                         ; second digit is '0'
         jmp :+
 
 @print_second_digit:
-        iny
         iny
 :
         clc
         adc #$30                        ; A = high_score entry.
         sta ($f9),y
         iny
-        ora #$40                        ; wide chars
-        sta ($f9),y
-        iny
 
-        lda #33                         ; print '.'
+        lda #$2e                        ; print '.'
         sta ($f9),y
         iny
 
@@ -181,9 +169,6 @@
 :       lda entries,x                   ; points to entry[i].name
         sta ($f9),y                     ; pointer to screen
         iny
-        ora #$40                        ; wide chars
-        sta ($f9),y
-        iny
         inx
         dec @tmp_counter
         bne :-
@@ -192,17 +177,15 @@
         lda #6                          ; print score
         sta @tmp_counter
 
-        iny                             ; advance 3 chars
-        iny
-        iny
+        tya                             ; advance some chars
+        clc
+        adc #21
+        tay
 
 :       lda entries,x                   ; points to entry[i].score
         clc
         adc #$30
         sta ($f9),y                     ; pointer to screen
-        iny
-        ora #$40                        ; wide chars
-        sta ($f9),y
         iny
         inx
         dec @tmp_counter
@@ -219,7 +202,7 @@
 
 high_scores_screen:
                 ;0123456789|123456789|123456789|123456789|
-        scrcode "         hHiIgGhH  sScCoOrReEsS         "
+        scrcode "               high scores              "
 
 
 entries:
