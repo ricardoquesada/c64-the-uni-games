@@ -14,7 +14,7 @@
 .import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __MAIN_SPRITES_LOAD__
 
 ; from utils.s
-.import ut_clear_screen, ut_clear_color, ut_get_key, ut_read_joy2, ut_setup_tod
+.import ut_clear_color, ut_setup_tod
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -598,13 +598,42 @@ update_scroll_p2:
 ; void update_players()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_players
-        jsr update_frame
-        jmp update_position_y
+        jsr update_frame_p1
+        jsr update_frame_p2
 
-update_position_y:
-        lda $d01f
+        lda $d01f                               ; collision: sprite - background
+        pha                                     ; save value since it is cleared
+        jsr update_position_y_p1                ; after reading it
+        pla                                     ; restore value
+        jmp update_position_y_p2
+
+
+
+update_position_y_p1:
+        and #%00000011                          ; tire or rim on ground?
+        bne @collision                          ; yes 
+
+                                                ; go down (gravity)
+        inc VIC_SPR0_Y                          ; tire
+        inc VIC_SPR1_Y                          ; rim
+        inc VIC_SPR2_Y                          ; head
+        inc VIC_SPR3_Y                          ; hair
+        rts
+@collision:  
+        cmp #%00000011                          ; only the tire is touching ground?
+        bne @end                                 ; if only tire, then end
+                                                ; otherwise go up
+        dec VIC_SPR0_Y                          ; go up
+        dec VIC_SPR1_Y
+        dec VIC_SPR2_Y
+        dec VIC_SPR3_Y
+@end:
+        rts
+
+
+update_position_y_p2:
         and #%00110000                          ; tire or rim on ground?
-        bne collision                           ; yes 
+        bne @collision                          ; yes 
 
                                                 ; go down (gravity)
         inc VIC_SPR4_Y                          ; tire
@@ -612,26 +641,48 @@ update_position_y:
         inc VIC_SPR6_Y                          ; head
         inc VIC_SPR7_Y                          ; hair
         rts
-collision:  
+@collision:  
         cmp #%00110000                          ; only the tire is touching ground?
-        bne end                                 ; if only tire, then end
+        bne @end                                 ; if only tire, then end
                                                 ; otherwise go up
-        dec VIC_SPR4_Y                          ; go up, and return
-        dec VIC_SPR5_Y                          ; go up, and return
-        dec VIC_SPR6_Y                          ; go up, and return
-        dec VIC_SPR7_Y                          ; go up, and return
-end:
+        dec VIC_SPR4_Y                          ; go up
+        dec VIC_SPR5_Y
+        dec VIC_SPR6_Y
+        dec VIC_SPR7_Y
+@end:
         rts
 
-update_frame:
-        dec animation_delay
+update_frame_p1:
+        dec animation_delay_p1
         beq :+
         rts
 :
         lda #ACTOR_ANIMATION_SPEED
-        sta animation_delay
+        sta animation_delay_p1
 
-        ldx animation_idx
+        ldx animation_idx_p1
+        lda VIC_SPR2_Y
+        clc
+        adc animation_tbl,x
+        sta VIC_SPR2_Y
+        sta VIC_SPR3_Y
+
+        inx
+        cpx #TOTAL_ANIMATION
+        bne :+
+        ldx #0
+:       stx animation_idx_p1
+        rts
+
+update_frame_p2:
+        dec animation_delay_p2
+        beq :+
+        rts
+:
+        lda #ACTOR_ANIMATION_SPEED
+        sta animation_delay_p2
+
+        ldx animation_idx_p2
         lda VIC_SPR6_Y
         clc
         adc animation_tbl,x
@@ -642,14 +693,13 @@ update_frame:
         cpx #TOTAL_ANIMATION
         bne :+
         ldx #0
-:       stx animation_idx
+:       stx animation_idx_p2
         rts
 .endproc
 
 
 sync:                   .byte $00
 
-animation_delay:        .byte ACTOR_ANIMATION_SPEED
 score:                  .word $0000
 time:                   .word $0000
 smooth_scroll_x_p1:     .word $0000     ; MSB is used for $d016
@@ -673,7 +723,10 @@ resistance_tbl:                         ; how fast the unicycle will desacelerat
 .byte  27, 27, 28, 28, 29, 29, 29, 30
 .byte  30, 31, 31, 31, 31, 32, 32, 32
 TOTAL_RESISTANCE = * - resistance_tbl
-animation_idx:          .byte 0         ; index in the animation table
+animation_delay_p1:     .byte ACTOR_ANIMATION_SPEED
+animation_delay_p2:     .byte ACTOR_ANIMATION_SPEED
+animation_idx_p1:       .byte 0         ; index in the animation table
+animation_idx_p2:       .byte 0         ; index in the animation table
 animation_tbl:
         .byte 255,1,1,255               ; go up, down, down, up
 TOTAL_ANIMATION = * - animation_tbl
