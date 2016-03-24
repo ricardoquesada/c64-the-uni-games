@@ -16,6 +16,21 @@
 ; from utils.s
 .import ut_clear_color, ut_setup_tod
 
+.enum GAME_STATE
+    ON_YOUR_MARKS
+    GET_SET_GO
+    RIDING
+    GAME_OVER
+.endenum
+
+.enum PLAYER_STATE
+    GET_SET_GO
+    RIDING
+    FALL
+    FINISHED
+.endenum
+
+
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -42,9 +57,9 @@ RASTER_TOP_P2 = 50 + 8 * 9 - 2          ; first raster line
 RASTER_BOTTOM_P2 = 50 + 8 * SCROLL_ROW_P2 - 2; moving part of the screen
 
 ACTOR_ANIMATION_SPEED = 8               ; animation speed. the bigger the number, the slower it goes
-SCROLL_SPEED_P1 = $0100                 ; $0100 = normal speed. $0200 = 2x speed
+SCROLL_SPEED_P1 = $0130                 ; $0100 = normal speed. $0200 = 2x speed
                                         ; $0080 = half speed
-SCROLL_SPEED_P2 = $0100                 ; $0100 = normal speed. $0200 = 2x speed
+SCROLL_SPEED_P2 = $0130                 ; $0100 = normal speed. $0200 = 2x speed
                                         ; $0080 = half speed
 ACCEL_SPEED = $20                       ; how fast the speed will increase
 
@@ -99,11 +114,38 @@ _mainloop:
 
         dec sync
 
+        lda game_state
+        cmp #GAME_STATE::ON_YOUR_MARKS
+        beq @on_your_marks
+        cmp #GAME_STATE::GET_SET_GO
+        beq @get_set_go
+        cmp #GAME_STATE::RIDING
+        beq @riding
+        cmp #GAME_STATE::GAME_OVER
+        beq @game_over
+
+@on_your_marks:
+        jsr update_on_your_marks
+        jsr update_scroll               ; screen horizontal scroll
+        jsr update_players              ; sprite animations, physics
+        jmp @cont
+
+@get_set_go:
+        jsr update_get_set_go
+        jsr update_scroll               ; screen horizontal scroll
+        jsr update_players              ; sprite animations, physics
+        jmp @cont
+
+@riding:
         jsr process_events
         jsr update_time                 ; updates playing time
         jsr update_scroll               ; screen horizontal scroll
         jsr update_players              ; sprite animations, physics
+        jmp @cont
 
+@game_over:
+
+@cont:
 
 .if (DEBUG & 1)
         inc $d020
@@ -273,8 +315,8 @@ _mainloop:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_screen
 
-        lda #%00010100                  ; screen: $0400, charset $1800
-        sta $d018
+        lda #%00010100                  ; screen:  $0400 %0001xxxx
+        sta $d018                       ; charset: $1000 %xxxx010x
 
         lda #14
         sta $d020
@@ -290,10 +332,10 @@ _loop:
         inx
         bne _loop
 
-        ldx #40*2-1                     ; 2 lines only
+        ldx #40-1                       ; 2 lines only
 :       lda screen,x
-        ora #$80                        ; using second half of the romset
-        sta SCREEN_BASE,x
+        sta SCREEN_BASE+40*2,x
+        sta SCREEN_BASE+40*14,x
         dex
         bpl :-
 
@@ -321,11 +363,12 @@ _loop2:
 .proc init_game
         jsr init_sprites                ; setup sprites
 
-        ldx #00
-        stx <score
-        stx >score
-        stx <time
-        stx >time
+        lda #GAME_STATE::ON_YOUR_MARKS  ; game state machine = "get set"
+        sta game_state
+
+        lda #PLAYER_STATE::GET_SET_GO   ; player state machine = "get set"
+        sta p1_state
+        sta p2_state
 
         rts
 .endproc
@@ -383,6 +426,56 @@ frames:     .byte 0, 1, 2, 3            ; player 1
 colors:     .byte 1, 1, 2, 7            ; player 1
             .byte 1, 1, 2, 7            ; player 2
 
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void update_on_your_marks()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc update_on_your_marks
+        ldx resistance_idx_p1
+        sec
+        lda scroll_speed_p1            ; subtract
+        sbc resistance_tbl,x
+        sta scroll_speed_p1            ; LSB
+        sta scroll_speed_p2            ; LSB
+
+        bcs @end                       ; shortcut for MSB
+        dec scroll_speed_p1+1          ; MSB
+        dec scroll_speed_p2+1          ; MSB
+
+        bpl @end                       ; if < 0, then 0
+
+        lda #0
+        sta scroll_speed_p1
+        sta scroll_speed_p1+1
+        sta scroll_speed_p2
+        sta scroll_speed_p2+1
+
+        lda #GAME_STATE::GET_SET_GO
+        sta game_state
+@end:
+        inx
+        cpx #TOTAL_RESISTANCE
+        bne :+
+        ldx #TOTAL_RESISTANCE-1
+:       stx resistance_idx_p1
+        stx resistance_idx_p2
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void update_get_set_go()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc update_get_set_go
+        lda #0
+        sta resistance_idx_p1
+        sta resistance_idx_p2
+        sta scroll_speed_p1
+        sta scroll_speed_p2
+
+        lda #GAME_STATE::RIDING
+        sta game_state
+        rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -571,25 +664,34 @@ update_scroll_p2:
 ; update_time
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_time
+        lda $dc08                       ; 1/10th seconds.
+        tax
+        and #%00001111
+        ora #$30
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 39
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 39
 
         lda $dc09                       ; seconds. digit
         tax
         and #%00001111
-        ora #($80 + $30)
-        sta SCREEN_BASE + 40 * 01 + 38
+        ora #$30
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 37
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 37
 
         txa                             ; seconds. Ten digit
         lsr
         lsr
         lsr
         lsr
-        ora #($80 + $30)
-        sta SCREEN_BASE + 40 * 01 + 37
+        ora #$30
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 36
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 36
 
         lda $dc0a                       ; minutes. digit
         and #%00001111
-        ora #$b0
-        sta SCREEN_BASE + 40 * 01 + 35
+        ora #$30
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 34
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 34
 
         rts
 .endproc
@@ -699,9 +801,10 @@ update_frame_p2:
 
 
 sync:                   .byte $00
+game_state:             .byte GAME_STATE::GET_SET_GO
+p1_state:               .byte PLAYER_STATE::GET_SET_GO
+p2_state:               .byte PLAYER_STATE::GET_SET_GO
 
-score:                  .word $0000
-time:                   .word $0000
 smooth_scroll_x_p1:     .word $0000     ; MSB is used for $d016
 smooth_scroll_x_p2:     .word $0000     ; MSB is used for $d016
 scroll_speed_p1:        .word SCROLL_SPEED_P1  ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
@@ -733,8 +836,7 @@ TOTAL_ANIMATION = * - animation_tbl
 
 screen:
                 ;0123456789|123456789|123456789|123456789|
-        scrcode " score                             time "
-        scrcode " 00000                             0:00 "
+        scrcode "                                 00:00:0"
 
 level1:
     ; 256x6 map
