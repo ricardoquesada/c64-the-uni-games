@@ -259,7 +259,7 @@ irq_open_borders:
         inx
         bne @loop
 
-        lda #10                         ; set color for unicyclist
+        lda #2                          ; set color for unicyclist
         .repeat 5,YY
                 ldx #2
 :               sta $d800+(YY+14)*40,x

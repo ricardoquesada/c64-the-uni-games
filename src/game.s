@@ -17,17 +17,18 @@
 .import ut_clear_color, ut_setup_tod
 
 .enum GAME_STATE
-    ON_YOUR_MARKS
-    GET_SET_GO
-    RIDING
-    GAME_OVER
+    ON_YOUR_MARKS                       ; initial scroll
+    GET_SET_GO                          ; get set, go
+    RIDING                              ; race started
+    GAME_OVER                           ; race finished
 .endenum
 
 .enum PLAYER_STATE
-    GET_SET_GO
-    RIDING
-    FALL
-    FINISHED
+    GET_SET_GO                          ; race not started
+    RIDING                              ; riding: touching ground
+    ON_AIR                              ; riding: not touching ground
+    FALL                                ; fall down
+    FINISHED                            ; finished race
 .endenum
 
 
@@ -137,6 +138,7 @@ _mainloop:
         jmp @cont
 
 @riding:
+        jsr remove_go_lbl
         jsr process_events
         jsr update_time                 ; updates playing time
         jsr update_scroll               ; screen horizontal scroll
@@ -434,25 +436,18 @@ colors:     .byte 1, 1, 2, 7            ; player 1
 .proc update_on_your_marks
         ldx resistance_idx_p1
         sec
-        lda scroll_speed_p1            ; subtract
+        lda scroll_speed_p1             ; subtract
         sbc resistance_tbl,x
-        sta scroll_speed_p1            ; LSB
-        sta scroll_speed_p2            ; LSB
+        sta scroll_speed_p1             ; LSB
+        sta scroll_speed_p2             ; LSB
 
-        bcs @end                       ; shortcut for MSB
-        dec scroll_speed_p1+1          ; MSB
-        dec scroll_speed_p2+1          ; MSB
+        bcs @end                        ; shortcut for MSB
+        dec scroll_speed_p1+1           ; MSB
+        dec scroll_speed_p2+1           ; MSB
 
-        bpl @end                       ; if < 0, then 0
+        bpl @end                        ; if < 0, then 0
 
-        lda #0
-        sta scroll_speed_p1
-        sta scroll_speed_p1+1
-        sta scroll_speed_p2
-        sta scroll_speed_p2+1
-
-        lda #GAME_STATE::GET_SET_GO
-        sta game_state
+        jmp init_get_set_go             ; transition to get_set_go state
 @end:
         inx
         cpx #TOTAL_RESISTANCE
@@ -464,18 +459,80 @@ colors:     .byte 1, 1, 2, 7            ; player 1
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_get_set_go()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc init_get_set_go
+        lda #0                          ; reset variables
+        sta scroll_speed_p1
+        sta scroll_speed_p1+1
+        sta scroll_speed_p2
+        sta scroll_speed_p2+1
+        sta resistance_idx_p1
+        sta resistance_idx_p2
+
+        ldx #39                         ; display "on your marks"
+:       lda on_your_marks_lbl,x
+        sta SCREEN_BASE + 40 * 12,x
+        dex
+        bpl :-
+
+        lda #GAME_STATE::GET_SET_GO
+        sta game_state
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void update_get_set_go()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_get_set_go
-        lda #0
-        sta resistance_idx_p1
-        sta resistance_idx_p2
-        sta scroll_speed_p1
-        sta scroll_speed_p2
+        dec counter
+        lda counter
+        beq @riding_state
+
+        cmp #$80
+        bne @end
+
+        ldx #39                         ; display "get set"
+:       lda on_your_marks_lbl + 40*1,x
+        sta SCREEN_BASE + 40 * 12,x
+        dex
+        bpl :-
+        rts
+
+@riding_state:
+        ldx #39                         ; display "go!"
+:       lda on_your_marks_lbl + 40*2,x
+        sta SCREEN_BASE + 40 * 12,x
+        dex
+        bpl :-
 
         lda #GAME_STATE::RIDING
         sta game_state
+
+@end:
         rts
+
+counter: .byte 0
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; remove_go_lbl
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc remove_go_lbl
+        lda counter
+        beq @end
+        dec counter
+        bne @end
+
+        ldx #39                         ; clean the "go" message
+        lda #$20                        ; ' ' (space)
+:       sta SCREEN_BASE + 40 * 12,x
+        dex
+        bpl :-
+
+@end:
+        rts
+counter: .byte $80
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -486,6 +543,11 @@ colors:     .byte 1, 1, 2, 7            ; player 1
         jmp process_p2
 
 process_p1:
+        lda p1_state                    ; if "on air", decrease speed
+        cmp PLAYER_STATE::ON_AIR        ; since it can't accelerate
+        beq decrease_speed_p1
+
+
         lda $dc01                       ; ready from joy1
         and #%00001100                  ; and get only right and left bits
         cmp expected_joy_p1
@@ -532,6 +594,10 @@ decrease_speed_p1:
 
 
 process_p2:
+        lda p2_state                    ; if "on air", decrease speed
+        cmp PLAYER_STATE::ON_AIR        ; since it can't accelerate
+        beq decrease_speed_p2
+
         lda $dc00                       ; ready from joy2
         and #%00001100                  ; and get only right and left bits
         cmp expected_joy_p2
@@ -713,7 +779,10 @@ update_scroll_p2:
 
 update_position_y_p1:
         and #%00000011                          ; tire or rim on ground?
-        bne @collision                          ; yes 
+        bne @collision                          ; yes
+
+        ldx #PLAYER_STATE::ON_AIR               ; on air (can accelerate when
+        stx p1_state                            ; on air)
 
                                                 ; go down (gravity)
         inc VIC_SPR0_Y                          ; tire
@@ -721,9 +790,12 @@ update_position_y_p1:
         inc VIC_SPR2_Y                          ; head
         inc VIC_SPR3_Y                          ; hair
         rts
-@collision:  
+@collision:
+        ldx #PLAYER_STATE::RIDING               ; touching ground
+        stx p1_state
+
         cmp #%00000011                          ; only the tire is touching ground?
-        bne @end                                 ; if only tire, then end
+        bne @end                                ; if only tire, then end
                                                 ; otherwise go up
         dec VIC_SPR0_Y                          ; go up
         dec VIC_SPR1_Y
@@ -735,7 +807,10 @@ update_position_y_p1:
 
 update_position_y_p2:
         and #%00110000                          ; tire or rim on ground?
-        bne @collision                          ; yes 
+        bne @collision                          ; yes
+
+        ldx #PLAYER_STATE::ON_AIR               ; on air (can accelerate when
+        stx p2_state                            ; on air)
 
                                                 ; go down (gravity)
         inc VIC_SPR4_Y                          ; tire
@@ -743,9 +818,12 @@ update_position_y_p2:
         inc VIC_SPR6_Y                          ; head
         inc VIC_SPR7_Y                          ; hair
         rts
-@collision:  
+@collision:
+        ldx #PLAYER_STATE::RIDING               ; touching ground
+        stx p2_state
+
         cmp #%00110000                          ; only the tire is touching ground?
-        bne @end                                 ; if only tire, then end
+        bne @end                                ; if only tire, then end
                                                 ; otherwise go up
         dec VIC_SPR4_Y                          ; go up
         dec VIC_SPR5_Y
@@ -816,15 +894,15 @@ expected_joy_p2:        .byte %00001000 ; joy value. default left
 resistance_idx_p2:      .byte 0         ; index in resistance table
 resistance_idx_p1:      .byte 0         ; index in resistance table
 resistance_tbl:                         ; how fast the unicycle will desacelerate
-; autogenerated table: easing_table_generator.py -s64 -m32 -aTrue bezier:0,0.1,0.9,1
-.byte   0,  0,  1,  1,  1,  1,  2,  2
-.byte   3,  3,  3,  4,  4,  5,  5,  6
-.byte   6,  7,  8,  8,  9,  9, 10, 11
-.byte  11, 12, 13, 13, 14, 15, 15, 16
-.byte  17, 17, 18, 19, 19, 20, 21, 21
-.byte  22, 23, 23, 24, 24, 25, 26, 26
-.byte  27, 27, 28, 28, 29, 29, 29, 30
-.byte  30, 31, 31, 31, 31, 32, 32, 32
+; autogenerated table: easing_table_generator.py -s64 -m32 -aTrue bezier:0,0.6,0.4,1
+.byte   1,  2,  3,  3,  4,  5,  5,  6
+.byte   7,  7,  8,  8,  9,  9, 10, 10
+.byte  11, 11, 12, 12, 12, 13, 13, 14
+.byte  14, 14, 14, 15, 15, 15, 16, 16
+.byte  16, 17, 17, 17, 18, 18, 18, 19
+.byte  19, 19, 20, 20, 20, 21, 21, 22
+.byte  22, 23, 23, 24, 24, 25, 25, 26
+.byte  27, 27, 28, 29, 29, 30, 31, 32
 TOTAL_RESISTANCE = * - resistance_tbl
 animation_delay_p1:     .byte ACTOR_ANIMATION_SPEED
 animation_delay_p2:     .byte ACTOR_ANIMATION_SPEED
@@ -833,6 +911,12 @@ animation_idx_p2:       .byte 0         ; index in the animation table
 animation_tbl:
         .byte 255,1,1,255               ; go up, down, down, up
 TOTAL_ANIMATION = * - animation_tbl
+
+on_your_marks_lbl:
+                ;0123456789|123456789|123456789|123456789|
+    scrcode     "             on your marks              "
+    scrcode     "                get set                 "
+    scrcode     "                  go!                   "
 
 screen:
                 ;0123456789|123456789|123456789|123456789|
