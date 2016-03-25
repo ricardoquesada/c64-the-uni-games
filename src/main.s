@@ -25,6 +25,8 @@
 .include "c64.inc"                      ; c64 constants
 SPRITE_ANIMATION_SPEED = 8
 SCREEN_BASE = $8400                     ; screen address
+MUSIC_INIT = $1000
+MUSIC_PLAY = $1003
 
 
 .segment "CODE"
@@ -68,7 +70,6 @@ disable_nmi:
         sta $d020
         sta $d021
 
-
         lda #$7f                        ; turn off cia interrups
         sta $dc0d
         sta $dd0d
@@ -93,13 +94,22 @@ disable_nmi:
         lda #$00                        ; avoid garbage when opening borders
         sta $bfff                       ; should be $3fff, but I'm in the 2 bank
 
+        jsr init_music
+
         cli
 
 
 @main_loop:
-        lda sync_irq
+        lda sync_raster_irq
+        bne @do_raster
+        lda sync_timer_irq
         beq @main_loop
-        dec sync_irq
+        dec sync_timer_irq
+        jsr MUSIC_PLAY
+        jmp @main_loop
+
+@do_raster:
+        dec sync_raster_irq
 
         jsr animate_palette
         jsr animate_screen
@@ -131,6 +141,14 @@ irq_a:
         tya
         pha
 
+        asl $d019                       ; clears raster interrupt
+        bcs @raster
+
+        lda $dc0d                       ; clears CIA interrupts, in particular timer A
+        inc sync_timer_irq
+        jmp @end_irq
+
+@raster:
         lda #$f8
         sta $d012
         ldx #<irq_open_borders
@@ -170,9 +188,9 @@ irq_a:
         lda #0
         sta $d021
 
-        asl $d019
-        inc sync_irq
+        inc sync_raster_irq
 
+@end_irq:
         pla                             ; restores A, X, Y
         tay
         pla
@@ -188,6 +206,14 @@ irq_open_borders:
         tya
         pha
 
+        asl $d019                       ; clears raster interrupt
+        bcs @raster
+
+        lda $dc0d                       ; clears CIA interrupts, in particular timer A
+        inc sync_timer_irq
+        jmp @end_irq
+
+@raster:
         lda $d011                       ; open vertical borders trick
         and #%11110111                  ; first switch to 24 cols-mode...
         sta $d011
@@ -208,8 +234,7 @@ irq_open_borders:
         stx $fffe
         sty $ffff
 
-        asl $d019
-
+@end_irq:
         pla                             ; restores A, X, Y
         tay
         pla
@@ -320,6 +345,27 @@ irq_open_borders:
         rts
 .endproc
 
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_music(void)
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc init_music
+        lda #0
+        jsr MUSIC_INIT                  ; init song #0
+
+        lda #<$4cc7                     ; init with PAL frequency
+        sta $dc04                       ; it plays at 50.125hz
+        lda #>$4cc7
+        sta $dc05
+
+        lda #$81                        ; enable timer to play music
+        sta $dc0d                       ; CIA1
+
+        lda #$11
+        sta $dc0e                       ; start timer interrupt A
+        rts
+.endproc
+
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void animate_palette(void)
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -414,8 +460,12 @@ luminances:
 .byte $0c,$0c,$08,$08,$04,$04,$02,$02,$0b,$0b,$09,$09,$06,$06,$00,$00
 PALETTE_SIZE = * - luminances
 
-sync_irq:   .byte 0                     ; enabled when raster is triggred (once per frame)
+sync_raster_irq:    .byte 0            ; enabled when raster is triggred (once per frame)
+sync_timer_irq:     .byte 0            ; enabled when timer is triggred (used by music)
 
 .segment "MAIN_SPRITES"
         .incbin "src/sprites.bin"
+
+.segment "SIDMUSIC"
+        .incbin "src/Chariots_of_Fire.sid",$7e
 

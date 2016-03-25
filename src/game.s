@@ -498,7 +498,7 @@ colors:     .byte 1, 1, 2, 7            ; player 1
         lda #GAME_STATE::GET_SET_GO
         sta game_state
 
-        ldx #50
+        ldx #12*4                       ; Do. 4th octave
         jsr play_sound
         rts
 .endproc
@@ -514,7 +514,7 @@ colors:     .byte 1, 1, 2, 7            ; player 1
         cmp #$80                        ; cycles to wait
         bne @end
 
-        ldx #50
+        ldx #12*4                       ; Do. 4th octave
         jsr play_sound
 
         ldx #39                         ; display "get set"
@@ -534,7 +534,7 @@ colors:     .byte 1, 1, 2, 7            ; player 1
         lda #GAME_STATE::RIDING
         sta game_state
 
-        ldx #60
+        ldx #12*5                       ; Do: 5th octave
         jsr play_sound
 
 @end:
@@ -911,7 +911,7 @@ update_frame_p2:
 ;   X = tone to play (from 0 to 95).
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc play_sound
-        lda #0                          ; gate: start Attack/Decay/Sus. Sawtooth
+        lda #0                          ; gate: release previous sound
         sta $d404                       ; control register
 
         lda #%00001001
@@ -922,7 +922,7 @@ update_frame_p2:
         sta $d400                       ; freq lo
         lda freq_table_hi,x
         sta $d401                       ; freq hi
-        lda #%00100001                  ; gate: start Attack/Decay/Sus. Sawtooth
+        lda #%00010001                  ; gate: start Attack/Decay/Sus. Sawtooth
         sta $d404                       ; control register
         rts
 .endproc
