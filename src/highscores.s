@@ -4,19 +4,18 @@
 ;
 ; High Scores screen
 ;
-; Uses $f9/$fa temporary. $f9/$fa can be used by other temporary functions
+; Uses $f0/$f1. $f0/$f1 CANNOT be used by other functions
 ;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; exported by the linker
-.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__
-.import __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__
+.import __MAIN_CODE_LOAD__ 
 
 ; from utils.s
 .import ut_clear_color, ut_get_key
 
 ; from main.s
-.import irq_open_borders
+.import sync_timer_irq
 
 SCREEN_BASE = $8400                     ; screen address
 
@@ -33,39 +32,48 @@ SCREEN_BASE = $8400                     ; screen address
 
 .segment "HIGH_SCORES_CODE"
 
-        sei
-
-        lda #00                         ; disable raster irq
-        sta $d01a
-        lda $dc0d                       ; clear interrupts and ACK irq
-        lda $dd0d
-        asl $d019
-
-        cli
-
-        lda #$01
-        jsr ut_clear_color
-        jsr init_screen
-
-@main_loop:
-        jsr ut_get_key
-        bcc @main_loop
-
-        cmp #$47                        ; space ?
-        bne @main_loop
-        jmp __MAIN_CODE_LOAD__
-
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; init_screen
 ;------------------------------------------------------------------------------;
-; paints the screen with the "main menu" screen
+.export scores_init
+.proc scores_init
+        lda #0
+        sta $d01a                       ; no raster IRQ, only timer IRQ
+        sta score_counter
+
+        lda #$01
+        jsr ut_clear_color
+        jmp init_screen
+.endproc
+
+
+.export scores_mainloop
+.proc scores_mainloop
+        lda sync_timer_irq
+        bne play_music
+
+        jsr ut_get_key
+        bcc scores_mainloop
+
+        cmp #$47                        ; space ?
+        bne scores_mainloop
+        rts                             ; return to caller (main menu)
+play_music:
+        dec sync_timer_irq
+        jsr $1003
+        jsr paint_score
+        jmp scores_mainloop
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; init_screen
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_screen
 
         ldx #0                          ; clear the screen: 1000 bytes. 40*25
         lda #$20
-:       sta SCREEN_BASE+$0000,x               ; can't call clear_screen
-        sta SCREEN_BASE+$0100,x               ; since we are in VIC bank 2
+:       sta SCREEN_BASE+$0000,x         ; can't call clear_screen
+        sta SCREEN_BASE+$0100,x         ; since we are in VIC bank 2
         sta SCREEN_BASE+$0200,x
         sta SCREEN_BASE+$02e8,x
         inx
@@ -78,50 +86,44 @@ SCREEN_BASE = $8400                     ; screen address
         cpx #40                         ; draw 1 line
         bne :-
 
-        ldx #<(SCREEN_BASE + 40 * 3)          ; init "save" pointer
-        ldy #>(SCREEN_BASE + 40 * 3)          ; start writing at 3rd line
-        stx $f9
-        sty $fa
+        ldx #<(SCREEN_BASE + 40 * 3)    ; init "save" pointer
+        ldy #>(SCREEN_BASE + 40 * 3)    ; start writing at 3rd line
+        stx $f0
+        sty $f1
+        rts
+.endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; paint_score
+; entries:
+;       X = score to draw
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc paint_score
 
-        ldx #00                         ; x has the high score entry
+        dec delay
+        beq paint
+        rts
 
-@loop:
-        jsr @delay
+paint:
+        lda #$04
+        sta delay
 
+        ldx score_counter
+        cpx #10
+        beq @end
 
         jsr @print_highscore_entry
 
         clc                             ; pointer to the next line in the screen
-        lda $f9
+        lda $f0
         adc #40 * 2 + 0                 ; skip one line
-        sta $f9
+        sta $f0
         bcc :+
-        inc $fa
+        inc $f1
 :
-        inx
-        cpx #10                         ; repeat 10 times. there are only 10 high scores
-        bne @loop
+        inc score_counter
 
-        rts
-
-@delay:
-        txa
-        pha
-        tya
-        pha
-
-        ldx #$10                        ; small delay
-:       ldy #$00
-:       dey
-        bne :-
-        dex
-        bne :--
-
-        pla
-        tay
-        pla
-        tax
+@end:
         rts
 
 @print_highscore_entry:
@@ -137,7 +139,7 @@ SCREEN_BASE = $8400                     ; screen address
         bne @print_second_digit
 
         lda #$31                        ; hack: if number is 10, print '1'. $31 = '1'
-        sta ($f9),y                     ; otherwise, skip to second number
+        sta ($f0),y                     ; otherwise, skip to second number
         ora #$40
         iny
         lda #00                         ; second digit is '0'
@@ -148,11 +150,11 @@ SCREEN_BASE = $8400                     ; screen address
 :
         clc
         adc #$30                        ; A = high_score entry.
-        sta ($f9),y
+        sta ($f0),y
         iny
 
         lda #$2e                        ; print '.'
-        sta ($f9),y
+        sta ($f0),y
         iny
 
 
@@ -167,7 +169,7 @@ SCREEN_BASE = $8400                     ; screen address
         tax                             ; x = high score pointer
 
 :       lda entries,x                   ; points to entry[i].name
-        sta ($f9),y                     ; pointer to screen
+        sta ($f0),y                     ; pointer to screen
         iny
         inx
         dec @tmp_counter
@@ -185,7 +187,7 @@ SCREEN_BASE = $8400                     ; screen address
 :       lda entries,x                   ; points to entry[i].score
         clc
         adc #$30
-        sta ($f9),y                     ; pointer to screen
+        sta ($f0),y                     ; pointer to screen
         iny
         inx
         dec @tmp_counter
@@ -216,17 +218,20 @@ entries:
         .byte  8,0,0,0,0,0
         scrcode "dragon    "
         .byte  7,0,0,0,0,0
-        scrcode "josh      "
-        .byte  6,0,0,0,0,0
-        scrcode "ashley    "
-        .byte  5,0,0,0,0,0
-        scrcode "kevin     "
-        .byte  4,0,0,0,0,0
-        scrcode "michele   "
-        .byte  3,0,0,0,0,0
         scrcode "corbin    "
+        .byte  6,0,0,0,0,0
+        scrcode "josh      "
+        .byte  5,0,0,0,0,0
+        scrcode "ashley    "
+        .byte  4,0,0,0,0,0
+        scrcode "kevin     "
+        .byte  3,0,0,0,0,0
+        scrcode "michele   "
         .byte  2,0,0,0,0,0
         scrcode "beau      "
         .byte  1,0,0,0,0,0
         scrcode "ricardo123"
         .byte  0,0,0,0,0,0
+
+score_counter: .byte 0                  ; score that has been drawn
+delay:         .byte $10                ; delay used to print the scores

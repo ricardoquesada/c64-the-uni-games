@@ -14,6 +14,9 @@
 .import ut_get_key, ut_read_joy2, ut_detect_pal_paln_ntsc
 .import ut_vic_video_type, ut_start_clean
 
+; from highscores.s
+.import scores_mainloop, scores_init
+
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -28,6 +31,11 @@ SCREEN_BASE = $8400                     ; screen address
 MUSIC_INIT = $1000
 MUSIC_PLAY = $1003
 
+.enum SCENE_STATE
+    MAIN_MENU
+    SCORES_MENU
+    ABOUT_MENU
+.endenum
 
 .segment "CODE"
         jsr ut_start_clean              ; no basic, no kernal, no interrupts
@@ -50,7 +58,8 @@ disable_nmi:
 .segment "MAIN_CODE"
         sei
 
-        jsr init_screen
+        lda SCENE_STATE::MAIN_MENU      ; menu to display
+        sta scene_state                 ; is "main menu"
 
         lda #%00001000                  ; no scroll,single-color,40-cols
         sta $d016
@@ -96,6 +105,8 @@ disable_nmi:
 
         jsr init_music
 
+        jsr init_screen
+
         cli
 
 
@@ -126,8 +137,23 @@ disable_nmi:
 
 @start_game:
         jmp __GAME_CODE_LOAD__
+
 @jump_high_scores:
-        jmp __HIGH_SCORES_CODE_LOAD__
+        lda SCENE_STATE::SCORES_MENU
+        sta scene_state
+        jsr scores_init
+
+        jsr scores_mainloop
+
+        lda SCENE_STATE::MAIN_MENU
+        sta scene_state
+
+        jsr init_screen
+
+        lda #01                         ; enable raster irq again
+        sta $d01a
+
+        jmp @main_loop
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; IRQ: irq_open_borders()
@@ -460,8 +486,12 @@ luminances:
 .byte $0c,$0c,$08,$08,$04,$04,$02,$02,$0b,$0b,$09,$09,$06,$06,$00,$00
 PALETTE_SIZE = * - luminances
 
+.export sync_raster_irq
 sync_raster_irq:    .byte 0            ; enabled when raster is triggred (once per frame)
+.export sync_timer_irq
 sync_timer_irq:     .byte 0            ; enabled when timer is triggred (used by music)
+
+scene_state:        .byte SCENE_STATE::MAIN_MENU ; scene state. which scene to render
 
 .segment "MAIN_SPRITES"
         .incbin "src/sprites.bin"
