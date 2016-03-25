@@ -19,6 +19,12 @@
 
 SCREEN_BASE = $8400                     ; screen address
 
+UNI1_ROW = 13                           ; unicyclist #1 x,y
+UNI1_COL = 0
+UNI2_ROW = 3                            ; unicylists #2 x,y
+UNI2_COL = 37
+
+
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -33,7 +39,7 @@ SCREEN_BASE = $8400                     ; screen address
 .segment "HIGH_SCORES_CODE"
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; init_screen
+; scores_init
 ;------------------------------------------------------------------------------;
 .export scores_init
 .proc scores_init
@@ -62,6 +68,7 @@ play_music:
         dec sync_timer_irq
         jsr $1003
         jsr paint_score
+        jsr animate_unicyclists
         jmp scores_mainloop
 .endproc
 
@@ -85,6 +92,35 @@ play_music:
         inx
         cpx #40                         ; draw 1 line
         bne :-
+
+        lda #2                          ; set color for unicyclist
+        .repeat 5,YY
+                ldx #2
+:               sta $d800+(YY+UNI1_ROW)*40+UNI1_COL,x
+                sta $d800+(YY+UNI2_ROW)*40+UNI2_COL,x
+                dex
+                bpl :-
+        .endrepeat
+
+        lda #3                          ; set color for unicycle
+        .repeat 5,YY
+                ldx #2
+:               sta $d800+(YY+UNI1_ROW+6)*40+UNI1_COL,x
+                sta $d800+(YY+UNI2_ROW+6)*40+UNI2_COL,x
+                dex
+                bpl :-
+        .endrepeat
+
+        .repeat 9,YY                    ; paint two unicyclist
+            ldx #2
+:           lda unicyclists_map+6*YY,x ; bottom left unicyclsit
+            sta SCREEN_BASE+40*(YY+UNI1_ROW)+UNI1_COL,x
+            lda unicyclists_map+6*YY+3,x   ; top right unicyclist
+            sta SCREEN_BASE+40*(YY+UNI2_ROW)+UNI2_COL,x
+            dex
+            bpl :-
+        .endrepeat
+
 
         ldx #<(SCREEN_BASE + 40 * 3)    ; init "save" pointer
         ldy #>(SCREEN_BASE + 40 * 3)    ; start writing at 3rd line
@@ -116,7 +152,7 @@ paint:
 
         clc                             ; pointer to the next line in the screen
         lda $f0
-        adc #40 * 2 + 0                 ; skip one line
+        adc #40 * 2 + 1                 ; skip one line
         sta $f0
         bcc :+
         inc $f1
@@ -181,7 +217,7 @@ paint:
 
         tya                             ; advance some chars
         clc
-        adc #21
+        adc #11
         tay
 
 :       lda entries,x                   ; points to entry[i].score
@@ -199,6 +235,69 @@ paint:
 
 @tmp_counter:
         .byte 0
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void animate_unicyclists(void)
+; uses $fb-$ff
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc animate_unicyclists
+
+        dec delay
+        beq :+
+        rts
+:
+        lda #50
+        sta delay
+
+        ldy #0
+        ldx #4
+l0:
+        lda addresses_lo,x          ; swaps values
+        sta $fc
+        lda addresses_hi,x
+        sta $fd
+        lda addresses_lo+5,x
+        sta $fe
+        lda addresses_hi+5,x
+        sta $ff
+                                    ; swaps left and right values
+                                    ; using $fb as tmp variable
+        lda ($fc),y                 ; A = left
+        sta $fb                     ; tmp = A
+        lda ($fe),y                 ; A = right
+        sta ($fc),y                 ; left = A
+        lda $fb                     ; A = tmp
+        sta ($fe),y                 ; right = tmp
+
+        dex
+        bpl l0
+
+        rts
+delay:
+        .byte 50
+bytes_to_swap:
+ADDRESS0 = SCREEN_BASE+(UNI1_ROW+1)*40+UNI1_COL+0   ; left eye
+ADDRESS1 = SCREEN_BASE+(UNI1_ROW+1)*40+UNI1_COL+2   ; right eye
+ADDRESS2 = SCREEN_BASE+(UNI1_ROW+3)*40+UNI1_COL+0   ; left arm
+ADDRESS3 = SCREEN_BASE+(UNI1_ROW+3)*40+UNI1_COL+2   ; right arm
+ADDRESS4 = SCREEN_BASE+(UNI1_ROW+7)*40+UNI1_COL+1   ; hub
+
+ADDRESS5 = SCREEN_BASE+(UNI2_ROW+1)*40+UNI2_COL+0   ; left eye
+ADDRESS6 = SCREEN_BASE+(UNI2_ROW+1)*40+UNI2_COL+2   ; right eye
+ADDRESS7 = SCREEN_BASE+(UNI2_ROW+3)*40+UNI2_COL+0   ; left arm
+ADDRESS8 = SCREEN_BASE+(UNI2_ROW+3)*40+UNI2_COL+2   ; right arm
+ADDRESS9 = SCREEN_BASE+(UNI2_ROW+7)*40+UNI2_COL+1   ; hub
+
+addresses_lo:
+.repeat 10,YY
+        .byte <.IDENT(.CONCAT("ADDRESS", .STRING(YY)))
+.endrepeat
+addresses_hi:
+.repeat 10,YY
+        .byte >.IDENT(.CONCAT("ADDRESS", .STRING(YY)))
+.endrepeat
+
 .endproc
 
 
@@ -228,10 +327,13 @@ entries:
         .byte  3,0,0,0,0,0
         scrcode "michele   "
         .byte  2,0,0,0,0,0
-        scrcode "beau      "
+        scrcode "nathan    "
         .byte  1,0,0,0,0,0
-        scrcode "ricardo123"
+        scrcode "stefan    "
         .byte  0,0,0,0,0,0
 
 score_counter: .byte 0                  ; score that has been drawn
 delay:         .byte $10                ; delay used to print the scores
+
+unicyclists_map:
+        .incbin "unicyclists-map.bin"

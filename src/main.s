@@ -123,7 +123,6 @@ disable_nmi:
         dec sync_raster_irq
 
         jsr animate_palette
-        jsr animate_screen
         jsr ut_get_key
         bcc @main_loop
 
@@ -310,24 +309,6 @@ irq_open_borders:
         inx
         bne @loop
 
-        lda #2                          ; set color for unicyclist
-        .repeat 5,YY
-                ldx #2
-:               sta $d800+(YY+14)*40,x
-                sta $d800+(YY+14)*40+37,x
-                dex
-                bpl :-
-        .endrepeat
-
-        lda #3                          ; set color for unicycle
-        .repeat 5,YY
-                ldx #2
-:               sta $d800+(YY+19)*40,x
-                sta $d800+(YY+19)*40+37,x
-                dex
-                bpl :-
-        .endrepeat
-
         lda #$0b                         ; set color for copyright
         ldx #39
 :       sta $d800+24*40,x
@@ -409,72 +390,6 @@ irq_open_borders:
         rts
 .endproc
 
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void animate_screen(void)
-; uses $fb-$ff
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc animate_screen
-
-        dec delay
-        beq :+
-        rts
-:
-        lda #50
-        sta delay
-
-        ldy #0
-        ldx #4
-l0:
-        lda addresses_lo,x          ; swaps values
-        sta $fc
-        lda addresses_hi,x
-        sta $fd
-        lda addresses_lo+5,x
-        sta $fe
-        lda addresses_hi+5,x
-        sta $ff
-                                    ; swaps left and right values
-                                    ; using $fb as tmp variable
-        lda ($fc),y                 ; A = left
-        sta $fb                     ; tmp = A
-        lda ($fe),y                 ; A = right
-        sta ($fc),y                 ; left = A
-        lda $fb                     ; A = tmp
-        sta ($fe),y                 ; right = tmp
-
-        dex
-        bpl l0
-
-        rts
-delay:
-        .byte 50
-bytes_to_swap:
-ADDRESS0 = SCREEN_BASE+15*40        ; left eye
-ADDRESS1 = SCREEN_BASE+15*40+2      ; right eye
-ADDRESS2 = SCREEN_BASE+17*40        ; left arm
-ADDRESS3 = SCREEN_BASE+17*40+2      ; right arm
-ADDRESS4 = SCREEN_BASE+21*40+1      ; hub
-
-ADDRESS5 = SCREEN_BASE+15*40+37     ; left eye
-ADDRESS6 = SCREEN_BASE+15*40+39     ; right eye
-ADDRESS7 = SCREEN_BASE+17*40+37     ; left arm
-ADDRESS8 = SCREEN_BASE+17*40+39     ; right arm
-ADDRESS9 = SCREEN_BASE+21*40+38     ; hub
-
-addresses_lo:
-.repeat 10,YY
-        .byte <.IDENT(.CONCAT("ADDRESS", .STRING(YY)))
-.endrepeat
-addresses_hi:
-.repeat 10,YY
-        .byte >.IDENT(.CONCAT("ADDRESS", .STRING(YY)))
-.endrepeat
-
-.endproc
-
-
-main_menu_screen:
-        .incbin "mainscreen-map.bin"
 
 palette_idx_top:        .byte 0         ; color index for top palette
 palette_idx_bottom:     .byte 48        ; color index for bottom palette (palette_size / 2)
@@ -492,6 +407,9 @@ sync_raster_irq:    .byte 0            ; enabled when raster is triggred (once p
 sync_timer_irq:     .byte 0            ; enabled when timer is triggred (used by music)
 
 scene_state:        .byte SCENE_STATE::MAIN_MENU ; scene state. which scene to render
+
+main_menu_screen:
+        .incbin "mainscreen-map.bin"
 
 .segment "MAIN_SPRITES"
         .incbin "src/sprites.bin"
