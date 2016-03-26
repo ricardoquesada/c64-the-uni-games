@@ -75,11 +75,6 @@ ACCEL_SPEED = $20                       ; how fast the speed will increase
         jsr init_game
 
         jsr ut_setup_tod                ; must be called AFTER detect_pal_...
-        lda #0
-        sta $dc0b                       ; Set TOD-Clock to 0 (hours)
-        sta $dc0a                       ;- (minutes)
-        sta $dc09                       ;- (seconds)
-        sta $dc08                       ;- (deciseconds)
 
         lda #$00
         sta sync
@@ -116,6 +111,10 @@ _mainloop:
 
         dec sync
 
+                                        ; events that happens on all game states
+        jsr update_scroll               ; screen horizontal scroll
+        jsr update_players              ; sprite animations, physics
+
         lda game_state
         cmp #GAME_STATE::ON_YOUR_MARKS
         beq @on_your_marks
@@ -128,22 +127,16 @@ _mainloop:
 
 @on_your_marks:
         jsr update_on_your_marks
-        jsr update_scroll               ; screen horizontal scroll
-        jsr update_players              ; sprite animations, physics
         jmp @cont
 
 @get_set_go:
         jsr update_get_set_go
-        jsr update_scroll               ; screen horizontal scroll
-        jsr update_players              ; sprite animations, physics
         jmp @cont
 
 @riding:
         jsr remove_go_lbl
         jsr process_events
         jsr update_time                 ; updates playing time
-        jsr update_scroll               ; screen horizontal scroll
-        jsr update_players              ; sprite animations, physics
         jmp @cont
 
 @game_over:
@@ -389,7 +382,7 @@ _loop2:
 .proc init_sound
         ldx #$1c
         lda #0                          ; reset sound
-:       sta $d400,x 
+:       sta $d400,x
         dex
         bpl :-
 
@@ -536,6 +529,12 @@ colors:     .byte 1, 1, 2, 7            ; player 1
         sta SCREEN_BASE + 40 * 12,x
         dex
         bpl :-
+
+        lda #0
+        sta $dc0b                       ; Set TOD-Clock to 0 (hours)
+        sta $dc0a                       ;- (minutes)
+        sta $dc09                       ;- (seconds)
+        sta $dc08                       ;- (deciseconds)
 
         lda #GAME_STATE::RIDING
         sta game_state
