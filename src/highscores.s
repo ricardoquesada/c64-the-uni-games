@@ -8,9 +8,6 @@
 ;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
-; exported by the linker
-.import __MAIN_CODE_LOAD__ 
-
 ; from utils.s
 .import ut_clear_color, ut_get_key
 
@@ -86,12 +83,11 @@ play_music:
         inx
         bne :-
 
-        ldx #0
-:       lda high_scores_screen,x        ; display the "high scores" text at the top
+        ldx #39
+:       lda categories,x                ; displays the  category: "10k road racing"
         sta SCREEN_BASE,x
-        inx
-        cpx #40                         ; draw 1 line
-        bne :-
+        dex
+        bpl :-
 
         lda #2                          ; set color for unicyclist
         .repeat 5,YY
@@ -301,10 +297,11 @@ addresses_hi:
 .endproc
 
 
-high_scores_screen:
                 ;0123456789|123456789|123456789|123456789|
-        scrcode "               high scores              "
-
+categories:
+        scrcode "             10k road racing            "
+        scrcode "              muni downhill             "
+        scrcode "             stairs climbing            "
 
 entries:
         ; high score entry:

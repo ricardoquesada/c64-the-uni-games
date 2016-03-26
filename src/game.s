@@ -4,10 +4,6 @@
 ;
 ; game scene
 ;
-; Zero Page global registers:
-;   $f9/$fa -> modified temporary in collision detection.
-;               can be altered by other tmp functions
-;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; exported by the linker
@@ -30,6 +26,9 @@
     FALL                                ; fall down
     FINISHED                            ; finished race
 .endenum
+
+
+LEVEL1_WIDTH = 1024                     ; width of map
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -346,7 +345,7 @@ _loop:
         ldx #0
 _loop2:
         .repeat 6, YY
-            lda level1 + 256 * YY,x
+            lda level1 + LEVEL1_WIDTH* YY,x
             sta SCREEN_BASE + 40 * SCROLL_ROW_P1 + 40 * YY, x
             sta SCREEN_BASE + 40 * SCROLL_ROW_P2 + 40 * YY, x
             tay
@@ -373,6 +372,13 @@ _loop2:
         lda #PLAYER_STATE::GET_SET_GO   ; player state machine = "get set"
         sta p1_state
         sta p2_state
+
+        ldx #<(level1+40)
+        ldy #>(level1+40)
+        stx scroll_idx_p1
+        stx scroll_idx_p2
+        sty scroll_idx_p1+1
+        sty scroll_idx_p2+1
 
         rts
 .endproc
@@ -691,12 +697,12 @@ update_scroll_p1:
         bcc :+                              ; only scroll, result is negative
         rts
 :
-        ldx #0                          ; move the chars to the left and right
+        ldx #0                              ; move the chars to the left and right
 @loop:
         .repeat 6,i
-                lda SCREEN_BASE+40*(SCROLL_ROW_P1+i)+1,x
+                lda SCREEN_BASE+40*(SCROLL_ROW_P1+i)+1,x        ; scroll screen
                 sta SCREEN_BASE+40*(SCROLL_ROW_P1+i)+0,x
-                lda $d800+40*(SCROLL_ROW_P1+i)+1,x
+                lda $d800+40*(SCROLL_ROW_P1+i)+1,x              ; scroll color RAM
                 sta $d800+40*(SCROLL_ROW_P1+i)+0,x
         .endrepeat
 
@@ -705,15 +711,28 @@ update_scroll_p1:
         bne @loop
 
         ldx scroll_idx_p1
-        inc scroll_idx_p1
-        .repeat 6,i
-                lda level1 + 256 * i,x
-                sta SCREEN_BASE+40*(SCROLL_ROW_P1+i)+39
-                tay
-                lda level1_colors,y
-                sta $d800+40*(SCROLL_ROW_P1+i)+39
+        ldy scroll_idx_p1+1
+        stx $f8
+        sty $f9
+        ldy #0
+        .repeat 6,YY
+                lda ($f8),y                             ; new char
+                sta SCREEN_BASE+40*(SCROLL_ROW_P1+YY)+39
+                tax                                     ; color for new char
+                lda level1_colors,x
+                sta $d800+40*(SCROLL_ROW_P1+YY)+39
+
+                clc
+                lda $f9                 ; fetch char 1024 chars ahead
+                adc #4
+                sta $f9
+
         .endrepeat
 
+        inc scroll_idx_p1
+        bne @end
+        inc scroll_idx_p1+1
+@end:
         rts
 
 update_scroll_p2:
@@ -731,9 +750,9 @@ update_scroll_p2:
         ldx #0                          ; move the chars to the left and right
 @loop:
         .repeat 6,i
-                lda SCREEN_BASE+40*(SCROLL_ROW_P2+i)+1,x
+                lda SCREEN_BASE+40*(SCROLL_ROW_P2+i)+1,x        ; scroll screen
                 sta SCREEN_BASE+40*(SCROLL_ROW_P2+i)+0,x
-                lda $d800+40*(SCROLL_ROW_P2+i)+1,x
+                lda $d800+40*(SCROLL_ROW_P2+i)+1,x              ; scroll color RAM
                 sta $d800+40*(SCROLL_ROW_P2+i)+0,x
         .endrepeat
 
@@ -742,14 +761,28 @@ update_scroll_p2:
         bne @loop
 
         ldx scroll_idx_p2
-        inc scroll_idx_p2
-        .repeat 6,i
-                lda level1 + 256 * i,x
-                sta SCREEN_BASE+40*(SCROLL_ROW_P2+i)+39
-                tay
-                lda level1_colors,y
-                sta $d800+40*(SCROLL_ROW_P2+i)+39
+        ldy scroll_idx_p2+1
+        stx $f8
+        sty $f9
+
+        ldy #0
+        .repeat 6,YY
+                lda ($f8),y                                     ; new char
+                sta SCREEN_BASE+40*(SCROLL_ROW_P2+YY)+39
+                tax
+                lda level1_colors,x                             ; color for new char
+                sta $d800+40*(SCROLL_ROW_P2+YY)+39
+
+                clc                     ; fetch char from 1024
+                lda $f9                 ; fetch char 1024 chars ahead
+                adc #4
+                sta $f9
         .endrepeat
+
+        inc scroll_idx_p2
+        bne @end
+        inc scroll_idx_p2+1
+@end:
 
         rts
 .endproc
@@ -935,10 +968,10 @@ p2_state:               .byte PLAYER_STATE::GET_SET_GO
 
 smooth_scroll_x_p1:     .word $0000     ; MSB is used for $d016
 smooth_scroll_x_p2:     .word $0000     ; MSB is used for $d016
+scroll_idx_p1:          .word 0         ; initialized in init_game
+scroll_idx_p2:          .word 0
 scroll_speed_p1:        .word SCROLL_SPEED_P1  ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
 scroll_speed_p2:        .word SCROLL_SPEED_P2  ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
-scroll_idx_p1:          .byte 0
-scroll_idx_p2:          .byte 0
 expected_joy_p1:        .byte %00001000 ; joy value. default left
 expected_joy_p2:        .byte %00001000 ; joy value. default left
 resistance_idx_p2:      .byte 0         ; index in resistance table
@@ -973,7 +1006,7 @@ screen:
         scrcode "                                 00:00:0"
 
 level1:
-    ; 256x6 map
+    ; 1024x6 map
     .incbin "level1-map.bin"
 
 level1_colors:
