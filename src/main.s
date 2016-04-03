@@ -338,10 +338,19 @@ irq_open_borders:
         beq @paln                       ; yes
         cmp #$2e                        ; NTSC Old?
         beq @ntscold                    ; yes
+
         ldx #$0e                        ; otherwise it is NTSC
+        lda ntsc_speed
+        sta music_speed
+        lda ntsc_speed+1
+        sta music_speed+1
         bne @end
 
 @ntscold:
+        lda ntsc_speed
+        sta music_speed
+        lda ntsc_speed+1
+        sta music_speed+1
         ldx #$0c
         bne @end
 @paln:
@@ -360,9 +369,9 @@ irq_open_borders:
         lda #0
         jsr MUSIC_INIT                  ; init song #0
 
-        lda #<$4cc7                     ; init with PAL frequency
+        lda music_speed                 ; init with PAL frequency
         sta $dc04                       ; it plays at 50.125hz
-        lda #>$4cc7
+        lda music_speed+1
         sta $dc05
 
         lda #$81                        ; enable timer to play music
@@ -390,6 +399,8 @@ irq_open_borders:
         rts
 .endproc
 
+music_speed: .word $4cc7                ; default: playing at PAL spedd in PAL computer
+ntsc_speed: .word $4550                 ; playing at PAL speed in NTSC computer
 
 palette_idx_top:        .byte 0         ; color index for top palette
 palette_idx_bottom:     .byte 48        ; color index for bottom palette (palette_size / 2)

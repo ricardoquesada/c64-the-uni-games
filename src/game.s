@@ -42,7 +42,7 @@ LEVEL1_WIDTH = 1024                     ; width of map
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .include "c64.inc"                      ; c64 constants
 
-DEBUG = 7                               ; bitwise: 1=raster-sync code. 2=asserts
+DEBUG = 0                               ; bitwise: 1=raster-sync code. 2=asserts
                                         ; 4=colllision detection
 
 SCREEN_BASE = $8400                     ; screen starts at $8400
