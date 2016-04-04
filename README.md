@@ -10,6 +10,10 @@ The first and only "Unicycle Games" games for the Commodore 64 compatible with U
 
 However, if you want to see the progress of the game, feel free to clone it, report bugs, submit pull requests, etc.
 
+## How to play it
+
+Best if used with the [Uni-Joysti-Cle](https://github.com/ricardoquesada/unijoysticle)
+
 ## Download
 
 Download preview version from here: [unigames.prg](https://github.com/ricardoquesada/c64-the-uni-games/raw/master/bin/unigames.prg)
