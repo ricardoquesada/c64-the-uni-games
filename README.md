@@ -2,21 +2,23 @@
 
 The first and only "Unicycle Games" games for the Commodore 64 compatible with Uni-Joysti-Cle.
 
-## Preview Version
+## Preview Version v0.1
 
 ![Title Screen](https://lh3.googleusercontent.com/-lS8RLTwCrjg/VwLiawqXoHI/AAAAAAABdoU/VhVqIy8xSkglfyyL45PODNooTTixcZ1mgCCo/s288-Ic42/Screen%2BShot%2B2016-04-04%2Bat%2B2.38.14%2BPM.png)
 ![Riding](https://lh3.googleusercontent.com/-0AO3EXGssnE/VwLia951ibI/AAAAAAABdoc/WckCySb2-0oFOKJgvXXGUnmBJ0es2lMwACCo/s288-Ic42/Screen%2BShot%2B2016-04-04%2Bat%2B2.39.10%2BPM.png)
 ![High Scores](https://lh3.googleusercontent.com/-UQPThcDYF6w/VwLia-4tEaI/AAAAAAABdoY/I7FzbnVJTc4SdXxMbJIMrI5aa8KZwiUBgCCo/s288-Ic42/Screen%2BShot%2B2016-04-04%2Bat%2B2.40.39%2BPM.png)
 
+The game is far from finished. __IT IS NOT IN A PLAYABLE STATE__.
 However, if you want to see the progress of the game, feel free to clone it, report bugs, submit pull requests, etc.
 
 ## How to play it
 
 Best if used with the [Uni-Joysti-Cle](https://github.com/ricardoquesada/unijoysticle)
+If you don't have one, go and get one. In the meantime you can try it with a Joystick in port 2.
 
 ## Download
 
-Download preview version from here: [unigames.prg](https://github.com/ricardoquesada/c64-the-uni-games/raw/master/bin/unigames.prg)
+Download preview version (v0.1) from here: [unigames.prg](https://github.com/ricardoquesada/c64-the-uni-games/raw/master/bin/unigames.prg)
 
 ## How to compile it
 

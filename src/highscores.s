@@ -1,6 +1,6 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ;
-; The MUni Race: https://github.com/ricardoquesada/c64-the-muni-race
+; The Uni Games: https://github.com/ricardoquesada/c64-the-uni-games
 ;
 ; High Scores screen
 ;
