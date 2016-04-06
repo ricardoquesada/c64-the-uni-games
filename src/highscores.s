@@ -316,11 +316,11 @@ entries:
         .byte  7,0,0,0,0,0
         scrcode "corbin    "
         .byte  6,0,0,0,0,0
-        scrcode "josh      "
+        scrcode "jimbo     "
         .byte  5,0,0,0,0,0
         scrcode "ashley    "
         .byte  4,0,0,0,0,0
-        scrcode "kevin     "
+        scrcode "josh      "
         .byte  3,0,0,0,0,0
         scrcode "michele   "
         .byte  2,0,0,0,0,0
