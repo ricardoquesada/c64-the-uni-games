@@ -32,10 +32,12 @@
 .include "c64.inc"                      ; c64 constants
 SPRITE_ANIMATION_SPEED = 8
 BANK_BASE = $0000
-SCREEN_BASE = BANK_BASE + $0400                     ; screen address
+SCREEN0_BASE = BANK_BASE + $0400                    ; screen address
+SCREEN1_BASE = $0c00
 SPRITES_BASE = BANK_BASE + $2400                    ; Sprite 0 at $2400
 SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
-SPRITE_PTR = SCREEN_BASE + 1016                     ; right after the screen, at $7f8
+SPRITES_PTR0 = SCREEN0_BASE + 1016                  ; right after the screen, at $7f8
+SPRITES_PTR1 = SCREEN1_BASE + 1016                  ; right after the screen, at $7f8
 MUSIC_INIT = $1000
 MUSIC_PLAY = $1003
 
@@ -155,10 +157,9 @@ disable_nmi:
         lda SCENE_STATE::MAIN_MENU
         sta scene_state
 
-        sei
-        jsr init_data
+        lda #%00010100                  ; restore video address: at $0400
+        sta $d018
         jsr init_screen
-        cli
 
         lda #01                         ; enable raster irq again
         sta $d01a
@@ -378,7 +379,8 @@ irq_open_borders:
 @paln:
         ldx #(SPRITES_POINTER + $0d)    ; PAL-N (Drean)
 @end:
-        stx SPRITE_PTR + 7              ; set sprite pointer
+        stx SPRITES_PTR0 + 7            ; set sprite pointer for screen0
+        stx SPRITES_PTR1 + 7            ; set sprite pointer for screen1
 
         rts
 .endproc

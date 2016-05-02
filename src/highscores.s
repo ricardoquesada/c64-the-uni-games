@@ -15,10 +15,11 @@
 .import sync_timer_irq
 
 BANK_BASE = $0000
-SCREEN_BASE = BANK_BASE + $0400                     ; screen address
+SCREEN0_BASE = BANK_BASE + $0400                    ; screen address
+SCREEN1_BASE = $0c00
 SPRITES_BASE = BANK_BASE + $2400                    ; Sprite 0 at $2400
 SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
-SPRITE_PTR = SCREEN_BASE + 1016                     ; right after the screen, at $7f8
+SPRITE_PTR = SCREEN0_BASE + 1016                    ; right after the screen, at $7f8
 
 UNI1_ROW = 13                           ; unicyclist #1 x,y
 UNI1_COL = 0
@@ -50,6 +51,10 @@ UNI2_COL = 37
 
         lda #$01
         jsr ut_clear_color
+
+        lda #%00110100                  ; video addres at $0c00
+        sta $d018
+        
         jmp init_screen
 .endproc
 
@@ -80,16 +85,16 @@ play_music:
 
         ldx #0                          ; clear the screen: 1000 bytes. 40*25
         lda #$20
-:       sta SCREEN_BASE+$0000,x         ; can't call clear_screen
-        sta SCREEN_BASE+$0100,x         ; since we are in VIC bank 2
-        sta SCREEN_BASE+$0200,x
-        sta SCREEN_BASE+$02e8,x
+:       sta SCREEN1_BASE+$0000,x         ; can't call clear_screen
+        sta SCREEN1_BASE+$0100,x         ; since we are in VIC bank 2
+        sta SCREEN1_BASE+$0200,x
+        sta SCREEN1_BASE+$02e8,x
         inx
         bne :-
 
         ldx #39
 :       lda categories,x                ; displays the  category: "10k road racing"
-        sta SCREEN_BASE,x
+        sta SCREEN1_BASE,x
         dex
         bpl :-
 
@@ -114,16 +119,16 @@ play_music:
         .repeat 9,YY                    ; paint two unicyclist
             ldx #2
 :           lda unicyclists_map+6*YY,x ; bottom left unicyclsit
-            sta SCREEN_BASE+40*(YY+UNI1_ROW)+UNI1_COL,x
+            sta SCREEN1_BASE+40*(YY+UNI1_ROW)+UNI1_COL,x
             lda unicyclists_map+6*YY+3,x   ; top right unicyclist
-            sta SCREEN_BASE+40*(YY+UNI2_ROW)+UNI2_COL,x
+            sta SCREEN1_BASE+40*(YY+UNI2_ROW)+UNI2_COL,x
             dex
             bpl :-
         .endrepeat
 
 
-        ldx #<(SCREEN_BASE + 40 * 3)    ; init "save" pointer
-        ldy #>(SCREEN_BASE + 40 * 3)    ; start writing at 3rd line
+        ldx #<(SCREEN1_BASE + 40 * 3)    ; init "save" pointer
+        ldy #>(SCREEN1_BASE + 40 * 3)    ; start writing at 3rd line
         stx $f0
         sty $f1
         rts
@@ -277,17 +282,17 @@ l0:
 delay:
         .byte 50
 bytes_to_swap:
-ADDRESS0 = SCREEN_BASE+(UNI1_ROW+1)*40+UNI1_COL+0   ; left eye
-ADDRESS1 = SCREEN_BASE+(UNI1_ROW+1)*40+UNI1_COL+2   ; right eye
-ADDRESS2 = SCREEN_BASE+(UNI1_ROW+3)*40+UNI1_COL+0   ; left arm
-ADDRESS3 = SCREEN_BASE+(UNI1_ROW+3)*40+UNI1_COL+2   ; right arm
-ADDRESS4 = SCREEN_BASE+(UNI1_ROW+7)*40+UNI1_COL+1   ; hub
+ADDRESS0 = SCREEN1_BASE+(UNI1_ROW+1)*40+UNI1_COL+0   ; left eye
+ADDRESS1 = SCREEN1_BASE+(UNI1_ROW+1)*40+UNI1_COL+2   ; right eye
+ADDRESS2 = SCREEN1_BASE+(UNI1_ROW+3)*40+UNI1_COL+0   ; left arm
+ADDRESS3 = SCREEN1_BASE+(UNI1_ROW+3)*40+UNI1_COL+2   ; right arm
+ADDRESS4 = SCREEN1_BASE+(UNI1_ROW+7)*40+UNI1_COL+1   ; hub
 
-ADDRESS5 = SCREEN_BASE+(UNI2_ROW+1)*40+UNI2_COL+0   ; left eye
-ADDRESS6 = SCREEN_BASE+(UNI2_ROW+1)*40+UNI2_COL+2   ; right eye
-ADDRESS7 = SCREEN_BASE+(UNI2_ROW+3)*40+UNI2_COL+0   ; left arm
-ADDRESS8 = SCREEN_BASE+(UNI2_ROW+3)*40+UNI2_COL+2   ; right arm
-ADDRESS9 = SCREEN_BASE+(UNI2_ROW+7)*40+UNI2_COL+1   ; hub
+ADDRESS5 = SCREEN1_BASE+(UNI2_ROW+1)*40+UNI2_COL+0   ; left eye
+ADDRESS6 = SCREEN1_BASE+(UNI2_ROW+1)*40+UNI2_COL+2   ; right eye
+ADDRESS7 = SCREEN1_BASE+(UNI2_ROW+3)*40+UNI2_COL+0   ; left arm
+ADDRESS8 = SCREEN1_BASE+(UNI2_ROW+3)*40+UNI2_COL+2   ; right arm
+ADDRESS9 = SCREEN1_BASE+(UNI2_ROW+7)*40+UNI2_COL+1   ; hub
 
 addresses_lo:
 .repeat 10,YY
