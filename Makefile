@@ -13,18 +13,25 @@ SRC=src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrun
 prg:
 	cl65 -d -g -Ln bin/unigames.sym -u __EXEHDR__ -t c64 -o bin/unigames.prg -C unigames.cfg ${SRC}
 
+exo_res:
+	exomizer mem -q res/sprites.prg -o src/sprites.prg.exo
+	exomizer mem -q res/mainscreen-map.prg -o src/mainscreen-map.prg.exo
+	exomizer mem -q res/select_event-map.prg -o src/select_event-map.prg.exo
+	exomizer mem -q res/level1-map.prg -o src/level1-map.prg.exo
+	exomizer mem -q res/level1-colors.prg -o src/level1-colors.prg.exo
+
 dev: prg exo_res
 	$(C1541) -format "unigames,rq" d64 $(DEV_IMAGE)
 	$(C1541) $(DEV_IMAGE) -write bin/unigames.prg
 	$(C1541) $(DEV_IMAGE) -list
 
-dist: prg
+dist: prg exo_res
 	exomizer sfx sys -o bin/unigames_exo.prg bin/unigames.prg
 	$(C1541) -format "unigames dist,rq" d64 $(DIST_IMAGE)
 	$(C1541) $(DIST_IMAGE) -write bin/unigames_exo.prg "the race"
 	$(C1541) $(DIST_IMAGE) -list
 
-test: dev 
+test: dev
 	$(X64) -moncommands bin/unigames.sym $(DEV_IMAGE)
 
 testdist: dist
@@ -33,10 +40,4 @@ testdist: dist
 clean:
 	rm -f src/*.o bin/unigames.prg bin/unigames_exo.prg bin/unigames.sym $(DEV_IMAGE) $(DIST_IMAGE)
 
-exo_res:
-	exomizer mem -q res/sprites.prg -o src/sprites.prg.exo
-	exomizer mem -q res/mainscreen-map.prg -o src/mainscreen-map.prg.exo
-	exomizer mem -q res/select_event-map.prg -o src/select_event-map.prg.exo
-	exomizer mem -q res/level1-map.prg -o src/level1-map.prg.exo
-	exomizer mem -q res/level1-colors.prg -o src/level1-colors.prg.exo
 
