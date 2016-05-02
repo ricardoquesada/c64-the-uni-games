@@ -14,7 +14,11 @@
 ; from main.s
 .import sync_timer_irq
 
-SCREEN_BASE = $8400                     ; screen address
+BANK_BASE = $0000
+SCREEN_BASE = BANK_BASE + $0400                     ; screen address
+SPRITES_BASE = BANK_BASE + $2400                    ; Sprite 0 at $2400
+SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
+SPRITE_PTR = SCREEN_BASE + 1016                     ; right after the screen, at $7f8
 
 UNI1_ROW = 13                           ; unicyclist #1 x,y
 UNI1_COL = 0

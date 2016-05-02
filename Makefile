@@ -9,11 +9,11 @@ X64 = x64
 
 all: dev dist
 
-SRC=src/main.s src/about.s src/utils.s src/game.s src/highscores.s
+SRC=src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s
 prg:
 	cl65 -d -g -Ln bin/unigames.sym -u __EXEHDR__ -t c64 -o bin/unigames.prg -C unigames.cfg ${SRC}
 
-dev: prg
+dev: prg exo_res
 	$(C1541) -format "unigames,rq" d64 $(DEV_IMAGE)
 	$(C1541) $(DEV_IMAGE) -write bin/unigames.prg
 	$(C1541) $(DEV_IMAGE) -list
@@ -32,3 +32,11 @@ testdist: dist
 
 clean:
 	rm -f src/*.o bin/unigames.prg bin/unigames_exo.prg bin/unigames.sym $(DEV_IMAGE) $(DIST_IMAGE)
+
+exo_res:
+	exomizer mem -q res/sprites.prg -o src/sprites.prg.exo
+	exomizer mem -q res/mainscreen-map.prg -o src/mainscreen-map.prg.exo
+	exomizer mem -q res/select_event-map.prg -o src/select_event-map.prg.exo
+	exomizer mem -q res/level1-map.prg -o src/level1-map.prg.exo
+	exomizer mem -q res/level1-colors.prg -o src/level1-colors.prg.exo
+

@@ -13,7 +13,7 @@ However, if you want to see the progress of the game, feel free to clone it, rep
 
 ## How to play it
 
-Best if used with the [Uni-Joysti-Cle™](https://github.com/ricardoquesada/unijoysticle).
+Best if used with the [UniJoystiCle™](https://retro.moe/unijoysticle).
 If you don't have one, go and get one. In the meantime you can try it with a Joystick in port 2.
 
 ## Download

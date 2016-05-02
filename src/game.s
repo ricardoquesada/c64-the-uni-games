@@ -9,7 +9,11 @@
 ; exported by the linker
 .import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __MAIN_SPRITES_LOAD__
 
+; from exodecrunch.s
+.import decrunch                                ; exomizer decrunch
+
 ; from utils.s
+.import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
 .import ut_clear_color, ut_setup_tod
 
 .enum GAME_STATE
@@ -28,9 +32,6 @@
 .endenum
 
 
-LEVEL1_WIDTH = 1024                     ; width of map
-
-
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -45,8 +46,16 @@ LEVEL1_WIDTH = 1024                     ; width of map
 DEBUG = 0                               ; bitwise: 1=raster-sync code. 2=asserts
                                         ; 4=colllision detection
 
-SCREEN_BASE = $8400                     ; screen starts at $8400
+LEVEL1_WIDTH = 1024                     ; width of map
+LEVEL1_HEIGHT = 6
+LEVEL1_MAP = $3400                      ; map address
+LEVEL1_COLORS = $4c00                   ; color address
 
+BANK_BASE = $0000
+SCREEN_BASE = BANK_BASE + $0400                     ; screen address
+SPRITES_BASE = BANK_BASE + $2400                    ; Sprite 0 at $2400
+SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
+SPRITE_PTR = SCREEN_BASE + 1016                     ; right after the screen, at $7f8
 
 SCROLL_ROW_P1= 3
 RASTER_TOP_P1 = 50 + 8 * 21 - 2         ; first raster line
@@ -66,6 +75,8 @@ ACCEL_SPEED = $20                       ; how fast the speed will increase
 .segment "GAME_CODE"
 
         sei
+
+        jsr init_data                   ; uncrunch data
 
         lda #01
         jsr ut_clear_color              ; clears the screen color ram
@@ -98,6 +109,7 @@ ACCEL_SPEED = $20                       ; how fast the speed will increase
         lda $dc0d                       ; clear interrupts and ACK irq
         lda $dd0d
         asl $d019
+
 
         cli
 
@@ -147,6 +159,33 @@ _mainloop:
         inc $d020
 .endif
         jmp _mainloop
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_data()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc init_data
+        ; ASSERT (interrupts disabled)
+
+        dec $01                         ; $34: RAM 100%
+
+        ldx #<level1_map_exo
+        ldy #>level1_map_exo
+        stx _crunched_byte_lo
+        sty _crunched_byte_hi
+        jsr decrunch                    ; uncrunch map
+
+
+        ldx #<level1_colors_exo
+        ldy #>level1_colors_exo
+        stx _crunched_byte_lo
+        sty _crunched_byte_hi
+        jsr decrunch                    ; uncrunch
+
+        inc $01                         ; $35: RAM + IO ($D000-$DF00)
+
+        rts
+.endproc
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; IRQ handlers
@@ -338,11 +377,11 @@ _loop:
         ldx #0
 _loop2:
         .repeat 6, YY
-            lda level1 + LEVEL1_WIDTH* YY,x
+            lda LEVEL1_MAP + LEVEL1_WIDTH* YY,x
             sta SCREEN_BASE + 40 * SCROLL_ROW_P1 + 40 * YY, x
             sta SCREEN_BASE + 40 * SCROLL_ROW_P2 + 40 * YY, x
             tay
-            lda level1_colors,y
+            lda LEVEL1_COLORS,y
             sta $d800 + 40 * SCROLL_ROW_P1 + 40 * YY, x
             sta $d800 + 40 * SCROLL_ROW_P2 + 40 * YY, x
         .endrepeat
@@ -366,8 +405,8 @@ _loop2:
         sta p1_state
         sta p2_state
 
-        ldx #<(level1+40)
-        ldy #>(level1+40)
+        ldx #<(LEVEL1_MAP+40)
+        ldy #>(LEVEL1_MAP+40)
         stx scroll_idx_p1
         stx scroll_idx_p2
         sty scroll_idx_p1+1
@@ -405,7 +444,7 @@ loop:
         tay
 
         lda frames,x
-        sta $87f8,x
+        sta SPRITE_PTR,x
 
         lda colors,x
         sta VIC_SPR0_COLOR,x            ; sprite color
@@ -441,8 +480,15 @@ sprites_y:  .byte (SCROLL_ROW_P1+5)*8+36    ; player 1
             .byte (SCROLL_ROW_P2+5)*8+36
             .byte (SCROLL_ROW_P2+5)*8+36
             .byte (SCROLL_ROW_P2+5)*8+36
-frames:     .byte 0, 1, 2, 3            ; player 1
-            .byte 0, 1, 2, 3            ; player 2
+frames:
+        .byte SPRITES_POINTER + 0               ; player 1
+        .byte SPRITES_POINTER + 1
+        .byte SPRITES_POINTER + 2
+        .byte SPRITES_POINTER + 3
+        .byte SPRITES_POINTER + 0               ; player 2
+        .byte SPRITES_POINTER + 1
+        .byte SPRITES_POINTER + 2
+        .byte SPRITES_POINTER + 3
 colors:     .byte 1, 1, 2, 7            ; player 1
             .byte 1, 1, 2, 7            ; player 2
 
@@ -718,7 +764,7 @@ update_scroll_p1:
                 lda ($f8),y                             ; new char
                 sta SCREEN_BASE+40*(SCROLL_ROW_P1+YY)+39
                 tax                                     ; color for new char
-                lda level1_colors,x
+                lda LEVEL1_COLORS,x
                 sta $d800+40*(SCROLL_ROW_P1+YY)+39
 
                 clc
@@ -769,7 +815,7 @@ update_scroll_p2:
                 lda ($f8),y                                     ; new char
                 sta SCREEN_BASE+40*(SCROLL_ROW_P2+YY)+39
                 tax
-                lda level1_colors,x                             ; color for new char
+                lda LEVEL1_COLORS,x                             ; color for new char
                 sta $d800+40*(SCROLL_ROW_P2+YY)+39
 
                 clc                     ; fetch char from 1024
@@ -1004,12 +1050,6 @@ screen:
                 ;0123456789|123456789|123456789|123456789|
         scrcode "                                 00:00:0"
 
-level1:
-    ; 1024x6 map
-    .incbin "level1-map.bin"
-
-level1_colors:
-    .incbin "level1-colors.bin"
 
 ; autogenerated table: freq_table_generator.py -b440 -o8 -s12 985248
 freq_table_lo:
@@ -1031,3 +1071,10 @@ freq_table_hi:
 .byte $45,$49,$4e,$52,$57,$5c,$62,$68,$6e,$75,$7c,$83  ; 6
 .byte $8b,$93,$9c,$a5,$af,$b9,$c4,$d0,$dd,$ea,$f8,$ff  ; 7
 
+.segment "COMPRESSED_DATA"
+
+        .incbin "level1-map.prg.exo"                    ; 6k at $3400
+level1_map_exo:
+
+        .incbin "level1-colors.prg.exo"                 ; 6k at $4c00
+level1_colors_exo:

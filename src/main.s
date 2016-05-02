@@ -10,7 +10,11 @@
 .import __MAIN_CODE_LOAD__, __SIDMUSIC_LOAD__
 .import __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__, __HIGH_SCORES_CODE_LOAD__
 
+; from exodecrunch.s
+.import decrunch                                ; exomizer decrunch
+
 ; from utils.s
+.import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
 .import ut_get_key, ut_read_joy2, ut_detect_pal_paln_ntsc
 .import ut_vic_video_type, ut_start_clean
 
@@ -27,7 +31,11 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .include "c64.inc"                      ; c64 constants
 SPRITE_ANIMATION_SPEED = 8
-SCREEN_BASE = $8400                     ; screen address
+BANK_BASE = $0000
+SCREEN_BASE = BANK_BASE + $0400                     ; screen address
+SPRITES_BASE = BANK_BASE + $2400                    ; Sprite 0 at $2400
+SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
+SPRITE_PTR = SCREEN_BASE + 1016                     ; right after the screen, at $7f8
 MUSIC_INIT = $1000
 MUSIC_PLAY = $1003
 
@@ -64,12 +72,12 @@ disable_nmi:
         lda #%00001000                  ; no scroll,single-color,40-cols
         sta $d016
 
-        lda $dd00                       ; Vic bank 2: $8000-$BFFF
+        lda $dd00                       ; Vic bank 0: $0000-$3FFF
         and #$fc
-        ora #1
+        ora #3
         sta $dd00
 
-        lda #%00010100                  ; charset at $9000 (equal to $1000 for bank 0)
+        lda #%00010100                  ; charset at $1000 (same as sid, but uses built-in one)
         sta $d018
 
         lda #%00011011                  ; disable bitmap mode, 25 rows, disable extended color
@@ -103,9 +111,9 @@ disable_nmi:
         lda #$00                        ; avoid garbage when opening borders
         sta $bfff                       ; should be $3fff, but I'm in the 2 bank
 
-        jsr init_music
-
+        jsr init_data
         jsr init_screen
+        jsr init_music
 
         cli
 
@@ -147,7 +155,10 @@ disable_nmi:
         lda SCENE_STATE::MAIN_MENU
         sta scene_state
 
+        sei
+        jsr init_data
         jsr init_screen
+        cli
 
         lda #01                         ; enable raster irq again
         sta $d01a
@@ -268,6 +279,39 @@ irq_open_borders:
         rti                             ; restores previous PC, status
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_data()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc init_data
+        ; ASSERT (interrupts disabled)
+
+        dec $01                         ; $34: RAM 100%
+
+        ldx #<mainsid_exo               ; decrunch music
+        ldy #>mainsid_exo
+        stx _crunched_byte_lo
+        sty _crunched_byte_hi
+        jsr decrunch                    ; uncrunch map
+
+
+        ldx #<mainscreen_exo            ; decrunch main screen
+        ldy #>mainscreen_exo
+        stx _crunched_byte_lo
+        sty _crunched_byte_hi
+        jsr decrunch                    ; uncrunch
+
+
+        ldx #<mainsprites_exo           ; decrunch main sprites
+        ldy #>mainsprites_exo
+        stx _crunched_byte_lo
+        sty _crunched_byte_hi
+        jsr decrunch                    ; uncrunch
+
+        inc $01                         ; $35: RAM + IO ($D000-$DF00)
+
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void init_screen()
 ;------------------------------------------------------------------------------;
 ; paints the screen with the "main menu" screen
@@ -275,35 +319,13 @@ irq_open_borders:
 .proc init_screen
         ldx #$00
 @loop:
-        lda main_menu_screen,x          ; copy the first 14 rows
-        clc                             ; using the reversed characters
-        adc #$80                        ; 14 * 40 = 560 = 256 + 256 + 48
-        sta SCREEN_BASE,x
         lda #0
         sta $d800,x                     ; set reverse color
-
-        lda main_menu_screen+$0100,x
-        clc
-        adc #$80
-        sta SCREEN_BASE+$0100,x
-        lda #0
         sta $d800+$0100,x               ; set reverse color
-
-        lda main_menu_screen+$0100+48,x
-        clc
-        adc #$80
-        sta SCREEN_BASE+$0100+48,x
-        lda #0
         sta $d800+$0100+48,x            ; set reverse color
 
-
-        lda main_menu_screen+$0200+48,x ; copy the remaining chars
-        sta SCREEN_BASE+$0200+48,x      ; in normal mode
         lda #1
         sta $d800+$0200+48,x            ; set normal color
-        lda main_menu_screen+$02e8,x
-        sta SCREEN_BASE+$02e8,x
-        lda #1
         sta $d800+$02e8,x               ; set normal color
 
         inx
@@ -326,11 +348,11 @@ irq_open_borders:
         lda #$f0
         sta VIC_SPR7_Y
 
-        lda __MAIN_SPRITES_LOAD__ + 64 * 15 + 63; sprite color
+        lda SPRITES_BASE + 64 * 15 + 63 ; sprite color
         and #$0f
         sta VIC_SPR7_COLOR
 
-        ldx #$0f                        ; sprite pointer to PAL (15)
+        ldx #(SPRITES_POINTER + $0f)    ; sprite pointer to PAL (15)
         lda ut_vic_video_type           ; ntsc, pal or paln?
         cmp #$01                        ; Pal ?
         beq @end                        ; yes.
@@ -339,7 +361,7 @@ irq_open_borders:
         cmp #$2e                        ; NTSC Old?
         beq @ntscold                    ; yes
 
-        ldx #$0e                        ; otherwise it is NTSC
+        ldx #(SPRITES_POINTER + $0e)    ; otherwise it is NTSC
         lda ntsc_speed
         sta music_speed
         lda ntsc_speed+1
@@ -351,12 +373,12 @@ irq_open_borders:
         sta music_speed
         lda ntsc_speed+1
         sta music_speed+1
-        ldx #$0c
+        ldx #(SPRITES_POINTER + $0c)    ; NTSC old
         bne @end
 @paln:
-        ldx #$0d
+        ldx #(SPRITES_POINTER + $0d)    ; PAL-N (Drean)
 @end:
-        stx $87ff                       ; set sprite pointer
+        stx SPRITE_PTR + 7              ; set sprite pointer
 
         rts
 .endproc
@@ -419,12 +441,14 @@ sync_timer_irq:     .byte 0            ; enabled when timer is triggred (used by
 
 scene_state:        .byte SCENE_STATE::MAIN_MENU ; scene state. which scene to render
 
-main_menu_screen:
-        .incbin "mainscreen-map.bin"
 
-.segment "MAIN_SPRITES"
-        .incbin "src/sprites.bin"
 
-.segment "SIDMUSIC"
-        .incbin "src/Chariots_of_Fire.sid",$7e
+.segment "COMPRESSED_DATA"
+        .incbin "src/Chariots_of_Fire.sid.exo"
+mainsid_exo:
+        .incbin "src/mainscreen-map.prg.exo"
+mainscreen_exo:
+        .incbin "src/sprites.prg.exo"
+mainsprites_exo:
 
+        .byte 0             ; ignore

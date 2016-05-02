@@ -361,3 +361,30 @@ NTSC_TIMER := $4fb2                     ; 19656 / (985248/1022727) - 1
 @INT_NMI:
         rti
 .endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; get_crunched_byte
+; The decruncher jsr:s to the get_crunched_byte address when it wants to
+; read a crunched byte. This subroutine has to preserve x and y register
+; and must not modify the state of the carry flag.
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export get_crunched_byte
+.export _crunched_byte_lo
+.export _crunched_byte_hi
+get_crunched_byte:
+        lda _crunched_byte_lo
+        bne @_byte_skip_hi
+        dec _crunched_byte_hi
+@_byte_skip_hi:
+        dec $01
+        sta $d020
+        inc $01
+
+        dec _crunched_byte_lo
+_crunched_byte_lo = * + 1
+_crunched_byte_hi = * + 2
+        lda $caca                       ; self-modify. needs to be set correctly before
+        rts			                    ; decrunch_file is called.
+; $caca needs to point to the address just after the address
+; of the last byte of crunched data.
+
