@@ -627,15 +627,18 @@ process_p1:
         beq decrease_speed_p1
 
 
+        ldx expected_joy1_idx
         lda $dc01                       ; ready from joy1
-        and #%00001100                  ; and get only right and left bits
-        cmp expected_joy_p1
-        beq increase_velocity_p1
+        eor #%00001111                  ; invert joy bits, since they are inverted
+        and expected_joy,x              ; AND instead of CMP to support diagonals
+        bne increase_velocity_p1
         jmp decrease_speed_p1
 
 increase_velocity_p1:
-        eor #%00001100                  ; cycles between left and right -> %01 -> %10
-        sta expected_joy_p1
+        inx
+        txa
+        and #%00000011
+        sta expected_joy1_idx           ; cycles between 0,1,2,3
 
         lda #0
         sta resistance_idx_p1
@@ -677,15 +680,18 @@ process_p2:
         cmp PLAYER_STATE::ON_AIR        ; since it can't accelerate
         beq decrease_speed_p2
 
+        ldx expected_joy2_idx
         lda $dc00                       ; ready from joy2
-        and #%00001100                  ; and get only right and left bits
-        cmp expected_joy_p2
-        beq increase_velocity_p2
+        eor #%00001111                  ; invert joy values since they come inverted
+        and expected_joy,x              ; AND instead of CMP to support diagonals
+        bne increase_velocity_p2
         jmp decrease_speed_p2
 
 increase_velocity_p2:
-        eor #%00001100                  ; cycles between left and right -> %01 -> %10
-        sta expected_joy_p2
+        inx
+        txa
+        and #%00000011
+        sta expected_joy2_idx           ; cycles between 0,1,2,3
 
         lda #0
         sta resistance_idx_p2
@@ -720,7 +726,6 @@ decrease_speed_p2:
         ldx #TOTAL_RESISTANCE-1
 :       stx resistance_idx_p2
         rts
-
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -1017,8 +1022,13 @@ scroll_idx_p1:          .word 0         ; initialized in init_game
 scroll_idx_p2:          .word 0
 scroll_speed_p1:        .word SCROLL_SPEED_P1  ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
 scroll_speed_p2:        .word SCROLL_SPEED_P2  ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
-expected_joy_p1:        .byte %00001000 ; joy value. default left
-expected_joy_p2:        .byte %00001000 ; joy value. default left
+expected_joy1_idx:      .byte 0
+expected_joy2_idx:      .byte 0
+expected_joy:
+        .byte %00000001                 ; up
+        .byte %00001000                 ; right
+        .byte %00000010                 ; down
+        .byte %00000100                 ; left
 resistance_idx_p2:      .byte 0         ; index in resistance table
 resistance_idx_p1:      .byte 0         ; index in resistance table
 resistance_tbl:                         ; how fast the unicycle will desacelerate
