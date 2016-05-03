@@ -624,10 +624,12 @@ counter: .byte $80
         jmp process_p2
 
 process_p1:
+        lda p1_finished                 ; if finished, go directly to
+        bne decrease_speed_p1           ; decrease speed
+
         lda p1_state                    ; if "on air", decrease speed
         cmp #PLAYER_STATE::ON_AIR       ; since it can't accelerate
         beq decrease_speed_p1
-
 
         ldx expected_joy1_idx
         lda $dc01                       ; ready from joy1
@@ -678,6 +680,9 @@ decrease_speed_p1:
 
 
 process_p2:
+        lda p2_finished                 ; if finished, go directly to
+        bne decrease_speed_p2           ; decrease speed
+
         lda p2_state                    ; if "on air", decrease speed
         cmp #PLAYER_STATE::ON_AIR       ; since it can't accelerate
         beq decrease_speed_p2
@@ -734,16 +739,8 @@ decrease_speed_p2:
 ; void update_scroll()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_scroll
-        lda p1_finished                         ; only scroll if state is not
-        bne @skip
         jsr update_scroll_p1
-
-@skip:
-        lda p2_finished                         ; only scroll if state is not
-        bne @skip2
         jmp update_scroll_p2
-@skip2:
-        rts
 
 update_scroll_p1:
         sec                                     ; 16-bit substract
