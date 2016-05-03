@@ -24,11 +24,10 @@
 .endenum
 
 .enum PLAYER_STATE
-    GET_SET_GO                          ; race not started
-    RIDING                              ; riding: touching ground
-    ON_AIR                              ; riding: not touching ground
-    FALL                                ; fall down
-    FINISHED                            ; finished race
+    GET_SET_GO = 1                      ; race not started
+    RIDING     = 2                      ; riding: touching ground
+    ON_AIR     = 3                      ; riding: not touching ground
+    FALL       = 4                      ; fall down
 .endenum
 
 
@@ -46,9 +45,9 @@
 DEBUG = 0                               ; bitwise: 1=raster-sync code. 2=asserts
                                         ; 4=colllision detection
 
-LEVEL1_WIDTH = 1024                     ; width of map
+LEVEL1_WIDTH = 1024                     ; width of map. must be multiple of 256
 LEVEL1_HEIGHT = 6
-LEVEL1_MAP = $3400                      ; map address
+LEVEL1_MAP = $3400                      ; map address. must be 256-aligned
 LEVEL1_COLORS = $4c00                   ; color address
 
 BANK_BASE = $0000
@@ -404,6 +403,9 @@ _loop2:
         lda #PLAYER_STATE::GET_SET_GO   ; player state machine = "get set"
         sta p1_state
         sta p2_state
+        lda #0
+        sta p1_finished
+        sta p2_finished
 
         ldx #<(LEVEL1_MAP+40)
         ldy #>(LEVEL1_MAP+40)
@@ -470,27 +472,27 @@ loop:
 
 
         rts
-sprites_x:  .byte 80, 80, 80, 80        ; player 1
-            .byte 80, 80, 80, 80        ; player 2
-sprites_y:  .byte (SCROLL_ROW_P1+5)*8+36    ; player 1
-            .byte (SCROLL_ROW_P1+5)*8+36
-            .byte (SCROLL_ROW_P1+5)*8+36
-            .byte (SCROLL_ROW_P1+5)*8+36
-            .byte (SCROLL_ROW_P2+5)*8+36    ; player 2
-            .byte (SCROLL_ROW_P2+5)*8+36
-            .byte (SCROLL_ROW_P2+5)*8+36
-            .byte (SCROLL_ROW_P2+5)*8+36
+sprites_x:      .byte 80, 80, 80, 80            ; player 1
+                .byte 80, 80, 80, 80            ; player 2
+sprites_y:      .byte (SCROLL_ROW_P1+5)*8+36    ; player 1
+                .byte (SCROLL_ROW_P1+5)*8+36
+                .byte (SCROLL_ROW_P1+5)*8+36
+                .byte (SCROLL_ROW_P1+5)*8+36
+                .byte (SCROLL_ROW_P2+5)*8+36    ; player 2
+                .byte (SCROLL_ROW_P2+5)*8+36
+                .byte (SCROLL_ROW_P2+5)*8+36
+                .byte (SCROLL_ROW_P2+5)*8+36
 frames:
-        .byte SPRITES_POINTER + 0               ; player 1
-        .byte SPRITES_POINTER + 1
-        .byte SPRITES_POINTER + 2
-        .byte SPRITES_POINTER + 3
-        .byte SPRITES_POINTER + 0               ; player 2
-        .byte SPRITES_POINTER + 1
-        .byte SPRITES_POINTER + 2
-        .byte SPRITES_POINTER + 3
-colors:     .byte 1, 1, 2, 7            ; player 1
-            .byte 1, 1, 2, 7            ; player 2
+                .byte SPRITES_POINTER + 0       ; player 1
+                .byte SPRITES_POINTER + 1
+                .byte SPRITES_POINTER + 2
+                .byte SPRITES_POINTER + 3
+                .byte SPRITES_POINTER + 0       ; player 2
+                .byte SPRITES_POINTER + 1
+                .byte SPRITES_POINTER + 2
+                .byte SPRITES_POINTER + 3
+colors:         .byte 1, 1, 2, 7                ; player 1
+                .byte 1, 1, 2, 7                ; player 2
 
 .endproc
 
@@ -623,7 +625,7 @@ counter: .byte $80
 
 process_p1:
         lda p1_state                    ; if "on air", decrease speed
-        cmp PLAYER_STATE::ON_AIR        ; since it can't accelerate
+        cmp #PLAYER_STATE::ON_AIR       ; since it can't accelerate
         beq decrease_speed_p1
 
 
@@ -677,7 +679,7 @@ decrease_speed_p1:
 
 process_p2:
         lda p2_state                    ; if "on air", decrease speed
-        cmp PLAYER_STATE::ON_AIR        ; since it can't accelerate
+        cmp #PLAYER_STATE::ON_AIR       ; since it can't accelerate
         beq decrease_speed_p2
 
         ldx expected_joy2_idx
@@ -732,22 +734,30 @@ decrease_speed_p2:
 ; void update_scroll()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_scroll
+        lda p1_finished                         ; only scroll if state is not
+        bne @skip
         jsr update_scroll_p1
+
+@skip:
+        lda p2_finished                         ; only scroll if state is not
+        bne @skip2
         jmp update_scroll_p2
+@skip2:
+        rts
 
 update_scroll_p1:
-        sec                                 ; 16-bit substract
-        lda smooth_scroll_x_p1              ; LSB
+        sec                                     ; 16-bit substract
+        lda smooth_scroll_x_p1                  ; LSB
         sbc scroll_speed_p1
         sta smooth_scroll_x_p1
-        lda smooth_scroll_x_p1+1            ; MSB
+        lda smooth_scroll_x_p1+1                ; MSB
         sbc scroll_speed_p1+1
-        and #%00000111                      ; scroll-x
+        and #%00000111                          ; scroll-x
         sta smooth_scroll_x_p1+1
-        bcc :+                              ; only scroll, result is negative
+        bcc :+                                  ; only scroll if result is negative
         rts
 :
-        ldx #0                              ; move the chars to the left and right
+        ldx #0                                  ; move the chars to the left and right
 @loop:
         .repeat 6,i
                 lda SCREEN_BASE+40*(SCROLL_ROW_P1+i)+1,x        ; scroll screen
@@ -773,8 +783,8 @@ update_scroll_p1:
                 sta $d800+40*(SCROLL_ROW_P1+YY)+39
 
                 clc
-                lda $f9                 ; fetch char 1024 chars ahead
-                adc #4
+                lda $f9                         ; fetch char 1024 chars ahead
+                adc #>LEVEL1_WIDTH              ; LEVEL1_WIDTH must be multiple of 256
                 sta $f9
 
         .endrepeat
@@ -782,6 +792,12 @@ update_scroll_p1:
         inc scroll_idx_p1
         bne @end
         inc scroll_idx_p1+1
+
+        lda scroll_idx_p1+1                     ; game over?
+        cmp #>(LEVEL1_MAP + LEVEL1_WIDTH)       ; if so, the p1 state to finished
+        bne @end
+        lda #1
+        sta p1_finished
 @end:
         rts
 
@@ -823,15 +839,21 @@ update_scroll_p2:
                 lda LEVEL1_COLORS,x                             ; color for new char
                 sta $d800+40*(SCROLL_ROW_P2+YY)+39
 
-                clc                     ; fetch char from 1024
-                lda $f9                 ; fetch char 1024 chars ahead
-                adc #4
+                clc
+                lda $f9                         ; fetch char 1024 chars ahead
+                adc #>LEVEL1_WIDTH              ; must be multiple of 256
                 sta $f9
         .endrepeat
 
         inc scroll_idx_p2
         bne @end
         inc scroll_idx_p2+1
+
+        lda scroll_idx_p2+1                     ; game over?
+        cmp #>(LEVEL1_MAP + LEVEL1_WIDTH)       ; if so, the p2 state to finished
+        bne @end
+        lda #1
+        sta p2_finished
 @end:
 
         rts
@@ -842,34 +864,54 @@ update_scroll_p2:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_time
         lda $dc08                       ; 1/10th seconds.
-        tax
         and #%00001111
         ora #$30
+
+        ldy p1_finished
+        bne :+
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 39
+:       ldy p2_finished
+        bne :+
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 39
 
-        lda $dc09                       ; seconds. digit
+
+:       lda $dc09                       ; seconds. digit
         tax
         and #%00001111
         ora #$30
+
+        ldy p1_finished
+        bne :+
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 37
+:       ldy p2_finished
+        bne :+
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 37
 
+:
         txa                             ; seconds. Ten digit
         lsr
         lsr
         lsr
         lsr
         ora #$30
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 36
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 36
 
+        ldy p1_finished
+        bne :+
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 36
+:       ldy p2_finished
+        bne :+
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 36
+:
         lda $dc0a                       ; minutes. digit
         and #%00001111
         ora #$30
+        ldy p1_finished
+        bne :+
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 34
+:       ldy p2_finished
+        bne :+
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 34
-
+:
         rts
 .endproc
 
@@ -892,7 +934,7 @@ update_position_y_p1:
         and #%00000011                          ; tire or rim on ground?
         bne @collision                          ; yes
 
-        ldx #PLAYER_STATE::ON_AIR               ; on air (can accelerate when
+        ldx #PLAYER_STATE::ON_AIR               ; on air (can't accelerate when
         stx p1_state                            ; on air)
 
                                                 ; go down (gravity)
@@ -1015,6 +1057,8 @@ sync:                   .byte $00
 game_state:             .byte GAME_STATE::GET_SET_GO
 p1_state:               .byte PLAYER_STATE::GET_SET_GO
 p2_state:               .byte PLAYER_STATE::GET_SET_GO
+p1_finished:            .byte 0         ; don't mix p_finished and p_state together
+p2_finished:            .byte 0         ; since scrolling should still happen while player is finished
 
 smooth_scroll_x_p1:     .word $0000     ; MSB is used for $d016
 smooth_scroll_x_p2:     .word $0000     ; MSB is used for $d016
@@ -1052,9 +1096,9 @@ TOTAL_ANIMATION = * - animation_tbl
 
 on_your_marks_lbl:
                 ;0123456789|123456789|123456789|123456789|
-    scrcode     "             on your marks              "
-    scrcode     "                get set                 "
-    scrcode     "                  go!                   "
+        scrcode "             on your marks              "
+        scrcode "                get set                 "
+        scrcode "                  go!                   "
 
 screen:
                 ;0123456789|123456789|123456789|123456789|
