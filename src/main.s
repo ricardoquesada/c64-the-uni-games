@@ -19,6 +19,7 @@
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
 .import ut_get_key, ut_read_joy2, ut_detect_pal_paln_ntsc
 .import ut_vic_video_type, ut_start_clean
+.import ut_clear_screen, ut_clear_color
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -49,6 +50,8 @@ MUSIC_PLAY = $1003
 .endenum
 
 .segment "CODE"
+.proc main
+        jsr display_intro_banner
         jsr ut_start_clean              ; no basic, no kernal, no interrupts
         jsr ut_detect_pal_paln_ntsc     ; pal, pal-n or ntsc?
 
@@ -65,6 +68,62 @@ MUSIC_PLAY = $1003
 
 disable_nmi:
         rti
+.endproc
+
+.proc display_intro_banner
+        lda #$20
+        jsr ut_clear_screen
+        lda #1
+        jsr ut_clear_color
+        lda #0
+        sta $d020
+        sta $d021
+
+        ldx #0
+l0:
+        lda label1,x
+        sta $0400,x
+        jsr delay
+        inx
+        cpx #LABEL1_LEN
+        bne l0
+
+        ldx #0
+l1:
+        lda label2,x
+        sta $0400 + 51,x
+        jsr delay
+        inx
+        cpx #LABEL2_LEN
+        bne l1
+
+        rts
+
+delay:
+        txa
+        pha
+        ldx #$d0
+l2:
+        ldy #0
+l3:     iny
+        bne l3
+        inx
+        bne l2
+
+        pla
+        tax
+        rts
+
+label1:
+                ;1234567890123456789012345678901234567890
+        scrcode "winners don't use joysticks..."
+LABEL1_LEN = * - label1
+
+label2:
+        scrcode           "    ...they use unijoysticles"
+        scrcode "                   "
+LABEL2_LEN = * - label2
+.endproc
 
 .segment "MAIN_CODE"
 .proc main_init
@@ -126,8 +185,10 @@ disable_nmi:
 main_loop:
         lda sync_raster_irq
         bne do_raster
+
         lda sync_timer_irq
         beq main_loop
+
         dec sync_timer_irq
         jsr MUSIC_PLAY
         jmp main_loop
