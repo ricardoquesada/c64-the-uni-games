@@ -54,13 +54,11 @@ UNI2_COL = 37
 
         lda #%00110100                  ; video addres at $0c00
         sta $d018
-        
-        jmp init_screen
-.endproc
+
+        jsr init_screen
 
 
-.export scores_mainloop
-.proc scores_mainloop
+scores_mainloop:
         lda sync_timer_irq
         bne play_music
 

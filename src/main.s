@@ -7,8 +7,9 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; exported by the linker
-.import __MAIN_CODE_LOAD__, __SIDMUSIC_LOAD__
-.import __MAIN_SPRITES_LOAD__, __GAME_CODE_LOAD__, __HIGH_SCORES_CODE_LOAD__
+.import __SIDMUSIC_LOAD__
+
+.import roadrace_init, selectevent_init
 
 ; from exodecrunch.s
 .import decrunch                                ; exomizer decrunch
@@ -19,7 +20,7 @@
 .import ut_vic_video_type, ut_start_clean
 
 ; from highscores.s
-.import scores_mainloop, scores_init
+.import scores_init
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -60,12 +61,13 @@ MUSIC_PLAY = $1003
 ;       sta $fffb
 ;       cli
 
-        jmp __MAIN_CODE_LOAD__
+        jmp main_init
 
 disable_nmi:
         rti
 
 .segment "MAIN_CODE"
+.proc main_init
         sei
 
         lda SCENE_STATE::MAIN_MENU      ; menu to display
@@ -145,14 +147,14 @@ disable_nmi:
         jmp @main_loop                  ; FIXME: added here jump to about
 
 @start_game:
-        jmp __GAME_CODE_LOAD__
+;        jmp roadrace_start
+        jsr selectevent_init
+        jmp @main_loop
 
 @jump_high_scores:
         lda SCENE_STATE::SCORES_MENU
         sta scene_state
         jsr scores_init
-
-        jsr scores_mainloop
 
         lda SCENE_STATE::MAIN_MENU
         sta scene_state
@@ -165,6 +167,7 @@ disable_nmi:
         sta $d01a
 
         jmp @main_loop
+.endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; IRQ: irq_open_borders()

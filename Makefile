@@ -9,7 +9,7 @@ X64 = x64
 
 all: dev dist
 
-SRC=src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s
+SRC=src/main.s src/about.s src/utils.s src/roadrace.s src/highscores.s src/exodecrunch.s src/selectevent.s
 prg:
 	cl65 -d -g -Ln bin/unigames.sym -u __EXEHDR__ -t c64 -o bin/unigames.prg -C unigames.cfg ${SRC}
 

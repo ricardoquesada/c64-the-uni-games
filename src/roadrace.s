@@ -6,9 +6,6 @@
 ;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
-; exported by the linker
-.import __MAIN_CODE_LOAD__, __ABOUT_CODE_LOAD__, __MAIN_SPRITES_LOAD__
-
 ; from exodecrunch.s
 .import decrunch                                ; exomizer decrunch
 
@@ -71,8 +68,10 @@ SCROLL_SPEED_P2 = $0130                 ; $0100 = normal speed. $0200 = 2x speed
                                         ; $0080 = half speed
 ACCEL_SPEED = $20                       ; how fast the speed will increase
 
-.segment "GAME_CODE"
+.segment "ROADRACE_CODE"
 
+.export roadrace_init
+.proc roadrace_init
         sei
 
         jsr init_data                   ; uncrunch data
@@ -116,7 +115,7 @@ _mainloop:
 :       lda sync
         beq :-
 
-.if (DEBUG & 1)
+.if (::DEBUG & 1)
         dec $d020
 .endif
 
@@ -154,10 +153,11 @@ _mainloop:
 
 @cont:
 
-.if (DEBUG & 1)
+.if (::DEBUG & 1)
         inc $d020
 .endif
         jmp _mainloop
+.endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void init_data()
@@ -1127,5 +1127,5 @@ freq_table_hi:
         .incbin "level1-map.prg.exo"                    ; 6k at $3400
 level1_map_exo:
 
-        .incbin "level1-colors.prg.exo"                 ; 6k at $4c00
+        .incbin "level1-colors.prg.exo"                 ; 256b at $4c00
 level1_colors_exo:
