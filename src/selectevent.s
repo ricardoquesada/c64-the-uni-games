@@ -19,11 +19,6 @@
 .export selectevent_init
 .proc selectevent_init
         sei
-        lda #0
-        sta $d01a                       ; no raster IRQ, only timer IRQ
-
-        lda #$01
-        jsr ut_clear_color
 
         ldx #<selectevent_map
         ldy #>selectevent_map
@@ -36,27 +31,29 @@
 
         inc $01                         ; $35: RAM + IO ($D000-$DF00)
         cli
-
-selectevent_mainloop:
-        lda sync_timer_irq
-        bne play_music
-
-        jsr ut_get_key
-        bcc selectevent_mainloop
-
-        cmp #$47                        ; space ?
-        bne selectevent_mainloop
-        rts                             ; return to caller (main menu)
-play_music:
-        dec sync_timer_irq
-        jsr $1003
-        jmp selectevent_mainloop
+        rts
 .endproc
 
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; selectevent_loop
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export selectevent_loop
+.proc selectevent_loop
+
+        jsr ut_get_key
+        bcc end
+
+        cmp #$47                        ; space ?
+        bne end
+        inc $400
+end:
+        rts                             ; return to caller (main menu)
+.endproc
+
 
 .segment "COMPRESSED_DATA"
-; select_event-map.prg.exo: should be exported to $0400
+; select_event-map.prg.exo: should be exported to $0680
 .incbin "select_event-map.prg.exo"
 selectevent_map:
         .byte 0                         ; ignore

@@ -9,7 +9,8 @@
 ; exported by the linker
 .import __SIDMUSIC_LOAD__
 
-.import roadrace_init, selectevent_init
+.import roadrace_init, selectevent_init, scores_init
+.import selectevent_loop
 
 ; from exodecrunch.s
 .import decrunch                                ; exomizer decrunch
@@ -19,8 +20,6 @@
 .import ut_get_key, ut_read_joy2, ut_detect_pal_paln_ntsc
 .import ut_vic_video_type, ut_start_clean
 
-; from highscores.s
-.import scores_init
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -44,6 +43,7 @@ MUSIC_PLAY = $1003
 
 .enum SCENE_STATE
     MAIN_MENU
+    SELECTEVENT_MENU
     SCORES_MENU
     ABOUT_MENU
 .endenum
@@ -70,8 +70,9 @@ disable_nmi:
 .proc main_init
         sei
 
-        lda SCENE_STATE::MAIN_MENU      ; menu to display
+        lda #SCENE_STATE::MAIN_MENU      ; menu to display
         sta scene_state                 ; is "main menu"
+        jsr update_jmp_table
 
         lda #%00001000                  ; no scroll,single-color,40-cols
         sta $d016
@@ -122,41 +123,79 @@ disable_nmi:
         cli
 
 
-@main_loop:
+main_loop:
         lda sync_raster_irq
-        bne @do_raster
+        bne do_raster
         lda sync_timer_irq
-        beq @main_loop
+        beq main_loop
         dec sync_timer_irq
         jsr MUSIC_PLAY
-        jmp @main_loop
+        jmp main_loop
 
-@do_raster:
+do_raster:
         dec sync_raster_irq
 
         jsr animate_palette
+
+jump_to = * + 1
+        jsr $caca                       ; self-modifying.
+                                        ; will jump to the correct function
+                                        ; depending on scene_state
+        jmp main_loop
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void update_jmp_table()
+;------------------------------------------------------------------------------;
+.proc update_jmp_table
+        lda scene_state
+	asl
+	tax
+
+	lda loop_jump_table,x
+	ldy loop_jump_table+1,x
+        sta main_init::jump_to
+        sty main_init::jump_to+1
+        rts
+
+loop_jump_table:
+	.addr mainmenu_loop
+	.addr selectevent_loop
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void mainmenu_loop()
+;------------------------------------------------------------------------------;
+.proc mainmenu_loop
         jsr ut_get_key
-        bcc @main_loop
+        bcc end
 
         cmp #$40                        ; F1
-        beq @start_game
+        beq start_game
         cmp #$50                        ; F3
-        beq @jump_high_scores
+        beq jump_high_scores
         cmp #$30                        ; F7
-        bne @main_loop
-        jmp @main_loop                  ; FIXME: added here jump to about
+        bne end
+        jmp end                        ; FIXME: add here jump to about
 
-@start_game:
-;        jmp roadrace_start
+end:
+        rts
+
+start_game:
         jsr selectevent_init
-        jmp @main_loop
-
-@jump_high_scores:
-        lda SCENE_STATE::SCORES_MENU
+        lda #SCENE_STATE::SELECTEVENT_MENU
         sta scene_state
-        jsr scores_init
+        jsr update_jmp_table
+        rts
 
-        lda SCENE_STATE::MAIN_MENU
+jump_high_scores:
+        lda #SCENE_STATE::SCORES_MENU
+        sta scene_state
+
+        jsr scores_init                 ; takes over of the mainloop
+                                        ; no need to update the jmp table
+
+        lda #SCENE_STATE::MAIN_MENU      ; restore stuff modifying by scores
         sta scene_state
 
         lda #%00010100                  ; restore video address: at $0400
@@ -166,7 +205,7 @@ disable_nmi:
         lda #01                         ; enable raster irq again
         sta $d01a
 
-        jmp @main_loop
+        rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -445,7 +484,6 @@ sync_raster_irq:    .byte 0            ; enabled when raster is triggred (once p
 sync_timer_irq:     .byte 0            ; enabled when timer is triggred (used by music)
 
 scene_state:        .byte SCENE_STATE::MAIN_MENU ; scene state. which scene to render
-
 
 
 .segment "COMPRESSED_DATA"
