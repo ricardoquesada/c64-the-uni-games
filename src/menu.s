@@ -6,6 +6,8 @@
 ;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
+.import ut_get_key
+
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -24,23 +26,13 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export menu_handle_events
 .proc menu_handle_events
-        lda $dc00
-        cmp last_joy_value              ; execute if joy != last vale
-        bne do_joy 
-        dec delay                       ; if same value, wait "delay"
-        beq update_delay                ; until executing the joy
+        jsr read_events                 ; value in A, but Z is not guaranteed
+        cmp last_value
+        bne process_event
         rts
 
-
-do_joy:
-        sta last_joy_value
-
-update_delay:
-        ldx #$10
-        stx delay
-
-        eor #%11111111
-        and #%00011111
+process_event:
+        sta last_value
         cmp #%00000001                  ; up ?
         beq go_prev
         cmp #%00000100                  ; left ?
@@ -59,10 +51,8 @@ go_next:
 go_fire:
         jmp menu_execute
 
-last_joy_value:
+last_value:
         .byte 0
-delay:
-        .byte 8
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -143,5 +133,111 @@ itemfirst:
 end:
         stx MENU_CURRENT_ITEM
         jmp menu_invert_row
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; byte read_events()
+; returns:
+;       %00010000 fire or space
+;       %00001000 right
+;       %00000100 left
+;       %00000010 down
+;       %00000001 up
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc read_events
+
+        lda #%00011111
+        sta $dc00
+
+        lda $dc00                       ; read joy#2
+        eor #%11111111                  ; "normalize" events
+        and #%00011111
+        beq l1                          ; if no joystick, read keyboard
+        rts
+
+l1:     jmp read_keyboard               ; otherwise, read keyboard
+
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; byte read_keyboard()
+; returns:
+;       %00010000 fire or space
+;       %00001000 right
+;       %00000100 left
+;       %00000010 down
+;       %00000001 up
+;
+; Reference: http://sta.c64.org/cbm64kbdlay.html
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc read_keyboard
+
+        lda #$ff
+        sta CIA1_PRB                    ; needed ?
+
+        lda #%01111111                  ; space ?
+        sta CIA1_PRA                    ; row 7
+        lda CIA1_PRB
+        and #%00010000                  ; col 4
+        eor #%00010000
+        bne end                         ; if pressed, end
+
+
+        lda #%11111101                  ; left shift pressed ?
+        sta CIA1_PRA                    ; row 1
+        lda CIA1_PRB
+        and #%10000000                  ; col 7
+        beq skip
+
+        lda #%10111111                  ; right shift pressed ?
+        sta CIA1_PRA                    ; row 6
+        lda CIA1_PRB
+        and #%00010000                  ; col 4
+        beq skip
+        lda #%11111111                  ; no shift then
+skip:
+        eor #%11111111
+        sta shift_pressed
+
+
+        lda #%11111110                  ; cursor left/right ?
+        sta CIA1_PRA                    ; row 0
+        lda CIA1_PRB
+        and #%00000100                  ; col 2
+        eor #%00000100
+        sta leftright_pressed
+
+
+        lda #%11111110                  ; cursor up/down ?
+        sta CIA1_PRA                    ; row 0
+        lda CIA1_PRB
+        and #%10000000                  ; col 7
+        eor #%10000000
+        sta updown_pressed
+
+
+        lda updown_pressed              ; convert scans to expected values
+        beq process_leftright
+        lda #%00000010                  ; Down bit on
+        ldx shift_pressed               ; If shift On, convert it to Up
+        beq end                         ; not pressed, end
+        lsr                             ; convert "down" into "up"
+        ; assert (!z)
+        bne end                         ; end
+
+
+process_leftright:
+        lda leftright_pressed
+        beq end                         ; key weren't pressed
+        lda #%00000100                  ; Left bit On
+        ldx shift_pressed
+        beq end
+        asl                             ; convert "left" into "right"
+end:
+        rts
+
+shift_pressed:          .byte 0         ; boolean
+leftright_pressed:      .byte 0         ; boolean
+updown_pressed:         .byte 0         ; boolean
 .endproc
 

@@ -167,6 +167,13 @@ LABEL2_LEN = * - label2
         lda #%00011000
         sta $d016                       ; turn on multicolor
 
+
+        lda #$ff
+        sta CIA1_DDRA                   ; port a ddr (output)
+        lda #$0
+        sta CIA1_DDRB                   ; port b ddr (input)
+
+
         jsr init_data
         jsr init_screen
         jsr init_music
@@ -198,7 +205,7 @@ do_raster:
 
         jsr animate_palette
 
-        jsr menu_handle_events
+        jsr menu_handle_events          ; will disable/enable interrupts
 
         jmp main_loop
 .endproc
