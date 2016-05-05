@@ -205,39 +205,31 @@ skip:
         lda CIA1_PRB
         and #%00000100                  ; col 2
         eor #%00000100
-        sta leftright_pressed
+        beq up_down
 
+        lda #%00000100                  ; Left bit On
+        ldx shift_pressed
+        beq end
+        asl                             ; convert "left" into "right"
+        ; assert (!z)
+        bne end
 
+up_down:
         lda #%11111110                  ; cursor up/down ?
         sta CIA1_PRA                    ; row 0
         lda CIA1_PRB
         and #%10000000                  ; col 7
         eor #%10000000
-        sta updown_pressed
+        beq end
 
-
-        lda updown_pressed              ; convert scans to expected values
-        beq process_leftright
         lda #%00000010                  ; Down bit on
         ldx shift_pressed               ; If shift On, convert it to Up
         beq end                         ; not pressed, end
         lsr                             ; convert "down" into "up"
-        ; assert (!z)
-        bne end                         ; end
 
-
-process_leftright:
-        lda leftright_pressed
-        beq end                         ; key weren't pressed
-        lda #%00000100                  ; Left bit On
-        ldx shift_pressed
-        beq end
-        asl                             ; convert "left" into "right"
 end:
         rts
 
 shift_pressed:          .byte 0         ; boolean
-leftright_pressed:      .byte 0         ; boolean
-updown_pressed:         .byte 0         ; boolean
 .endproc
 

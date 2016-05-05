@@ -42,7 +42,15 @@
 .endenum
 
 .segment "CODE"
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void main()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc main
+        lda #$ff
+        sta CIA1_DDRA                   ; port a ddr (output)
+        lda #$0
+        sta CIA1_DDRB                   ; port b ddr (input)
+
         jsr display_intro_banner
         jsr ut_start_clean              ; no basic, no kernal, no interrupts
         jsr ut_detect_pal_paln_ntsc     ; pal, pal-n or ntsc?
@@ -62,6 +70,9 @@ disable_nmi:
         rti
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void display_intro_banner()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc display_intro_banner
         lda #$20
         jsr ut_clear_screen
@@ -92,14 +103,24 @@ l1:
         rts
 
 delay:
+        lda #%01111111                  ; space ?
+        sta CIA1_PRA                    ; row 7
+        lda CIA1_PRB
+        and #%00010000                  ; col 4
+        bne do_delay
+        lda #$08
+        sta delay_value
+
+do_delay:
         txa
         pha
-        ldx #$d0
+delay_value = *+1
+        ldx #$30
 l2:
         ldy #0
 l3:     iny
         bne l3
-        inx
+        dex
         bne l2
 
         pla
@@ -166,12 +187,6 @@ LABEL2_LEN = * - label2
         sta $d011                       ; extended color mode: on
         lda #%00011000
         sta $d016                       ; turn on multicolor
-
-
-        lda #$ff
-        sta CIA1_DDRA                   ; port a ddr (output)
-        lda #$0
-        sta CIA1_DDRB                   ; port b ddr (input)
 
 
         jsr init_data
