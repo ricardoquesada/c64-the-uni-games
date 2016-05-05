@@ -20,7 +20,7 @@
 .import ut_get_key, ut_read_joy2, ut_detect_pal_paln_ntsc
 .import ut_vic_video_type, ut_start_clean
 .import ut_clear_screen, ut_clear_color
-
+.import menu_handle_events, menu_invert_row
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -31,16 +31,8 @@
 ; Constants
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .include "c64.inc"                      ; c64 constants
-SPRITE_ANIMATION_SPEED = 8
-BANK_BASE = $0000
-SCREEN0_BASE = BANK_BASE + $0400                    ; screen address
-SCREEN1_BASE = $0c00
-SPRITES_BASE = BANK_BASE + $2400                    ; Sprite 0 at $2400
-SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
-SPRITES_PTR0 = SCREEN0_BASE + 1016                  ; right after the screen, at $7f8
-SPRITES_PTR1 = SCREEN1_BASE + 1016                  ; right after the screen, at $7f8
-MUSIC_INIT = $1000
-MUSIC_PLAY = $1003
+.include "myconstants.inc"
+
 
 .enum SCENE_STATE
     MAIN_MENU
@@ -131,10 +123,6 @@ LABEL2_LEN = * - label2
 
         lda #SCENE_STATE::MAIN_MENU      ; menu to display
         sta scene_state                 ; is "main menu"
-        jsr update_jmp_table
-
-        lda #%00001000                  ; no scroll,single-color,40-cols
-        sta $d016
 
         lda $dd00                       ; Vic bank 0: $0000-$3FFF
         and #$fc
@@ -144,8 +132,6 @@ LABEL2_LEN = * - label2
         lda #%00010100                  ; charset at $1000 (same as sid, but uses built-in one)
         sta $d018
 
-        lda #%00011011                  ; disable bitmap mode, 25 rows, disable extended color
-        sta $d011                       ; and vertical scroll in default position
 
         lda #$00                        ; background & border color
         sta $d020
@@ -175,9 +161,23 @@ LABEL2_LEN = * - label2
         lda #$00                        ; avoid garbage when opening borders
         sta $bfff                       ; should be $3fff, but I'm in the 2 bank
 
+                                        ; multicolor mode + extended color causes
+        lda #%01011011                  ; the bug that blanks the screen
+        sta $d011                       ; extended color mode: on
+        lda #%00011000
+        sta $d016                       ; turn on multicolor
+
         jsr init_data
         jsr init_screen
         jsr init_music
+        jsr mainmenu_init
+
+                                        ; turn VIC on again
+        lda #%00011011                  ; charset mode, default scroll-Y position, 25-rows
+        sta $d011                       ; extended color mode: off
+
+        lda #%00001000                  ; no scroll, hires (mono color), 40-cols
+        sta $d016                       ; turn off multicolor
 
         cli
 
@@ -198,46 +198,46 @@ do_raster:
 
         jsr animate_palette
 
-jump_to = * + 1
-        jsr $caca                       ; self-modifying.
-                                        ; will jump to the correct function
-                                        ; depending on scene_state
+        jsr menu_handle_events
+
         jmp main_loop
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void update_jmp_table()
-;------------------------------------------------------------------------------;
-.proc update_jmp_table
-        lda scene_state
-	asl
-	tax
+; void mainmenu_init()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc mainmenu_init
+        lda #3                                  ; setup the global variables
+        sta MENU_MAX_ITEMS                      ; needed for the menu code
+        lda #0
+        sta MENU_CURRENT_ITEM
+        lda #30
+        sta MENU_ITEM_LEN
+        lda #(40*2)
+        sta MENU_BYTES_BETWEEN_ITEMS
+        ldx #<(SCREEN0_BASE + 40 * 16 + 5)
+        ldy #>(SCREEN0_BASE + 40 * 16 + 5)
+        stx MENU_CURRENT_ROW_ADDR
+        sty MENU_CURRENT_ROW_ADDR+1
+        ldx #<mainmenu_exec
+        ldy #>mainmenu_exec
+        stx MENU_EXEC_ADDR
+        sty MENU_EXEC_ADDR+1
 
-	lda loop_jump_table,x
-	ldy loop_jump_table+1,x
-        sta main_init::jump_to
-        sty main_init::jump_to+1
-        rts
-
-loop_jump_table:
-	.addr mainmenu_loop
-	.addr selectevent_loop
+        jmp menu_invert_row
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void mainmenu_loop()
+; void mainmenu_exec()
 ;------------------------------------------------------------------------------;
-.proc mainmenu_loop
-        jsr ut_get_key
-        bcc end
-
-        cmp #$40                        ; F1
-        beq start_game
-        cmp #$50                        ; F3
-        beq jump_high_scores
-        cmp #$30                        ; F7
-        bne end
-        jmp end                        ; FIXME: add here jump to about
+.proc mainmenu_exec
+        lda MENU_CURRENT_ITEM
+        beq start_game                  ; item 0? start game
+        cmp #$01
+        beq jump_high_scores            ; item 1? high scores
+        cmp #$02
+        bne end                         ; item 2? about
+        jmp end                         ; FIXME: add here jump to about
 
 end:
         rts
@@ -246,7 +246,6 @@ start_game:
         jsr selectevent_init
         lda #SCENE_STATE::SELECTEVENT_MENU
         sta scene_state
-        jsr update_jmp_table
         rts
 
 jump_high_scores:
@@ -256,7 +255,7 @@ jump_high_scores:
         jsr scores_init                 ; takes over of the mainloop
                                         ; no need to update the jmp table
 
-        lda #SCENE_STATE::MAIN_MENU      ; restore stuff modifying by scores
+        lda #SCENE_STATE::MAIN_MENU     ; restore stuff modifying by scores
         sta scene_state
 
         lda #%00010100                  ; restore video address: at $0400
@@ -267,7 +266,9 @@ jump_high_scores:
         sta $d01a
 
         rts
+
 .endproc
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; IRQ: irq_open_borders()
@@ -319,7 +320,7 @@ irq_a:
                 beq :-
                 lda luminances,x
                 sta $d021
-                dex 
+                dex
                 txa
                 and #%00111111          ; only 64 values are loaded
                 tax

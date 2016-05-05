@@ -10,6 +10,20 @@
 .import _crunched_byte_hi, _crunched_byte_lo    ; from utils
 .import sync_timer_irq
 .import ut_clear_color, ut_get_key
+.import roadrace_init
+.import menu_handle_events, menu_invert_row
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; Macros
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.macpack cbm                            ; adds support for scrcode
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; Constants
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.include "c64.inc"                      ; c64 constants
+.include "myconstants.inc"
+
 
 .segment "SELECT_EVENT_CODE"
 
@@ -25,30 +39,40 @@
         stx _crunched_byte_lo
         sty _crunched_byte_hi
 
-        dec $01                         ; $34: RAM 100%
+        dec $01                                 ; $34: RAM 100%
 
-        jsr decrunch                    ; uncrunch map
+        jsr decrunch                            ; uncrunch map
 
-        inc $01                         ; $35: RAM + IO ($D000-$DF00)
+        inc $01                                 ; $35: RAM + IO ($D000-$DF00)
         cli
-        rts
+
+        lda #2                                  ; setup the global variables
+        sta MENU_MAX_ITEMS                      ; needed for the menu code
+        lda #0
+        sta MENU_CURRENT_ITEM
+        lda #30
+        sta MENU_ITEM_LEN
+        lda #(40*2)
+        sta MENU_BYTES_BETWEEN_ITEMS
+        ldx #<(SCREEN0_BASE + 40 * 19 + 5)
+        ldy #>(SCREEN0_BASE + 40 * 19 + 5)
+        stx MENU_CURRENT_ROW_ADDR
+        sty MENU_CURRENT_ROW_ADDR+1
+        ldx #<selectevent_exec
+        ldy #>selectevent_exec
+        stx MENU_EXEC_ADDR
+        sty MENU_EXEC_ADDR+1
+        jmp menu_invert_row
 .endproc
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; selectevent_loop
+; selectevent_exec
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export selectevent_loop
-.proc selectevent_loop
+.proc selectevent_exec
+        lda MENU_CURRENT_ITEM
+        jmp roadrace_init
 
-        jsr ut_get_key
-        bcc end
-
-        cmp #$47                        ; space ?
-        bne end
-        inc $400
-end:
-        rts                             ; return to caller (main menu)
 .endproc
 
 
