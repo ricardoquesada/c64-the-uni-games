@@ -25,7 +25,7 @@
 .include "myconstants.inc"
 
 
-.segment "SELECT_EVENT_CODE"
+.segment "HI_CODE"
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; select_event_init

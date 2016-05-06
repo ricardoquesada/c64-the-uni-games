@@ -19,7 +19,7 @@
 .include "c64.inc"                      ; c64 constants
 .include "myconstants.inc"
 
-.segment "MENU_CODE"
+.segment "HI_CODE"
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void menu_handle_events()
@@ -27,13 +27,11 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export menu_handle_events
 .proc menu_handle_events
-        jsr read_events
-        cmp last_value
+        jsr menu_read_events
         bne process_event
         rts
 
 process_event:
-        sta last_value
         cmp #%00000001                  ; up ?
         beq go_prev
         cmp #%00000100                  ; left ?

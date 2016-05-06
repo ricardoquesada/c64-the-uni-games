@@ -39,7 +39,7 @@ UNI2_COL = 37
 .include "c64.inc"                      ; c64 constants
 
 
-.segment "HIGH_SCORES_CODE"
+.segment "HI_CODE"
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; scores_init

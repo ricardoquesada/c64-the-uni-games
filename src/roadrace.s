@@ -68,7 +68,7 @@ SCROLL_SPEED_P2 = $0130                 ; $0100 = normal speed. $0200 = 2x speed
                                         ; $0080 = half speed
 ACCEL_SPEED = $20                       ; how fast the speed will increase
 
-.segment "ROADRACE_CODE"
+.segment "HI_CODE"
 
 .export roadrace_init
 .proc roadrace_init
