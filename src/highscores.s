@@ -13,6 +13,7 @@
 
 ; from main.s
 .import sync_timer_irq
+.import menu_read_events
 
 BANK_BASE = $0000
 SCREEN0_BASE = BANK_BASE + $0400                    ; screen address
@@ -62,10 +63,8 @@ scores_mainloop:
         lda sync_timer_irq
         bne play_music
 
-        jsr ut_get_key
-        bcc scores_mainloop
-
-        cmp #$47                        ; space ?
+        jsr menu_read_events
+        cmp #%00010000                  ; space or button
         bne scores_mainloop
         rts                             ; return to caller (main menu)
 play_music:

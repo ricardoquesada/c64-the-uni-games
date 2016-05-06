@@ -23,10 +23,11 @@
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void menu_handle_events()
+; call this function from your main loop in order to handle the events
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export menu_handle_events
 .proc menu_handle_events
-        jsr read_events                 ; value in A, but Z is not guaranteed
+        jsr read_events
         cmp last_value
         bne process_event
         rts
@@ -50,9 +51,23 @@ go_next:
         jmp menu_next_row
 go_fire:
         jmp menu_execute
+.endproc
 
-last_value:
-        .byte 0
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void menu_read_events()
+; helper function, similar to menu_handle_events
+; but it does not process the events.
+; Useful when waiting for space or button for example
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export menu_read_events
+.proc menu_read_events
+        jsr read_events
+        cmp last_value
+        bne ret
+        lda #0
+        rts
+ret:    sta last_value
+        rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -230,6 +245,10 @@ up_down:
 end:
         rts
 
-shift_pressed:          .byte 0         ; boolean
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; variables
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+last_value:             .byte 0         ; last value used
+shift_pressed:          .byte 0         ; boolean
