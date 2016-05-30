@@ -35,10 +35,10 @@
 
 
 .enum SCENE_STATE
-    MAIN_MENU
-    SELECTEVENT_MENU
-    SCORES_MENU
-    ABOUT_MENU
+        MAIN_MENU
+        SELECTEVENT_MENU
+        SCORES_MENU
+        ABOUT_MENU
 .endenum
 
 .segment "CODE"

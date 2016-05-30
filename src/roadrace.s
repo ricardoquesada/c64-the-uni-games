@@ -14,17 +14,17 @@
 .import ut_clear_color, ut_setup_tod
 
 .enum GAME_STATE
-    ON_YOUR_MARKS                       ; initial scroll
-    GET_SET_GO                          ; get set, go
-    RIDING                              ; race started
-    GAME_OVER                           ; race finished
+        ON_YOUR_MARKS                   ; initial scroll
+        GET_SET_GO                      ; get set, go
+        RIDING                          ; race started
+        GAME_OVER                       ; race finished
 .endenum
 
 .enum PLAYER_STATE
-    GET_SET_GO = 1                      ; race not started
-    RIDING     = 2                      ; riding: touching ground
-    ON_AIR     = 3                      ; riding: not touching ground
-    FALL       = 4                      ; fall down
+        GET_SET_GO = 1                  ; race not started
+        RIDING     = 2                  ; riding: touching ground
+        ON_AIR     = 3                  ; riding: not touching ground
+        FALL       = 4                  ; fall down
 .endenum
 
 
@@ -146,7 +146,8 @@ _mainloop:
 @riding:
         jsr remove_go_lbl
         jsr process_events
-        jsr update_time                 ; updates playing time
+        jsr print_elpased_time          ; updates playing time
+        jsr print_speed
         jmp @cont
 
 @game_over:
@@ -376,13 +377,13 @@ _loop:
         ldx #0
 _loop2:
         .repeat 6, YY
-            lda LEVEL1_MAP + LEVEL1_WIDTH* YY,x
-            sta SCREEN_BASE + 40 * SCROLL_ROW_P1 + 40 * YY, x
-            sta SCREEN_BASE + 40 * SCROLL_ROW_P2 + 40 * YY, x
-            tay
-            lda LEVEL1_COLORS,y
-            sta $d800 + 40 * SCROLL_ROW_P1 + 40 * YY, x
-            sta $d800 + 40 * SCROLL_ROW_P2 + 40 * YY, x
+                lda LEVEL1_MAP + LEVEL1_WIDTH* YY,x
+                sta SCREEN_BASE + 40 * SCROLL_ROW_P1 + 40 * YY, x
+                sta SCREEN_BASE + 40 * SCROLL_ROW_P2 + 40 * YY, x
+                tay
+                lda LEVEL1_COLORS,y
+                sta $d800 + 40 * SCROLL_ROW_P1 + 40 * YY, x
+                sta $d800 + 40 * SCROLL_ROW_P2 + 40 * YY, x
         .endrepeat
         inx
         cpx #40
@@ -857,9 +858,9 @@ update_scroll_p2:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; update_time
+; print_elpased_time
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc update_time
+.proc print_elpased_time
         lda $dc08                       ; 1/10th seconds.
         and #%00001111
         ora #$30
@@ -913,6 +914,83 @@ update_scroll_p2:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; print_speed
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc print_speed
+
+        ; player one
+        lda scroll_speed_p1                             ; firt digit
+        tay
+        and #%00001111
+        tax
+        lda hex,x
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 04
+
+        tya                                             ; second digit
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda hex,x
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 03
+
+        lda scroll_speed_p1+1                           ; third digit
+        tay
+        and #%00001111
+        tax
+        lda hex,x
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 02
+
+        tya                                             ; fourth digit
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda hex,x
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 01
+
+
+        ; player two
+        lda scroll_speed_p2                             ; firt digit
+        tay
+        and #%00001111
+        tax
+        lda hex,x
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 04
+
+        tya                                             ; second digit
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda hex,x
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 03
+
+        lda scroll_speed_p2+1                           ; third digit
+        tay
+        and #%00001111
+        tax
+        lda hex,x
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 02
+
+        tya                                             ; fourth digit
+        lsr
+        lsr
+        lsr
+        lsr
+        tax
+        lda hex,x
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 01
+
+        rts
+hex:    scrcode "0123456789abcdef"
+
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void update_players()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_players
@@ -928,6 +1006,11 @@ update_scroll_p2:
 
 
 update_position_y_p1:
+        tax
+        and #%00000100                          ; head or body?
+        bne @collision_body
+
+        txa
         and #%00000011                          ; tire or rim on ground?
         bne @collision                          ; yes
 
@@ -940,6 +1023,23 @@ update_position_y_p1:
         inc VIC_SPR2_Y                          ; head
         inc VIC_SPR3_Y                          ; hair
         rts
+
+@collision_body:
+        ldx #PLAYER_STATE::RIDING               ; touching ground
+        stx p1_state
+
+        ldx #3
+@l0:    dec VIC_SPR0_Y                          ; go up three times
+        dec VIC_SPR1_Y
+        dec VIC_SPR2_Y
+        dec VIC_SPR3_Y
+        dex
+        bne @l0
+
+        lsr scroll_speed_p1+1                   ; reduce speed by 2
+        ror scroll_speed_p1
+        rts
+
 @collision:
         ldx #PLAYER_STATE::RIDING               ; touching ground
         stx p1_state
@@ -956,6 +1056,11 @@ update_position_y_p1:
 
 
 update_position_y_p2:
+        tax
+        and #%01000000                          ; head or body?
+        bne @collision_body
+
+        txa
         and #%00110000                          ; tire or rim on ground?
         bne @collision                          ; yes
 
@@ -967,6 +1072,22 @@ update_position_y_p2:
         inc VIC_SPR5_Y                          ; rim
         inc VIC_SPR6_Y                          ; head
         inc VIC_SPR7_Y                          ; hair
+        rts
+
+@collision_body:
+        ldx #PLAYER_STATE::RIDING               ; touching ground
+        stx p2_state
+
+        ldx #3
+@l0:    dec VIC_SPR4_Y                          ; go up three times
+        dec VIC_SPR5_Y
+        dec VIC_SPR6_Y
+        dec VIC_SPR7_Y
+        dex
+        bne @l0
+
+        lsr scroll_speed_p2+1                   ; reduce speed by 2
+        ror scroll_speed_p2
         rts
 @collision:
         ldx #PLAYER_STATE::RIDING               ; touching ground
