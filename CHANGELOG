@@ -1,0 +1,12 @@
+
+v0.2 - XXX, 2016
+
+	- new menu system
+	- joystick needs to be moved up,right,down,left instead of right,left
+	- better maps
+	- new memory model: it is going to be a single-load game
+	- physics: resistance + velocity + crashing: improved
+
+
+v0.1 - April 6, 2016
+	- initial public release

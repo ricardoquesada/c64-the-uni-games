@@ -28,7 +28,7 @@ dev: prg exo_res
 dist: prg exo_res
 	exomizer sfx sys -o bin/unigames_exo.prg bin/unigames.prg
 	$(C1541) -format "unigames dist,rq" d64 $(DIST_IMAGE)
-	$(C1541) $(DIST_IMAGE) -write bin/unigames_exo.prg "the race"
+	$(C1541) $(DIST_IMAGE) -write bin/unigames_exo.prg "unigames"
 	$(C1541) $(DIST_IMAGE) -list
 
 test: dev
