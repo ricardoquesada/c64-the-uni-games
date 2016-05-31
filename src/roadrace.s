@@ -42,6 +42,10 @@
 DEBUG = 0                               ; bitwise: 1=raster-sync code. 2=asserts
                                         ; 4=colllision detection
 
+                                        ; there is one empty row at the top of
+                                        ; the map that is not used.
+                                        ; so the map it is 7 rows height, but
+                                        ; only 6 rows are scrolled
 LEVEL1_WIDTH = 1024                     ; width of map. must be multiple of 256
 LEVEL1_HEIGHT = 6
 LEVEL1_MAP = $3400                      ; map address. must be 256-aligned
@@ -54,12 +58,14 @@ SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
 SPRITE_PTR = SCREEN_BASE + 1016                     ; right after the screen, at $7f8
 
 SCROLL_ROW_P1= 3
-RASTER_TOP_P1 = 50 + 8 * 21 - 2         ; first raster line
-RASTER_BOTTOM_P1 = 50 + 8 * SCROLL_ROW_P1 - 2; moving part of the screen
+RASTER_TOP_P1 = 50 + 8 * (SCROLL_ROW_P2 + LEVEL1_HEIGHT) - 2    ; first raster line (where P2 scroll ends)
+RASTER_BOTTOM_P1 = 50 + 8 * (SCROLL_ROW_P1-1) - 2; moving part of the screen
 
-SCROLL_ROW_P2 = 15
-RASTER_TOP_P2 = 50 + 8 * 9 - 2          ; first raster line
-RASTER_BOTTOM_P2 = 50 + 8 * SCROLL_ROW_P2 - 2; moving part of the screen
+SCROLL_ROW_P2 = 16
+RASTER_TOP_P2 = 50 + 8 * (SCROLL_ROW_P1 + LEVEL1_HEIGHT) - 2    ; first raster line (where P1 scroll ends)
+RASTER_BOTTOM_P2 = 50 + 8 * (SCROLL_ROW_P2-1) - 2; moving part of the screen
+
+ON_YOUR_MARKS_ROW = 12                  ; row to display on your marks
 
 ACTOR_ANIMATION_SPEED = 8               ; animation speed. the bigger the number, the slower it goes
 SCROLL_SPEED_P1 = $0130                 ; $0100 = normal speed. $0200 = 2x speed
@@ -369,8 +375,8 @@ _loop:
 
         ldx #40-1                       ; 2 lines only
 :       lda screen,x
-        sta SCREEN_BASE+40*2,x
-        sta SCREEN_BASE+40*14,x
+        sta SCREEN_BASE+40*(SCROLL_ROW_P1-2),x
+        sta SCREEN_BASE+40*(SCROLL_ROW_P2-2),x
         dex
         bpl :-
 
@@ -539,7 +545,7 @@ colors:         .byte 1, 1, 2, 7                ; player 1
 
         ldx #39                         ; display "on your marks"
 :       lda on_your_marks_lbl,x
-        sta SCREEN_BASE + 40 * 12,x
+        sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
         dex
         bpl :-
 
@@ -567,7 +573,7 @@ colors:         .byte 1, 1, 2, 7                ; player 1
 
         ldx #39                         ; display "get set"
 :       lda on_your_marks_lbl + 40*1,x
-        sta SCREEN_BASE + 40 * 12,x
+        sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
         dex
         bpl :-
         rts
@@ -575,7 +581,7 @@ colors:         .byte 1, 1, 2, 7                ; player 1
 @riding_state:
         ldx #39                         ; display "go!"
 :       lda on_your_marks_lbl + 40*2,x
-        sta SCREEN_BASE + 40 * 12,x
+        sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
         dex
         bpl :-
 
@@ -608,7 +614,7 @@ counter: .byte 0
 
         ldx #39                         ; clean the "go" message
         lda #$20                        ; ' ' (space)
-:       sta SCREEN_BASE + 40 * 12,x
+:       sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
         dex
         bpl :-
 
@@ -867,10 +873,10 @@ update_scroll_p2:
 
         ldy p1_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 39
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-2) + 39
 :       ldy p2_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 39
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-2) + 39
 
 
 :       lda $dc09                       ; seconds. digit
@@ -880,10 +886,10 @@ update_scroll_p2:
 
         ldy p1_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 37
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-2) + 37
 :       ldy p2_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 37
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-2) + 37
 
 :
         txa                             ; seconds. Ten digit
@@ -895,20 +901,20 @@ update_scroll_p2:
 
         ldy p1_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 36
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-2) + 36
 :       ldy p2_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 36
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-2) + 36
 :
         lda $dc0a                       ; minutes. digit
         and #%00001111
         ora #$30
         ldy p1_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 34
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-2) + 34
 :       ldy p2_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 34
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-2) + 34
 :
         rts
 .endproc
@@ -924,7 +930,7 @@ update_scroll_p2:
         and #%00001111
         tax
         lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 04
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-2) + 04
 
         tya                                             ; second digit
         lsr
@@ -933,14 +939,14 @@ update_scroll_p2:
         lsr
         tax
         lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 03
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-2) + 03
 
         lda scroll_speed_p1+1                           ; third digit
         tay
         and #%00001111
         tax
         lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 02
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-2) + 02
 
         tya                                             ; fourth digit
         lsr
@@ -949,7 +955,7 @@ update_scroll_p2:
         lsr
         tax
         lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-1) + 01
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-2) + 01
 
 
         ; player two
@@ -958,7 +964,7 @@ update_scroll_p2:
         and #%00001111
         tax
         lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 04
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-2) + 04
 
         tya                                             ; second digit
         lsr
@@ -967,14 +973,14 @@ update_scroll_p2:
         lsr
         tax
         lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 03
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-2) + 03
 
         lda scroll_speed_p2+1                           ; third digit
         tay
         and #%00001111
         tax
         lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 02
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-2) + 02
 
         tya                                             ; fourth digit
         lsr
@@ -983,7 +989,7 @@ update_scroll_p2:
         lsr
         tax
         lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-1) + 01
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-2) + 01
 
         rts
 hex:    scrcode "0123456789abcdef"
