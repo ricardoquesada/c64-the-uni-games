@@ -576,10 +576,13 @@ scene_state:        .byte SCENE_STATE::MAIN_MENU ; scene state. which scene to r
 
 
 .segment "COMPRESSED_DATA"
+        ; export it at 0x1000
         .incbin "src/Chariots_of_Fire.sid.exo"
 mainsid_exo:
+        ; export it at 0x0400
         .incbin "src/mainscreen-map.prg.exo"
 mainscreen_exo:
+        ; export it at 0x2400
         .incbin "src/sprites.prg.exo"
 mainsprites_exo:
 

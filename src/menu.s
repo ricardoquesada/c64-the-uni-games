@@ -151,7 +151,7 @@ end:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; byte read_events()
 ; returns:
-;       %00010000 fire or space
+;       %00010000 fire, space or return
 ;       %00001000 right
 ;       %00000100 left
 ;       %00000010 down
@@ -175,7 +175,7 @@ l1:     jmp read_keyboard               ; otherwise, read keyboard
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; byte read_keyboard()
 ; returns:
-;       %00010000 fire or space
+;       %00010000 fire, space or return
 ;       %00001000 right
 ;       %00000100 left
 ;       %00000010 down
@@ -195,20 +195,29 @@ l1:     jmp read_keyboard               ; otherwise, read keyboard
         eor #%00010000
         bne end                         ; if pressed, end
 
+        lda #%11111110                  ; return ?
+        sta CIA1_PRA                    ; row 0
+        lda CIA1_PRB
+        and #%00000010                  ; col 2
+        eor #%00000010
+        beq skip1                       ; if pressed, end
+        lda #%00010000
+        jmp end
 
+skip1:
         lda #%11111101                  ; left shift pressed ?
         sta CIA1_PRA                    ; row 1
         lda CIA1_PRB
         and #%10000000                  ; col 7
-        beq skip
+        beq skip2
 
         lda #%10111111                  ; right shift pressed ?
         sta CIA1_PRA                    ; row 6
         lda CIA1_PRB
         and #%00010000                  ; col 4
-        beq skip
+        beq skip2
         lda #%11111111                  ; no shift then
-skip:
+skip2:
         eor #%11111111
         sta shift_pressed
 
