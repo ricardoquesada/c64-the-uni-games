@@ -199,8 +199,7 @@ l1:     jmp read_keyboard               ; otherwise, read keyboard
         sta CIA1_PRA                    ; row 0
         lda CIA1_PRB
         and #%00000010                  ; col 2
-        eor #%00000010
-        beq skip1                       ; if pressed, end
+        bne skip1                       ; if pressed, end
         lda #%00010000
         jmp end
 

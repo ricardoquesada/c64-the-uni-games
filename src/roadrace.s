@@ -23,8 +23,9 @@
 .enum PLAYER_STATE
         GET_SET_GO = 1                  ; race not started
         RIDING     = 2                  ; riding: touching ground
-        ON_AIR     = 3                  ; riding: not touching ground
-        FALL       = 4                  ; fall down
+        AIR_DOWN   = 3                  ; riding: not touching ground, falling
+        AIR_UP     = 4                  ; riding: impulse, going up
+        FALL       = 5                  ; fall down
 .endenum
 
 
@@ -527,9 +528,9 @@ colors:         .byte 1, 1, 0, 7                ; player 1
         jmp init_get_set_go             ; transition to get_set_go state
 @end:
         inx
-        cpx #TOTAL_RESISTANCE
+        cpx #RESISTANCE_TBL_SIZE
         bne :+
-        ldx #TOTAL_RESISTANCE-1
+        ldx #RESISTANCE_TBL_SIZE-1
 :       stx resistance_idx_p1
         stx resistance_idx_p2
         rts
@@ -638,13 +639,27 @@ process_p1:
         lda p1_finished                 ; if finished, go directly to
         bne decrease_speed_p1           ; decrease speed
 
-        lda p1_state                    ; if "on air", decrease speed
-        cmp #PLAYER_STATE::ON_AIR       ; since it can't accelerate
+        lda p1_state                    ; if "falling" or "jumping", decrease speed
+        cmp #PLAYER_STATE::AIR_DOWN     ; since it can't accelerate
+        beq decrease_speed_p1
+        cmp #PLAYER_STATE::AIR_UP
         beq decrease_speed_p1
 
-        ldx expected_joy1_idx
-        lda $dc01                       ; ready from joy1
+        lda $dc01                       ; read from joy1
+        tay
+        and #%00010000                  ; button
+        bne test_movement_p1
+
+        lda #PLAYER_STATE::AIR_UP       ; start jump sequence
+        sta p1_state
+        lda #0                          ; use sine to jump
+        sta p1_jump_idx                 ; set pointer to beginning of sine
+        rts
+
+test_movement_p1:
+        tya
         eor #%00001111                  ; invert joy bits, since they are inverted
+        ldx expected_joy1_idx
         and expected_joy,x              ; AND instead of CMP to support diagonals
         bne increase_velocity_p1
         jmp decrease_speed_p1
@@ -683,9 +698,9 @@ decrease_speed_p1:
 
 @end_p1:
         inx
-        cpx #TOTAL_RESISTANCE
+        cpx #RESISTANCE_TBL_SIZE
         bne :+
-        ldx #TOTAL_RESISTANCE-1
+        ldx #RESISTANCE_TBL_SIZE-1
 :       stx resistance_idx_p1
         rts
 
@@ -694,12 +709,12 @@ process_p2:
         lda p2_finished                 ; if finished, go directly to
         bne decrease_speed_p2           ; decrease speed
 
-        lda p2_state                    ; if "on air", decrease speed
-        cmp #PLAYER_STATE::ON_AIR       ; since it can't accelerate
+        lda p2_state                    ; if "falling" or "jumping", decrease speed
+        cmp #PLAYER_STATE::AIR_DOWN     ; since it can't accelerate
         beq decrease_speed_p2
 
         ldx expected_joy2_idx
-        lda $dc00                       ; ready from joy2
+        lda $dc00                       ; read from joy2
         eor #%00001111                  ; invert joy values since they come inverted
         and expected_joy,x              ; AND instead of CMP to support diagonals
         bne increase_velocity_p2
@@ -739,9 +754,9 @@ decrease_speed_p2:
 
 @end_p2:
         inx
-        cpx #TOTAL_RESISTANCE
+        cpx #RESISTANCE_TBL_SIZE
         bne :+
-        ldx #TOTAL_RESISTANCE-1
+        ldx #RESISTANCE_TBL_SIZE-1
 :       stx resistance_idx_p2
         rts
 .endproc
@@ -1016,47 +1031,92 @@ hex:    scrcode "0123456789abcdef"
 
 
 update_position_y_p1:
-        tax
+        tax                                     ; 1st: check body collision
         and #%00000100                          ; head or body?
-        bne @collision_body
+        bne p1_collision_body
 
-        txa
-        and #%00000011                          ; tire or rim on ground?
-        bne @collision                          ; yes
+        lda p1_state                            ; 2nd: was it going up?
+        cmp #PLAYER_STATE::AIR_UP               ; if so, keep going up
+        beq p1_go_up
 
-        ldx #PLAYER_STATE::ON_AIR               ; on air (can't accelerate when
-        stx p1_state                            ; on air)
+        txa                                     ; 3rd: check tire/rim collision
+        and #%00000011                          ; if so, do the collision handler
+        bne p1_collision_tire
 
-                                                ; go down (gravity)
-        inc VIC_SPR0_Y                          ; tire
+        lda p1_state                            ; 4th: else, go down
+        cmp #PLAYER_STATE::AIR_DOWN             ; Was it already going down?
+        beq ll0
+        lda #PLAYER_STATE::AIR_DOWN             ; no? set it
+        sta p1_state
+        lda #JUMP_TBL_SIZE-1                    ; and the index to the correct position
+        sta p1_jump_idx
+
+ll0:    ldx p1_jump_idx
+        lda jump_tbl,x
+        beq ll1                                 ; don't go down if value is 0
+        tay
+
+l0:     inc VIC_SPR0_Y                          ; tire
         inc VIC_SPR1_Y                          ; rim
         inc VIC_SPR2_Y                          ; head
         inc VIC_SPR3_Y                          ; hair
-        rts
+        dey
+        bne l0
 
-@collision_body:
-        ldx #PLAYER_STATE::RIDING               ; touching ground
-        stx p1_state
+ll1:    lda p1_jump_idx                         ; if it is already 0, stop dec
+        beq @end
+        dec p1_jump_idx
+@end:   rts
+
+p1_go_up:
+        ldx p1_jump_idx                         ; fetch sine index
+        lda jump_tbl,x
+        tay
+
+l1:     dec VIC_SPR0_Y                          ; tire
+        dec VIC_SPR1_Y                          ; rim
+        dec VIC_SPR2_Y                          ; head
+        dec VIC_SPR3_Y                          ; hair
+        dey
+        bne l1
+
+        inc p1_jump_idx                         ; reached max height?
+        lda p1_jump_idx
+        cmp #JUMP_TBL_SIZE
+        bne @end
+
+        dec p1_jump_idx                         ; set idx to JUMP_TBL_SIZE-1
+        lda #PLAYER_STATE::AIR_DOWN             ; and start going down
+        sta p1_state
+@end:   rts
+
+p1_collision_body:
+        lda #JUMP_TBL_SIZE-1
+        sta p1_jump_idx                         ; reset jmp table just in case
+        lda #PLAYER_STATE::RIDING               ; touching ground
+        sta p1_state
 
         ldx #3
-@l0:    dec VIC_SPR0_Y                          ; go up three times
+l2:     dec VIC_SPR0_Y                          ; go up three times
         dec VIC_SPR1_Y
         dec VIC_SPR2_Y
         dec VIC_SPR3_Y
         dex
-        bne @l0
+        bne l2
 
         lsr scroll_speed_p1+1                   ; reduce speed by 2
         ror scroll_speed_p1
         rts
 
-@collision:
-        ldx #PLAYER_STATE::RIDING               ; touching ground
-        stx p1_state
+p1_collision_tire:
+        ldy #JUMP_TBL_SIZE-1
+        sty p1_jump_idx                         ; reset jmp table just in case
+        ldy #PLAYER_STATE::RIDING               ; touching ground
+        sty p1_state
 
-        cmp #%00000011                          ; only the tire is touching ground?
-        bne @end                                ; if only tire, then end
-                                                ; otherwise go up
+        cmp #%00000011                          ; ASSERT(A == collision bis)
+        bne @end                                ; only the tire is touching ground?
+                                                ; if only tire, then end, else
         dec VIC_SPR0_Y                          ; go up
         dec VIC_SPR1_Y
         dec VIC_SPR2_Y
@@ -1068,13 +1128,13 @@ update_position_y_p1:
 update_position_y_p2:
         tax
         and #%01000000                          ; head or body?
-        bne @collision_body
+        bne p2_collision_body
 
         txa
         and #%00110000                          ; tire or rim on ground?
-        bne @collision                          ; yes
+        bne p2_collision_tire                   ; yes
 
-        ldx #PLAYER_STATE::ON_AIR               ; on air (can accelerate when
+        ldx #PLAYER_STATE::AIR_DOWN             ; on air (can accelerate when
         stx p2_state                            ; on air)
 
                                                 ; go down (gravity)
@@ -1084,7 +1144,7 @@ update_position_y_p2:
         inc VIC_SPR7_Y                          ; hair
         rts
 
-@collision_body:
+p2_collision_body:
         ldx #PLAYER_STATE::RIDING               ; touching ground
         stx p2_state
 
@@ -1099,7 +1159,7 @@ update_position_y_p2:
         lsr scroll_speed_p2+1                   ; reduce speed by 2
         ror scroll_speed_p2
         rts
-@collision:
+p2_collision_tire:
         ldx #PLAYER_STATE::RIDING               ; touching ground
         stx p2_state
 
@@ -1129,7 +1189,7 @@ update_frame_p1:
         sta VIC_SPR3_Y
 
         inx
-        cpx #TOTAL_ANIMATION
+        cpx #ANIMATION_TBL_SIZE
         bne :+
         ldx #0
 :       stx animation_idx_p1
@@ -1151,7 +1211,7 @@ update_frame_p2:
         sta VIC_SPR7_Y
 
         inx
-        cpx #TOTAL_ANIMATION
+        cpx #ANIMATION_TBL_SIZE
         bne :+
         ldx #0
 :       stx animation_idx_p2
@@ -1213,14 +1273,23 @@ resistance_tbl:                         ; how fast the unicycle will desacelerat
 .byte  22, 23, 23, 24, 24, 25, 26, 26
 .byte  27, 27, 28, 28, 29, 29, 29, 30
 .byte  30, 31, 31, 31, 31, 32, 32, 32
-TOTAL_RESISTANCE = * - resistance_tbl
+RESISTANCE_TBL_SIZE = * - resistance_tbl
+
+p1_jump_idx:            .byte 0         ; sine pointer for jump/down sequence
+p2_jump_idx:            .byte 0         ; sine pointer for jump/down sequence
+jump_tbl:
+; autogenerated table: easing_table_generator.py -s32 -m20 -aFalse sin
+.byte   2,  2,  2,  2,  1,  2,  2,  1
+.byte   1,  2,  1,  0,  1,  1,  0,  0
+JUMP_TBL_SIZE = * - jump_tbl
+
 animation_delay_p1:     .byte ACTOR_ANIMATION_SPEED
 animation_delay_p2:     .byte ACTOR_ANIMATION_SPEED
 animation_idx_p1:       .byte 0         ; index in the animation table
 animation_idx_p2:       .byte 0         ; index in the animation table
 animation_tbl:
         .byte 255,1,1,255               ; go up, down, down, up
-TOTAL_ANIMATION = * - animation_tbl
+ANIMATION_TBL_SIZE = * - animation_tbl
 
 on_your_marks_lbl:
                 ;0123456789|123456789|123456789|123456789|
