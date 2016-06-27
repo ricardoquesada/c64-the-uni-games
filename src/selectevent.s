@@ -10,7 +10,7 @@
 .import _crunched_byte_hi, _crunched_byte_lo    ; from utils
 .import sync_timer_irq
 .import ut_clear_color, ut_get_key
-.import roadrace_init
+.import game_start_cyclocross, game_start_roadrace
 .import menu_handle_events, menu_invert_row
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -71,8 +71,9 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc selectevent_exec
         lda MENU_CURRENT_ITEM
-        jmp roadrace_init
-
+        bne :+
+        jmp game_start_roadrace
+:       jmp game_start_cyclocross
 .endproc
 
 

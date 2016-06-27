@@ -9,7 +9,7 @@ X64 = x64
 
 all: dev dist
 
-SRC=src/main.s src/about.s src/utils.s src/roadrace.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s
+SRC=src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s
 prg:
 	cl65 -d -g -Ln bin/unigames.sym -u __EXEHDR__ -t c64 -o bin/unigames.prg -C unigames.cfg ${SRC}
 
@@ -19,6 +19,8 @@ exo_res:
 	exomizer mem -q res/select_event-map.prg -o src/select_event-map.prg.exo
 	exomizer mem -q res/level1-map.prg -o src/level1-map.prg.exo
 	exomizer mem -q res/level1-colors.prg -o src/level1-colors.prg.exo
+	exomizer mem -q res/level-cyclocross-map.prg -o src/level-cyclocross-map.prg.exo
+	exomizer mem -q res/level-cyclocross-colors.prg -o src/level-cyclocross-colors.prg.exo
 
 dev: prg exo_res
 	$(C1541) -format "unigames,rq" d64 $(DEV_IMAGE)

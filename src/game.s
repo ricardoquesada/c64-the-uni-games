@@ -81,8 +81,7 @@ ACCEL_SPEED = $20                       ; how fast the speed will increase
 
 .segment "HI_CODE"
 
-.export roadrace_init
-.proc roadrace_init
+.proc game_init 
         sei
 
         jsr init_data                   ; uncrunch data
@@ -174,19 +173,22 @@ _mainloop:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void init_data()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc init_data
+init_data:
         ; ASSERT (interrupts disabled)
 
         dec $01                         ; $34: RAM 100%
 
-        ldx #<level1_map_exo
+
+level_map_address = *+1
+        ldx #<level1_map_exo            ; self-modifyng
         ldy #>level1_map_exo
         stx _crunched_byte_lo
         sty _crunched_byte_hi
         jsr decrunch                    ; uncrunch map
 
 
-        ldx #<level1_colors_exo
+level_color_address = *+1
+        ldx #<level1_colors_exo         ; self-modifying
         ldy #>level1_colors_exo
         stx _crunched_byte_lo
         sty _crunched_byte_hi
@@ -195,6 +197,41 @@ _mainloop:
         inc $01                         ; $35: RAM + IO ($D000-$DF00)
 
         rts
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void game_start_roadrace()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export game_start_roadrace
+.proc game_start_roadrace
+        ldx #<level1_map_exo
+        ldy #>level1_map_exo
+        stx level_map_address
+        sty level_map_address+2
+
+        ldx #<level1_colors_exo
+        ldy #>level1_colors_exo
+        stx level_color_address
+        sty level_color_address+2
+
+        jmp game_init
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void game_start_cyclocross()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export game_start_cyclocross
+.proc game_start_cyclocross
+        ldx #<level_cyclocross_map_exo
+        ldy #>level_cyclocross_map_exo
+        stx level_map_address
+        sty level_map_address+2
+
+        ldx #<level_cyclocross_colors_exo
+        ldy #>level_cyclocross_colors_exo
+        stx level_color_address
+        sty level_color_address+2
+
+        jmp game_init
 .endproc
 
 
@@ -1329,3 +1366,12 @@ level1_map_exo:
 
         .incbin "level1-colors.prg.exo"                 ; 256b at $4c00
 level1_colors_exo:
+
+
+        .incbin "level-cyclocross-map.prg.exo"          ; 6k at $3400
+level_cyclocross_map_exo:
+
+        .incbin "level-cyclocross-colors.prg.exo"       ; 256b at $4c00
+level_cyclocross_colors_exo:
+
+.byte 0                                                 ; ignore
