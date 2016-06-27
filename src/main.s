@@ -224,6 +224,8 @@ do_raster:
 
 ;        jsr animate_palette
 
+        jsr animate_sprites
+
         jsr menu_handle_events          ; will disable/enable interrupts
 
         jmp main_loop
@@ -326,34 +328,34 @@ irq_a:
         ldx #0
         stx $d021
 
-        ldx palette_idx_top
-        .repeat 6 * 8
-                lda $d012
-:               cmp $d012
-                beq :-
-                lda luminances,x
-                sta $d021
-                inx
-                txa
-                and #%00111111          ; only 64 values are loaded
-                tax
-        .endrepeat
-
-        ldx palette_idx_bottom
-        .repeat 6 * 8
-                lda $d012
-:               cmp $d012
-                beq :-
-                lda luminances,x
-                sta $d021
-                dex
-                txa
-                and #%00111111          ; only 64 values are loaded
-                tax
-        .endrepeat
-
-        lda #0
-        sta $d021
+;        ldx palette_idx_top
+;        .repeat 6 * 8
+;                lda $d012
+;:               cmp $d012
+;                beq :-
+;                lda luminances,x
+;                sta $d021
+;                inx
+;                txa
+;                and #%00111111          ; only 64 values are loaded
+;                tax
+;        .endrepeat
+;
+;        ldx palette_idx_bottom
+;        .repeat 6 * 8
+;                lda $d012
+;:               cmp $d012
+;                beq :-
+;                lda luminances,x
+;                sta $d021
+;                dex
+;                txa
+;                and #%00111111          ; only 64 values are loaded
+;                tax
+;        .endrepeat
+;
+;        lda #0
+;        sta $d021
 
         inc sync_raster_irq
 
@@ -494,12 +496,35 @@ l0:
         bpl :-
 
 
-        lda #%10000000                  ; enable sprite #7
+        lda #%10000111                  ; enable sprites
         sta VIC_SPR_ENA
         lda #%10000000                  ; set sprite #7 x-pos 9-bit ON
         sta $d010                       ; since x pos > 255
+        lda #%00000111
+        sta VIC_SPR_MCOLOR              ; enable multicolor
 
-        lda #$40
+        lda #10                         ; sprites multicolor values
+        sta VIC_SPR_MCOLOR0
+        lda #9
+        sta VIC_SPR_MCOLOR1
+
+        ldx #0                          ; setup BC's Tire sprite
+        ldy #0
+l1:     lda sprite_x,x
+        sta VIC_SPR0_X,y                ; setup sprite X
+        lda sprite_y,x
+        sta VIC_SPR0_Y,y                ; setup sprite Y
+        lda sprite_color,x
+        sta VIC_SPR0_COLOR,x            ; setup sprite color
+        lda sprite_frame,x
+        sta SPRITES_PTR0,x           ; setup sprite pointer
+        inx
+        iny
+        iny
+        cpx #3
+        bne l1
+
+        lda #$40                        ; setup PAL/NTSC/ sprite
         sta VIC_SPR7_X                  ; x= $140 = 320
         lda #$f0
         sta VIC_SPR7_Y
@@ -538,6 +563,19 @@ l0:
         stx SPRITES_PTR1 + 7            ; set sprite pointer for screen1
 
         rts
+
+        ; varaibles for BC's Tire sprites
+sprite_x:
+        .byte 183,176,176
+sprite_y:
+        .byte 48,61,81
+sprite_color:
+        .byte 11,11,11
+sprite_frame:
+        .byte SPRITES_POINTER + 40
+        .byte SPRITES_POINTER + 41
+        .byte SPRITES_POINTER + 42
+
 .endproc
 
 
@@ -576,6 +614,38 @@ l0:
         and #%00111111
         sta palette_idx_bottom
         rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void animate_sprites(void)
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc animate_sprites
+
+        dec delay
+        bne end
+
+        ldx frame_idx                   ; switches between 0 and 1
+        lda sprite0_frames,x
+        sta SPRITES_PTR0                ; new frame for sprite 0
+        lda sprite2_frames,x
+        sta SPRITES_PTR0 + 2            ; new frame for sprite 2
+
+        txa
+        eor #%00000001
+        sta frame_idx
+
+        lda #8
+        sta delay
+
+end:    rts
+delay:          .byte 8
+frame_idx:      .byte 0
+sprite0_frames:
+        .byte SPRITES_POINTER + 40
+        .byte SPRITES_POINTER + 43
+sprite2_frames:
+        .byte SPRITES_POINTER + 42
+        .byte SPRITES_POINTER + 44
 .endproc
 
 music_speed: .word $4cc7                ; default: playing at PAL spedd in PAL computer
