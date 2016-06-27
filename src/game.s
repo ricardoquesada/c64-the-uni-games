@@ -45,8 +45,8 @@ DEBUG = 0                               ; bitwise: 1=raster-sync code. 2=asserts
 
 LEVEL1_WIDTH = 1024                     ; width of map. must be multiple of 256
 LEVEL1_HEIGHT = 6
-LEVEL1_MAP = $3400                      ; map address. must be 256-aligned
-LEVEL1_COLORS = $4c00                   ; color address
+LEVEL1_MAP = $4100                      ; map address. must be 256-aligned
+LEVEL1_COLORS = $4000                   ; color address
 
 EMPTY_ROWS = 2                          ; there are two empty rows at the top of
                                         ; the map that is not used.
@@ -55,8 +55,8 @@ EMPTY_ROWS = 2                          ; there are two empty rows at the top of
 
 BANK_BASE = $0000
 SCREEN_BASE = BANK_BASE + $0400                     ; screen address
-SPRITES_BASE = BANK_BASE + $2c00                    ; Sprite 0 at $2c00
-SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 176
+SPRITES_BASE = BANK_BASE + $2400                    ; Sprite 0 at $2400
+SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
 SPRITE_PTR = SCREEN_BASE + 1016                     ; right after the screen, at $7f8
 
 SCROLL_ROW_P1= 4
@@ -194,6 +194,13 @@ level_color_address = *+1
         sty _crunched_byte_hi
         jsr decrunch                    ; uncrunch
 
+level_charset_address = *+1
+        ldx #<level1_charset_exo         ; self-modifying
+        ldy #>level1_charset_exo
+        stx _crunched_byte_lo
+        sty _crunched_byte_hi
+        jsr decrunch                    ; uncrunch
+
         inc $01                         ; $35: RAM + IO ($D000-$DF00)
 
         rts
@@ -213,6 +220,11 @@ level_color_address = *+1
         stx level_color_address
         sty level_color_address+2
 
+        ldx #<level1_charset_exo
+        ldy #>level1_charset_exo
+        stx level_charset_address
+        sty level_charset_address+2
+
         jmp game_init
 .endproc
 
@@ -230,6 +242,11 @@ level_color_address = *+1
         ldy #>level_cyclocross_colors_exo
         stx level_color_address
         sty level_color_address+2
+
+        ldx #<level_cyclocross_charset_exo
+        ldy #>level_cyclocross_charset_exo
+        stx level_charset_address
+        sty level_charset_address+2
 
         jmp game_init
 .endproc
@@ -1361,17 +1378,23 @@ freq_table_hi:
 
 .segment "COMPRESSED_DATA"
 
-        .incbin "level1-map.prg.exo"                    ; 6k at $3400
+        .incbin "level1-charset.prg.exo"                ; 2k at $3000
+level1_charset_exo:
+
+        .incbin "level1-map.prg.exo"                    ; 6k at $4100
 level1_map_exo:
 
-        .incbin "level1-colors.prg.exo"                 ; 256b at $4c00
+        .incbin "level1-colors.prg.exo"                 ; 256b at $4000
 level1_colors_exo:
 
 
-        .incbin "level-cyclocross-map.prg.exo"          ; 6k at $3400
+        .incbin "level-cyclocross-charset.prg.exo"     ; 2k at $3000
+level_cyclocross_charset_exo:
+
+        .incbin "level-cyclocross-map.prg.exo"          ; 6k at $4100
 level_cyclocross_map_exo:
 
-        .incbin "level-cyclocross-colors.prg.exo"       ; 256b at $4c00
+        .incbin "level-cyclocross-colors.prg.exo"       ; 256b at $4000
 level_cyclocross_colors_exo:
 
 .byte 0                                                 ; ignore

@@ -21,8 +21,10 @@ exo_res:
 	exomizer mem -q res/select_event-map.prg -o src/select_event-map.prg.exo
 	exomizer mem -q res/level1-map.prg -o src/level1-map.prg.exo
 	exomizer mem -q res/level1-colors.prg -o src/level1-colors.prg.exo
+	exomizer mem -q res/level1-charset.prg -o src/level1-charset.prg.exo
 	exomizer mem -q res/level-cyclocross-map.prg -o src/level-cyclocross-map.prg.exo
 	exomizer mem -q res/level-cyclocross-colors.prg -o src/level-cyclocross-colors.prg.exo
+	exomizer mem -q res/level-cyclocross-charset.prg -o src/level-cyclocross-charset.prg.exo
 
 dev: prg exo_res
 	$(C1541) -format "unigames,rq" d64 $(DEV_IMAGE)

@@ -671,7 +671,7 @@ scene_state:        .byte SCENE_STATE::MAIN_MENU ; scene state. which scene to r
 
 .segment "COMPRESSED_DATA"
         ; export it at 0x1000
-        .incbin "src/Chariots_of_Fire.sid.exo"
+        .incbin "src/maintitle_music.sid.exo"
 mainsid_exo:
 
         ; export it at 0x0400
