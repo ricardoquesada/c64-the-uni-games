@@ -33,7 +33,6 @@
 .include "c64.inc"                      ; c64 constants
 .include "myconstants.inc"
 
-
 .enum SCENE_STATE
         MAIN_MENU
         SELECTEVENT_MENU
@@ -155,7 +154,7 @@ LABEL2_LEN = * - label2
         ora #3
         sta $dd00
 
-        lda #%00010100                  ; charset at $1000 (same as sid, but uses built-in one)
+        lda #%00011100                  ; charset at $3000, screen at $0400
         sta $d018
 
 
@@ -223,7 +222,7 @@ main_loop:
 do_raster:
         dec sync_raster_irq
 
-        jsr animate_palette
+;        jsr animate_palette
 
         jsr menu_handle_events          ; will disable/enable interrupts
 
@@ -242,8 +241,8 @@ do_raster:
         sta MENU_ITEM_LEN
         lda #(40*2)
         sta MENU_BYTES_BETWEEN_ITEMS
-        ldx #<(SCREEN0_BASE + 40 * 16 + 5)
-        ldy #>(SCREEN0_BASE + 40 * 16 + 5)
+        ldx #<(SCREEN0_BASE + 40 * 17 + 5)
+        ldy #>(SCREEN0_BASE + 40 * 17 + 5)
         stx MENU_CURRENT_ROW_ADDR
         sty MENU_CURRENT_ROW_ADDR+1
         ldx #<mainmenu_exec
@@ -285,7 +284,7 @@ jump_high_scores:
         lda #SCENE_STATE::MAIN_MENU     ; restore stuff modifying by scores
         sta scene_state
 
-        lda #%00010100                  ; restore video address: at $0400
+        lda #%00011100                  ; restore: charset at $3000, screen at $0400
         sta $d018
         jsr init_screen
 
@@ -425,8 +424,20 @@ irq_open_borders:
         jsr decrunch                    ; uncrunch map
 
 
-        ldx #<mainscreen_exo            ; decrunch main screen
-        ldy #>mainscreen_exo
+        ldx #<mainscreen_map_exo        ; decrunch main screen
+        ldy #>mainscreen_map_exo
+        stx _crunched_byte_lo
+        sty _crunched_byte_hi
+        jsr decrunch                    ; uncrunch
+
+        ldx #<mainscreen_colors_exo     ; decrunch main screen colors
+        ldy #>mainscreen_colors_exo
+        stx _crunched_byte_lo
+        sty _crunched_byte_hi
+        jsr decrunch                    ; uncrunch
+
+        ldx #<mainscreen_charset_exo    ; decrunch main screen colors
+        ldy #>mainscreen_charset_exo
         stx _crunched_byte_lo
         sty _crunched_byte_hi
         jsr decrunch                    ; uncrunch
@@ -440,6 +451,7 @@ irq_open_borders:
 
         inc $01                         ; $35: RAM + IO ($D000-$DF00)
 
+
         rts
 .endproc
 
@@ -447,21 +459,33 @@ irq_open_borders:
 ; void init_screen()
 ;------------------------------------------------------------------------------;
 ; paints the screen with the "main menu" screen
+; MUST BE CALLED after init_data()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_screen
-        ldx #$00
-@loop:
-        lda #0
-        sta $d800,x                     ; set reverse color
-        sta $d800+$0100,x               ; set reverse color
-        sta $d800+$0100+48,x            ; set reverse color
+        ldx #0                          ; put correct colors on screen
+l0:
+        lda $400,x
+        tay
+        lda COLORMAP_BASE,y
+        sta $d800,x
 
-        lda #1
-        sta $d800+$0200+48,x            ; set normal color
-        sta $d800+$02e8,x               ; set normal color
+        lda $500,x
+        tay
+        lda COLORMAP_BASE,y
+        sta $d900,x
+
+        lda $600,x
+        tay
+        lda COLORMAP_BASE,y
+        sta $da00,x
+
+        lda $6e8,x
+        tay
+        lda COLORMAP_BASE,y
+        sta $dae8,x
 
         inx
-        bne @loop
+        bne l0
 
         lda #$0b                         ; set color for copyright
         ldx #39
@@ -579,9 +603,19 @@ scene_state:        .byte SCENE_STATE::MAIN_MENU ; scene state. which scene to r
         ; export it at 0x1000
         .incbin "src/Chariots_of_Fire.sid.exo"
 mainsid_exo:
+
         ; export it at 0x0400
         .incbin "src/mainscreen-map.prg.exo"
-mainscreen_exo:
+mainscreen_map_exo:
+
+        ; export it at 0x4000
+        .incbin "src/mainscreen-colors.prg.exo"
+mainscreen_colors_exo:
+
+        ; export it at 0x3000
+        .incbin "src/mainscreen-charset.prg.exo"
+mainscreen_charset_exo:
+
         ; export it at 0x2400
         .incbin "src/sprites.prg.exo"
 mainsprites_exo:

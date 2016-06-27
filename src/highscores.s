@@ -15,13 +15,6 @@
 .import sync_timer_irq
 .import menu_read_events
 
-BANK_BASE = $0000
-SCREEN0_BASE = BANK_BASE + $0400                    ; screen address
-SCREEN1_BASE = $0c00
-SPRITES_BASE = BANK_BASE + $2400                    ; Sprite 0 at $2400
-SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
-SPRITE_PTR = SCREEN0_BASE + 1016                    ; right after the screen, at $7f8
-
 UNI1_ROW = 13                           ; unicyclist #1 x,y
 UNI1_COL = 0
 UNI2_ROW = 3                            ; unicylists #2 x,y
@@ -37,6 +30,7 @@ UNI2_COL = 37
 ; Constants
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .include "c64.inc"                      ; c64 constants
+.include "myconstants.inc"
 
 
 .segment "HI_CODE"
@@ -53,7 +47,7 @@ UNI2_COL = 37
         lda #$01
         jsr ut_clear_color
 
-        lda #%00110100                  ; video addres at $0c00
+        lda #%00111100                  ; charset at $3000, screen at $0c00
         sta $d018
 
         jsr init_screen

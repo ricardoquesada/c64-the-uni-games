@@ -55,8 +55,8 @@ EMPTY_ROWS = 2                          ; there are two empty rows at the top of
 
 BANK_BASE = $0000
 SCREEN_BASE = BANK_BASE + $0400                     ; screen address
-SPRITES_BASE = BANK_BASE + $2400                    ; Sprite 0 at $2400
-SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
+SPRITES_BASE = BANK_BASE + $2c00                    ; Sprite 0 at $2c00
+SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 176
 SPRITE_PTR = SCREEN_BASE + 1016                     ; right after the screen, at $7f8
 
 SCROLL_ROW_P1= 4
@@ -1080,27 +1080,26 @@ update_position_y_p1:
         and #%00000011                          ; if so, do the collision handler
         bne p1_collision_tire
 
-        lda p1_state                            ; 4th: else, go down
-        cmp #PLAYER_STATE::AIR_DOWN             ; Was it already going down?
-        beq ll0
-        lda #PLAYER_STATE::AIR_DOWN             ; no? set it
-        sta p1_state
+        lda #PLAYER_STATE::AIR_DOWN             ; 4th: else, go down
+        cmp p1_state                            ; Was it already going down?
+        beq l0
+        sta p1_state                            ; no? set it
         lda #JUMP_TBL_SIZE-1                    ; and the index to the correct position
         sta p1_jump_idx
 
-ll0:    ldx p1_jump_idx
+l0:     ldx p1_jump_idx
         lda jump_tbl,x
-        beq ll1                                 ; don't go down if value is 0
+        beq l2                                  ; don't go down if value is 0
         tay
 
-l0:     inc VIC_SPR0_Y                          ; tire
+l1:     inc VIC_SPR0_Y                          ; tire
         inc VIC_SPR1_Y                          ; rim
         inc VIC_SPR2_Y                          ; head
         inc VIC_SPR3_Y                          ; hair
         dey
-        bne l0
+        bne l1
 
-ll1:    lda p1_jump_idx                         ; if it is already 0, stop dec
+l2:     lda p1_jump_idx                         ; if it is already 0, stop dec
         beq @end
         dec p1_jump_idx
 @end:   rts
@@ -1108,16 +1107,17 @@ ll1:    lda p1_jump_idx                         ; if it is already 0, stop dec
 p1_go_up:
         ldx p1_jump_idx                         ; fetch sine index
         lda jump_tbl,x
+        beq l4                                 ; don't go up if value is 0
         tay
 
-l1:     dec VIC_SPR0_Y                          ; tire
+l3:     dec VIC_SPR0_Y                          ; tire
         dec VIC_SPR1_Y                          ; rim
         dec VIC_SPR2_Y                          ; head
         dec VIC_SPR3_Y                          ; hair
         dey
-        bne l1
+        bne l3
 
-        inc p1_jump_idx                         ; reached max height?
+l4:     inc p1_jump_idx                         ; reached max height?
         lda p1_jump_idx
         cmp #JUMP_TBL_SIZE
         bne @end
@@ -1134,12 +1134,12 @@ p1_collision_body:
         sta p1_state
 
         ldx #3
-l2:     dec VIC_SPR0_Y                          ; go up three times
+l5:     dec VIC_SPR0_Y                          ; go up three times
         dec VIC_SPR1_Y
         dec VIC_SPR2_Y
         dec VIC_SPR3_Y
         dex
-        bne l2
+        bne l5
 
         lsr scroll_speed_p1+1                   ; reduce speed by 2
         ror scroll_speed_p1
@@ -1294,9 +1294,9 @@ scroll_speed_p2:        .word SCROLL_SPEED_P2  ; $0100 = normal speed. $0200 = 2
 expected_joy1_idx:      .byte 0
 expected_joy2_idx:      .byte 0
 expected_joy:
-        .byte %00000001                 ; up
+;        .byte %00000001                 ; up
         .byte %00001000                 ; right
-        .byte %00000010                 ; down
+;        .byte %00000010                 ; down
         .byte %00000100                 ; left
 resistance_idx_p2:      .byte 0         ; index in resistance table
 resistance_idx_p1:      .byte 0         ; index in resistance table
