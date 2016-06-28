@@ -9,7 +9,7 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; from utils.s
-.import ut_clear_color, ut_get_key
+.import ut_clear_color, ut_get_key, ut_clear_screen
 
 ; from main.s
 .import sync_timer_irq
@@ -44,11 +44,11 @@ UNI2_COL = 37
         sta $d01a                       ; no raster IRQ, only timer IRQ
         sta score_counter
 
+        lda #0
+        sta VIC_SPR_ENA
+
         lda #$01
         jsr ut_clear_color
-
-        lda #%00111100                  ; charset at $3000, screen at $0c00
-        sta $d018
 
         jsr init_screen
 
@@ -74,18 +74,12 @@ play_music:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_screen
 
-        ldx #0                          ; clear the screen: 1000 bytes. 40*25
         lda #$20
-:       sta SCREEN1_BASE+$0000,x         ; can't call clear_screen
-        sta SCREEN1_BASE+$0100,x         ; since we are in VIC bank 2
-        sta SCREEN1_BASE+$0200,x
-        sta SCREEN1_BASE+$02e8,x
-        inx
-        bne :-
+        jsr ut_clear_screen
 
         ldx #39
 :       lda categories,x                ; displays the  category: "10k road racing"
-        sta SCREEN1_BASE,x
+        sta SCREEN0_BASE,x
         dex
         bpl :-
 
@@ -107,19 +101,19 @@ play_music:
                 bpl :-
         .endrepeat
 
-        .repeat 9,YY                    ; paint two unicyclist
+        .repeat 10,YY                    ; paint two unicyclist
             ldx #2
 :           lda unicyclists_map+6*YY,x ; bottom left unicyclsit
-            sta SCREEN1_BASE+40*(YY+UNI1_ROW)+UNI1_COL,x
+            sta SCREEN0_BASE+40*(YY+UNI1_ROW)+UNI1_COL,x
             lda unicyclists_map+6*YY+3,x   ; top right unicyclist
-            sta SCREEN1_BASE+40*(YY+UNI2_ROW)+UNI2_COL,x
+            sta SCREEN0_BASE+40*(YY+UNI2_ROW)+UNI2_COL,x
             dex
             bpl :-
         .endrepeat
 
 
-        ldx #<(SCREEN1_BASE + 40 * 3)    ; init "save" pointer
-        ldy #>(SCREEN1_BASE + 40 * 3)    ; start writing at 3rd line
+        ldx #<(SCREEN0_BASE + 40 * 3)    ; init "save" pointer
+        ldy #>(SCREEN0_BASE + 40 * 3)    ; start writing at 3rd line
         stx $f0
         sty $f1
         rts
@@ -247,15 +241,15 @@ paint:
         sta delay
 
         ldy #0
-        ldx #4
+        ldx #15
 l0:
         lda addresses_lo,x          ; swaps values
         sta $fc
         lda addresses_hi,x
         sta $fd
-        lda addresses_lo+5,x
+        lda addresses_lo+16,x
         sta $fe
-        lda addresses_hi+5,x
+        lda addresses_hi+16,x
         sta $ff
                                     ; swaps left and right values
                                     ; using $fb as tmp variable
@@ -273,24 +267,46 @@ l0:
 delay:
         .byte 50
 bytes_to_swap:
-ADDRESS0 = SCREEN1_BASE+(UNI1_ROW+1)*40+UNI1_COL+0   ; left eye
-ADDRESS1 = SCREEN1_BASE+(UNI1_ROW+1)*40+UNI1_COL+2   ; right eye
-ADDRESS2 = SCREEN1_BASE+(UNI1_ROW+3)*40+UNI1_COL+0   ; left arm
-ADDRESS3 = SCREEN1_BASE+(UNI1_ROW+3)*40+UNI1_COL+2   ; right arm
-ADDRESS4 = SCREEN1_BASE+(UNI1_ROW+7)*40+UNI1_COL+1   ; hub
+ADDRESS0 = SCREEN0_BASE+(UNI1_ROW+0)*40+UNI1_COL+0   ; left hair
+ADDRESS1 = SCREEN0_BASE+(UNI1_ROW+0)*40+UNI1_COL+1   ; middle hair
+ADDRESS2 = SCREEN0_BASE+(UNI1_ROW+0)*40+UNI1_COL+2   ; right hair
+ADDRESS3 = SCREEN0_BASE+(UNI1_ROW+2)*40+UNI1_COL+0   ; left eye
+ADDRESS4 = SCREEN0_BASE+(UNI1_ROW+2)*40+UNI1_COL+2   ; right eye
+ADDRESS5 = SCREEN0_BASE+(UNI1_ROW+4)*40+UNI1_COL+0   ; left arm
+ADDRESS6 = SCREEN0_BASE+(UNI1_ROW+4)*40+UNI1_COL+2   ; right arm
+ADDRESS7 = SCREEN0_BASE+(UNI1_ROW+7)*40+UNI1_COL+0   ; wheel tl
+ADDRESS8 = SCREEN0_BASE+(UNI1_ROW+7)*40+UNI1_COL+1   ; wheel tm
+ADDRESS9 = SCREEN0_BASE+(UNI1_ROW+7)*40+UNI1_COL+2   ; wheel tr
+ADDRESS10 = SCREEN0_BASE+(UNI1_ROW+8)*40+UNI1_COL+0  ; wheel ml
+ADDRESS11 = SCREEN0_BASE+(UNI1_ROW+8)*40+UNI1_COL+1  ; wheel hub
+ADDRESS12 = SCREEN0_BASE+(UNI1_ROW+8)*40+UNI1_COL+2  ; wheel mr
+ADDRESS13 = SCREEN0_BASE+(UNI1_ROW+9)*40+UNI1_COL+0  ; wheel bl
+ADDRESS14 = SCREEN0_BASE+(UNI1_ROW+9)*40+UNI1_COL+1  ; wheel bm
+ADDRESS15 = SCREEN0_BASE+(UNI1_ROW+9)*40+UNI1_COL+2  ; wheel br
 
-ADDRESS5 = SCREEN1_BASE+(UNI2_ROW+1)*40+UNI2_COL+0   ; left eye
-ADDRESS6 = SCREEN1_BASE+(UNI2_ROW+1)*40+UNI2_COL+2   ; right eye
-ADDRESS7 = SCREEN1_BASE+(UNI2_ROW+3)*40+UNI2_COL+0   ; left arm
-ADDRESS8 = SCREEN1_BASE+(UNI2_ROW+3)*40+UNI2_COL+2   ; right arm
-ADDRESS9 = SCREEN1_BASE+(UNI2_ROW+7)*40+UNI2_COL+1   ; hub
+ADDRESS16 = SCREEN0_BASE+(UNI2_ROW+0)*40+UNI2_COL+0  ; left hair
+ADDRESS17 = SCREEN0_BASE+(UNI2_ROW+0)*40+UNI2_COL+1  ; middle hair
+ADDRESS18 = SCREEN0_BASE+(UNI2_ROW+0)*40+UNI2_COL+2  ; right hair
+ADDRESS19 = SCREEN0_BASE+(UNI2_ROW+2)*40+UNI2_COL+0  ; left eye
+ADDRESS20 = SCREEN0_BASE+(UNI2_ROW+2)*40+UNI2_COL+2  ; right eye
+ADDRESS21 = SCREEN0_BASE+(UNI2_ROW+4)*40+UNI2_COL+0  ; left arm
+ADDRESS22 = SCREEN0_BASE+(UNI2_ROW+4)*40+UNI2_COL+2  ; right arm
+ADDRESS23 = SCREEN0_BASE+(UNI2_ROW+7)*40+UNI2_COL+0  ; wheel tl
+ADDRESS24 = SCREEN0_BASE+(UNI2_ROW+7)*40+UNI2_COL+1  ; wheel tm
+ADDRESS25 = SCREEN0_BASE+(UNI2_ROW+7)*40+UNI2_COL+2  ; wheel tr
+ADDRESS26 = SCREEN0_BASE+(UNI2_ROW+8)*40+UNI2_COL+0  ; wheel ml
+ADDRESS27 = SCREEN0_BASE+(UNI2_ROW+8)*40+UNI2_COL+1  ; wheel hub
+ADDRESS28 = SCREEN0_BASE+(UNI2_ROW+8)*40+UNI2_COL+2  ; wheel mr
+ADDRESS29 = SCREEN0_BASE+(UNI2_ROW+9)*40+UNI2_COL+0  ; wheel bl
+ADDRESS30 = SCREEN0_BASE+(UNI2_ROW+9)*40+UNI2_COL+1  ; wheel bm
+ADDRESS31 = SCREEN0_BASE+(UNI2_ROW+9)*40+UNI2_COL+2  ; wheel br
 
 addresses_lo:
-.repeat 10,YY
+.repeat 32,YY
         .byte <.IDENT(.CONCAT("ADDRESS", .STRING(YY)))
 .endrepeat
 addresses_hi:
-.repeat 10,YY
+.repeat 32,YY
         .byte >.IDENT(.CONCAT("ADDRESS", .STRING(YY)))
 .endrepeat
 

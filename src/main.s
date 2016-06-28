@@ -146,7 +146,7 @@ LABEL2_LEN = * - label2
 .proc main_init
         sei
 
-        lda #SCENE_STATE::MAIN_MENU      ; menu to display
+        lda #SCENE_STATE::MAIN_MENU     ; menu to display
         sta scene_state                 ; is "main menu"
 
         lda $dd00                       ; Vic bank 0: $0000-$3FFF
@@ -286,12 +286,28 @@ jump_high_scores:
         lda #SCENE_STATE::MAIN_MENU     ; restore stuff modifying by scores
         sta scene_state
 
-        lda #%00011100                  ; restore: charset at $3000, screen at $0400
-        sta $d018
+        lda #0                          ; turn off volume
+        sta $d418
+                                        ; turn off video.
+                                        ; multicolor mode + extended color causes
+        lda #%01011011                  ; the bug that blanks the screen
+        sta $d011                       ; extended color mode: on
+        lda #%00011000
+        sta $d016                       ; turn on multicolor
+
+        sei
+        jsr init_data_screen
         jsr init_screen
+        jsr mainmenu_init
+                                        ; turn VIC on again
+        lda #%00011011                  ; charset mode, default scroll-Y position, 25-rows
+        sta $d011                       ; extended color mode: off
+        lda #%00001000                  ; no scroll, hires (mono color), 40-cols
+        sta $d016                       ; turn off multicolor
 
         lda #01                         ; enable raster irq again
         sta $d01a
+        cli
 
         rts
 
@@ -426,18 +442,6 @@ irq_open_borders:
         jsr decrunch                    ; uncrunch map
 
 
-        ldx #<mainscreen_map_exo        ; decrunch main screen
-        ldy #>mainscreen_map_exo
-        stx _crunched_byte_lo
-        sty _crunched_byte_hi
-        jsr decrunch                    ; uncrunch
-
-        ldx #<mainscreen_colors_exo     ; decrunch main screen colors
-        ldy #>mainscreen_colors_exo
-        stx _crunched_byte_lo
-        sty _crunched_byte_hi
-        jsr decrunch                    ; uncrunch
-
         ldx #<mainscreen_charset_exo    ; decrunch main screen colors
         ldy #>mainscreen_charset_exo
         stx _crunched_byte_lo
@@ -453,7 +457,29 @@ irq_open_borders:
 
         inc $01                         ; $35: RAM + IO ($D000-$DF00)
 
+        jmp init_data_screen
+.endproc
 
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_data_screen
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc init_data_screen
+        dec $01
+
+        ldx #<mainscreen_map_exo        ; decrunch main screen
+        ldy #>mainscreen_map_exo
+        stx _crunched_byte_lo
+        sty _crunched_byte_hi
+        jsr decrunch                    ; uncrunch
+
+        ldx #<mainscreen_colors_exo     ; decrunch main screen colors
+        ldy #>mainscreen_colors_exo
+        stx _crunched_byte_lo
+        sty _crunched_byte_hi
+        jsr decrunch                    ; uncrunch
+
+        inc $01
         rts
 .endproc
 
@@ -517,7 +543,7 @@ l1:     lda sprite_x,x
         lda sprite_color,x
         sta VIC_SPR0_COLOR,x            ; setup sprite color
         lda sprite_frame,x
-        sta SPRITES_PTR0,x           ; setup sprite pointer
+        sta SPRITES_PTR0,x              ; setup sprite pointer
         inx
         iny
         iny
@@ -560,7 +586,6 @@ l1:     lda sprite_x,x
         ldx #(SPRITES_POINTER + $0d)    ; PAL-N (Drean)
 @end:
         stx SPRITES_PTR0 + 7            ; set sprite pointer for screen0
-        stx SPRITES_PTR1 + 7            ; set sprite pointer for screen1
 
         rts
 
