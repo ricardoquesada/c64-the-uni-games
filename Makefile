@@ -1,17 +1,14 @@
-# Makefile copied from Zoo Mania game
-
 .SILENT:
 
-DIST_IMAGE = "bin/unigames_dist.d64"
-DEV_IMAGE = "bin/unigames_dev.d64"
+.PHONY: all clean
+
+D64_IMAGE = "bin/unigames.d64"
 C1541 = c1541
 X64 = x64
 
-all: dev dist
+all: unigames
 
 SRC=src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s
-prg:
-	cl65 -d -g -Ln bin/unigames.sym -u __EXEHDR__ -t c64 -o bin/unigames.prg -C unigames.cfg ${SRC}
 
 exo_res:
 	exomizer mem -q res/sprites.prg -o src/sprites.prg.exo
@@ -26,24 +23,14 @@ exo_res:
 	exomizer mem -q res/level-cyclocross-colors.prg -o src/level-cyclocross-colors.prg.exo
 	exomizer mem -q res/level-cyclocross-charset.prg -o src/level-cyclocross-charset.prg.exo
 
-dev: prg exo_res
-	$(C1541) -format "unigames,rq" d64 $(DEV_IMAGE)
-	$(C1541) $(DEV_IMAGE) -write bin/unigames.prg
-	$(C1541) $(DEV_IMAGE) -list
-
-dist: prg exo_res
-	exomizer sfx sys -o bin/unigames_exo.prg bin/unigames.prg
-	$(C1541) -format "unigames dist,rq" d64 $(DIST_IMAGE)
-	$(C1541) $(DIST_IMAGE) -write bin/unigames_exo.prg "unigames"
-	$(C1541) $(DIST_IMAGE) -list
-
-test: dev
-	$(X64) -moncommands bin/unigames.sym $(DEV_IMAGE)
-
-testdist: dist
-	$(X64) -moncommands bin/unigames.sym $(DIST_IMAGE)
+unigames: ${SRC}
+	cl65 -d -g -Ln bin/$@.sym -o bin/$@.prg -u __EXEHDR__ -t c64 -C $@.cfg $^
+	exomizer sfx sys -x1 -Di_line_number=2016 -o bin/$@_exo.prg bin/$@.prg
+	$(C1541) -format "unigames,rq" d64 $(D64_IMAGE)
+	$(C1541) $(D64_IMAGE) -write bin/$@_exo.prg
+	$(C1541) $(D64_IMAGE) -list
+	$(X64) -moncommands bin/$@.sym $(D64_IMAGE)
 
 clean:
-	rm -f src/*.o bin/unigames.prg bin/unigames_exo.prg bin/unigames.sym $(DEV_IMAGE) $(DIST_IMAGE)
-
+	rm -f src/*.o bin/*.sym bin/*.prg $(D64_IMAGE)
 

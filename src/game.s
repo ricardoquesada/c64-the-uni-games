@@ -1377,6 +1377,14 @@ freq_table_hi:
 .byte $8b,$93,$9c,$a5,$af,$b9,$c4,$d0,$dd,$ea,$f8,$ff  ; 7
 
 .segment "COMPRESSED_DATA"
+        .incbin "level-cyclocross-charset.prg.exo"     ; 2k at $3000
+level_cyclocross_charset_exo:
+
+        .incbin "level-cyclocross-map.prg.exo"          ; 6k at $4100
+level_cyclocross_map_exo:
+
+        .incbin "level-cyclocross-colors.prg.exo"       ; 256b at $4000
+level_cyclocross_colors_exo:
 
         .incbin "level1-charset.prg.exo"                ; 2k at $3000
 level1_charset_exo:
@@ -1387,14 +1395,5 @@ level1_map_exo:
         .incbin "level1-colors.prg.exo"                 ; 256b at $4000
 level1_colors_exo:
 
-
-        .incbin "level-cyclocross-charset.prg.exo"     ; 2k at $3000
-level_cyclocross_charset_exo:
-
-        .incbin "level-cyclocross-map.prg.exo"          ; 6k at $4100
-level_cyclocross_map_exo:
-
-        .incbin "level-cyclocross-colors.prg.exo"       ; 256b at $4000
-level_cyclocross_colors_exo:
 
 .byte 0                                                 ; ignore
