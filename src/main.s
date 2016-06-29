@@ -522,9 +522,9 @@ l0:
         bpl :-
 
 
-        lda #%10000111                  ; enable sprites
+        lda #%10011111                  ; enable sprites
         sta VIC_SPR_ENA
-        lda #%10000000                  ; set sprite #7 x-pos 9-bit ON
+        lda #%10010000                  ; set sprite #7 x-pos 9-bit ON
         sta $d010                       ; since x pos > 255
         lda #%00000111
         sta VIC_SPR_MCOLOR              ; enable multicolor
@@ -535,7 +535,7 @@ l0:
         sta VIC_SPR_MCOLOR1
 
         ldx #0                          ; setup BC's Tire sprite
-        ldy #0
+        ldy #0                          ; and mask for the N and M in UNI GAMES
 l1:     lda sprite_x,x
         sta VIC_SPR0_X,y                ; setup sprite X
         lda sprite_y,x
@@ -547,7 +547,7 @@ l1:     lda sprite_x,x
         inx
         iny
         iny
-        cpx #3
+        cpx #5
         bne l1
 
         lda #$40                        ; setup PAL/NTSC/ sprite
@@ -591,15 +591,17 @@ l1:     lda sprite_x,x
 
         ; varaibles for BC's Tire sprites
 sprite_x:
-        .byte 183,176,176
+        .byte 183,176,176,176,296-256
 sprite_y:
-        .byte 48,61,81
+        .byte 48,61,81,114,58
 sprite_color:
-        .byte 11,11,11
+        .byte 11,11,11,11,11
 sprite_frame:
-        .byte SPRITES_POINTER + 40
-        .byte SPRITES_POINTER + 41
-        .byte SPRITES_POINTER + 42
+        .byte SPRITES_POINTER + 40      ; BC's head
+        .byte SPRITES_POINTER + 41      ; BC's body
+        .byte SPRITES_POINTER + 42      ; BC's wheel
+        .byte SPRITES_POINTER + 45      ; mask for M
+        .byte SPRITES_POINTER + 46      ; mask for N
 
 .endproc
 
