@@ -1,6 +1,6 @@
 .SILENT:
 
-.PHONY: all clean
+.PHONY: all clean exo_res
 
 D64_IMAGE = "bin/unigames.d64"
 C1541 = c1541
