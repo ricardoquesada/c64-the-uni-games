@@ -185,25 +185,29 @@ l1:     jmp read_keyboard               ; otherwise, read keyboard
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_keyboard
 
+        lda #$0
+        sta CIA1_DDRB                   ; 0=input
         lda #$ff
-        sta CIA1_PRB                    ; needed ?
+        sta CIA1_DDRA                   ; 1=output
 
         lda #%01111111                  ; space ?
         sta CIA1_PRA                    ; row 7
         lda CIA1_PRB
         and #%00010000                  ; col 4
-        eor #%00010000
+        eor #%00010000                  ; set A to correct value
         bne end                         ; if pressed, end
 
-        lda #%11111110                  ; return ?
-        sta CIA1_PRA                    ; row 0
-        lda CIA1_PRB
-        and #%00000010                  ; col 2
-        bne skip1                       ; if pressed, end
-        lda #%00010000
-        jmp end
-
-skip1:
+        ; don't read "RETURN" since it can be
+        ; confused with JOY#1 DOWN
+;        lda #%11111110                  ; return ?
+;        sta CIA1_PRA                    ; row 0
+;        lda CIA1_PRB
+;        cmp #%11111101                  ; col 2
+;        bne skip1                       ; if pressed, end
+;        lda #%00010000
+;        jmp end
+;
+;skip1:
         lda #%11111101                  ; left shift pressed ?
         sta CIA1_PRA                    ; row 1
         lda CIA1_PRB
