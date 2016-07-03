@@ -583,6 +583,10 @@ l1:     lda sprite_x,x
         ldx #(SPRITES_POINTER + $0c)    ; NTSC old
         bne @end
 @paln:
+        lda drean_speed
+        sta music_speed
+        lda drean_speed+1
+        sta music_speed+1
         ldx #(SPRITES_POINTER + $0d)    ; PAL-N (Drean)
 @end:
         stx SPRITES_PTR0 + 7            ; set sprite pointer for screen0
@@ -675,8 +679,9 @@ sprite2_frames:
         .byte SPRITES_POINTER + 44
 .endproc
 
-music_speed: .word $4cc7                ; default: playing at PAL spedd in PAL computer
-ntsc_speed: .word $4550                 ; playing at PAL speed in NTSC computer
+music_speed:    .word $4cc7             ; default: playing at PAL speed in PAL computer
+ntsc_speed:     .word $4fb2             ; playing at PAL speed in NTSC computer
+drean_speed:    .word $4fc1             ; playing at PAL seped in Drean computer
 
 palette_idx_top:        .byte 0         ; color index for top palette
 palette_idx_bottom:     .byte 48        ; color index for bottom palette (palette_size / 2)
