@@ -48,13 +48,14 @@
 ; void main()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc main
+        jsr ut_start_clean              ; no basic, no kernal, no interrupts
+
         lda #$ff
         sta CIA1_DDRA                   ; port a ddr (output)
         lda #$0
         sta CIA1_DDRB                   ; port b ddr (input)
 
         jsr display_intro_banner
-        jsr ut_start_clean              ; no basic, no kernal, no interrupts
         jsr ut_detect_pal_paln_ntsc     ; pal, pal-n or ntsc?
 
 
@@ -455,7 +456,7 @@ irq_open_borders:
         sty _crunched_byte_hi
         jsr decrunch                    ; uncrunch
 
-        inc $01                         ; $35: RAM + IO ($D000-$DF00)
+        inc $01                         ; $35: RAM + IO ($D000-$DFFF)
 
         jmp init_data_screen
 .endproc

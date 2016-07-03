@@ -185,10 +185,11 @@ l1:     jmp read_keyboard               ; otherwise, read keyboard
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_keyboard
 
-        lda #$0
-        sta CIA1_DDRB                   ; 0=input
-        lda #$ff
-        sta CIA1_DDRA                   ; 1=output
+        ; already set in 'main'
+;        lda #$0
+;        sta CIA1_DDRB                   ; 0=input
+;        lda #$ff
+;        sta CIA1_DDRA                   ; 1=output
 
         lda #%01111111                  ; space ?
         sta CIA1_PRA                    ; row 7

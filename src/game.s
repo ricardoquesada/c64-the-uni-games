@@ -84,7 +84,7 @@ ACCEL_SPEED = $20                       ; how fast the speed will increase
 .proc game_init 
         sei
 
-        jsr init_data                   ; uncrunch data
+        jsr game_init_data                   ; uncrunch data
 
         lda #01
         jsr ut_clear_color              ; clears the screen color ram
@@ -171,9 +171,9 @@ _mainloop:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_data()
+; void game_init_data()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-init_data:
+game_init_data:
         ; ASSERT (interrupts disabled)
 
         dec $01                         ; $34: RAM 100%
