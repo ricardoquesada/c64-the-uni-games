@@ -688,8 +688,9 @@ counter: .byte $80
 .proc process_events
         jsr process_p1
         jmp process_p2
+.endproc
 
-process_p1:
+.proc process_p1
         lda p1_finished                 ; if finished, go directly to
         bne decrease_speed_p1           ; decrease speed
 
@@ -742,34 +743,49 @@ decrease_speed_p1:
         sbc resistance_tbl,x
         sta scroll_speed_p1            ; LSB
 
-        bcs @end_p1                    ; shortcut for MSB
+        bcs end_p1                     ; shortcut for MSB
         dec scroll_speed_p1+1          ; MSB
 
-        bpl @end_p1                    ; if < 0, then 0
+        bpl end_p1                     ; if < 0, then 0
         lda #0
         sta scroll_speed_p1
         sta scroll_speed_p1+1
 
-@end_p1:
+end_p1:
         inx
         cpx #RESISTANCE_TBL_SIZE
         bne :+
         ldx #RESISTANCE_TBL_SIZE-1
 :       stx resistance_idx_p1
         rts
+.endproc
 
 
-process_p2:
+.proc process_p2
         lda p2_finished                 ; if finished, go directly to
         bne decrease_speed_p2           ; decrease speed
 
         lda p2_state                    ; if "falling" or "jumping", decrease speed
         cmp #PLAYER_STATE::AIR_DOWN     ; since it can't accelerate
         beq decrease_speed_p2
+        cmp #PLAYER_STATE::AIR_UP
+        beq decrease_speed_p2
 
-        ldx expected_joy2_idx
         lda $dc00                       ; read from joy2
-        eor #%00001111                  ; invert joy values since they come inverted
+        tay
+        and #%00010000                  ; button
+        bne test_movement_p2
+
+        lda #PLAYER_STATE::AIR_UP       ; start jump sequence
+        sta p2_state
+        lda #0                          ; use sine to jump
+        sta p2_jump_idx                 ; set pointer to beginning of sine
+        rts
+
+test_movement_p2:
+        tya
+        eor #%00001111                  ; invert joy bits, since they are inverted
+        ldx expected_joy2_idx
         and expected_joy,x              ; AND instead of CMP to support diagonals
         bne increase_velocity_p2
         jmp decrease_speed_p2
@@ -798,15 +814,15 @@ decrease_speed_p2:
         sbc resistance_tbl,x
         sta scroll_speed_p2            ; LSB
 
-        bcs @end_p2                    ; shortcut for MSB
+        bcs end_p2                     ; shortcut for MSB
         dec scroll_speed_p2+1          ; MSB
 
-        bpl @end_p2                    ; if < 0, then 0
+        bpl end_p2                     ; if < 0, then 0
         lda #0
         sta scroll_speed_p2
         sta scroll_speed_p2+1
 
-@end_p2:
+end_p2:
         inx
         cpx #RESISTANCE_TBL_SIZE
         bne :+
@@ -1081,10 +1097,66 @@ hex:    scrcode "0123456789abcdef"
         jsr update_position_y_p1                ; after reading it
         pla                                     ; restore value
         jmp update_position_y_p2
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void update_frame_p1()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc update_frame_p1
+        dec animation_delay_p1
+        beq :+
+        rts
+:
+        lda #ACTOR_ANIMATION_SPEED
+        sta animation_delay_p1
+
+        ldx animation_idx_p1
+        lda VIC_SPR2_Y
+        clc
+        adc animation_tbl,x
+        sta VIC_SPR2_Y
+        sta VIC_SPR3_Y
+
+        inx
+        cpx #ANIMATION_TBL_SIZE
+        bne :+
+        ldx #0
+:       stx animation_idx_p1
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void update_frame_p2()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc update_frame_p2
+        dec animation_delay_p2
+        beq :+
+        rts
+:
+        lda #ACTOR_ANIMATION_SPEED
+        sta animation_delay_p2
+
+        ldx animation_idx_p2
+        lda VIC_SPR6_Y
+        clc
+        adc animation_tbl,x
+        sta VIC_SPR6_Y
+        sta VIC_SPR7_Y
+
+        inx
+        cpx #ANIMATION_TBL_SIZE
+        bne :+
+        ldx #0
+:       stx animation_idx_p2
+        rts
+.endproc
 
 
-
-update_position_y_p1:
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void update_position_y_p1(int collision_bits)
+;       input A = copy of $d01f
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc update_position_y_p1
         tax                                     ; 1st: check body collision
         and #%00000100                          ; head or body?
         bne p1_collision_body
@@ -1177,98 +1249,104 @@ p1_collision_tire:
         dec VIC_SPR3_Y
 @end:
         rts
+.endproc
 
-
-update_position_y_p2:
-        tax
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void update_position_y_p2(int collision_bits)
+;       input A = copy of $d01f
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc update_position_y_p2
+        tax                                     ; 1st: check body collision
         and #%01000000                          ; head or body?
         bne p2_collision_body
 
-        txa
-        and #%00110000                          ; tire or rim on ground?
-        bne p2_collision_tire                   ; yes
+        lda p2_state                            ; 2nd: was it going up?
+        cmp #PLAYER_STATE::AIR_UP               ; if so, keep going up
+        beq p2_go_up
 
-        ldx #PLAYER_STATE::AIR_DOWN             ; on air (can accelerate when
-        stx p2_state                            ; on air)
+        txa                                     ; 3rd: check tire/rim collision
+        and #%00110000                          ; if so, do the collision handler
+        bne p2_collision_tire
 
-                                                ; go down (gravity)
-        inc VIC_SPR4_Y                          ; tire
+        lda #PLAYER_STATE::AIR_DOWN             ; 4th: else, go down
+        cmp p2_state                            ; Was it already going down?
+        beq l0
+        sta p2_state                            ; no? set it
+        lda #JUMP_TBL_SIZE-1                    ; and the index to the correct position
+        sta p2_jump_idx
+
+l0:     ldx p2_jump_idx
+        lda jump_tbl,x
+        beq l2                                  ; don't go down if value is 0
+        tay
+
+l1:     inc VIC_SPR4_Y                          ; tire
         inc VIC_SPR5_Y                          ; rim
         inc VIC_SPR6_Y                          ; head
         inc VIC_SPR7_Y                          ; hair
-        rts
+        dey
+        bne l1
+
+l2:     lda p2_jump_idx                         ; if it is already 0, stop dec
+        beq @end
+        dec p2_jump_idx
+@end:   rts
+
+p2_go_up:
+        ldx p2_jump_idx                         ; fetch sine index
+        lda jump_tbl,x
+        beq l4                                 ; don't go up if value is 0
+        tay
+
+l3:     dec VIC_SPR4_Y                          ; tire
+        dec VIC_SPR5_Y                          ; rim
+        dec VIC_SPR6_Y                          ; head
+        dec VIC_SPR7_Y                          ; hair
+        dey
+        bne l3
+
+l4:     inc p2_jump_idx                         ; reached max height?
+        lda p2_jump_idx
+        cmp #JUMP_TBL_SIZE
+        bne @end
+
+        dec p2_jump_idx                         ; set idx to JUMP_TBL_SIZE-1
+        lda #PLAYER_STATE::AIR_DOWN             ; and start going down
+        sta p2_state
+@end:   rts
 
 p2_collision_body:
-        ldx #PLAYER_STATE::RIDING               ; touching ground
-        stx p2_state
+        lda #JUMP_TBL_SIZE-1
+        sta p2_jump_idx                         ; reset jmp table just in case
+        lda #PLAYER_STATE::RIDING               ; touching ground
+        sta p2_state
 
         ldx #3
-@l0:    dec VIC_SPR4_Y                          ; go up three times
+l5:     dec VIC_SPR4_Y                          ; go up three times
         dec VIC_SPR5_Y
         dec VIC_SPR6_Y
         dec VIC_SPR7_Y
         dex
-        bne @l0
+        bne l5
 
         lsr scroll_speed_p2+1                   ; reduce speed by 2
         ror scroll_speed_p2
         rts
-p2_collision_tire:
-        ldx #PLAYER_STATE::RIDING               ; touching ground
-        stx p2_state
 
-        cmp #%00110000                          ; only the tire is touching ground?
-        bne @end                                ; if only tire, then end
-                                                ; otherwise go up
+p2_collision_tire:
+        ldy #JUMP_TBL_SIZE-1
+        sty p2_jump_idx                         ; reset jmp table just in case
+        ldy #PLAYER_STATE::RIDING               ; touching ground
+        sty p2_state
+
+        cmp #%00110000                          ; ASSERT(A == collision bis)
+        bne @end                                ; only the tire is touching ground?
+                                                ; if only tire, then end, else
         dec VIC_SPR4_Y                          ; go up
         dec VIC_SPR5_Y
         dec VIC_SPR6_Y
         dec VIC_SPR7_Y
 @end:
-        rts
-
-update_frame_p1:
-        dec animation_delay_p1
-        beq :+
-        rts
-:
-        lda #ACTOR_ANIMATION_SPEED
-        sta animation_delay_p1
-
-        ldx animation_idx_p1
-        lda VIC_SPR2_Y
-        clc
-        adc animation_tbl,x
-        sta VIC_SPR2_Y
-        sta VIC_SPR3_Y
-
-        inx
-        cpx #ANIMATION_TBL_SIZE
-        bne :+
-        ldx #0
-:       stx animation_idx_p1
-        rts
-
-update_frame_p2:
-        dec animation_delay_p2
-        beq :+
-        rts
-:
-        lda #ACTOR_ANIMATION_SPEED
-        sta animation_delay_p2
-
-        ldx animation_idx_p2
-        lda VIC_SPR6_Y
-        clc
-        adc animation_tbl,x
-        sta VIC_SPR6_Y
-        sta VIC_SPR7_Y
-
-        inx
-        cpx #ANIMATION_TBL_SIZE
-        bne :+
-        ldx #0
-:       stx animation_idx_p2
         rts
 .endproc
 
