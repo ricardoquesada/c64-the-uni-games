@@ -8,7 +8,7 @@ X64 = x64
 
 all: unigames
 
-SRC=src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s
+SRC=src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s src/about.s
 
 exo_res:
 	exomizer mem -q res/sprites.prg -o src/sprites.prg.exo
@@ -16,6 +16,8 @@ exo_res:
 	exomizer mem -q res/mainscreen-charset.prg -o src/mainscreen-charset.prg.exo
 	exomizer mem -q res/mainscreen-colors.prg -o src/mainscreen-colors.prg.exo
 	exomizer mem -q res/select_event-map.prg -o src/select_event-map.prg.exo
+	exomizer mem -q res/about-map.prg -o src/about-map.prg.exo
+	exomizer mem -q res/hiscores-map.prg -o src/hiscores-map.prg.exo
 	exomizer mem -q res/level1-map.prg -o src/level1-map.prg.exo
 	exomizer mem -q res/level1-colors.prg -o src/level1-colors.prg.exo
 	exomizer mem -q res/level1-charset.prg -o src/level1-charset.prg.exo

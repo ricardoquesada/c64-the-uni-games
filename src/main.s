@@ -9,7 +9,7 @@
 ; exported by the linker
 .import __SIDMUSIC_LOAD__
 
-.import roadrace_init, selectevent_init, scores_init
+.import roadrace_init, selectevent_init, scores_init, about_init
 .import selectevent_loop
 
 ; from exodecrunch.s
@@ -168,7 +168,7 @@ LABEL2_LEN = * - label2
         sta $dd0d
 
         lda #01                         ; enable raster irq
-        sta $d01a
+        sta $d01a                       ; needed to open borders
 
         ldx #<irq_a                     ; next IRQ-raster vector
         ldy #>irq_a                     ; needed to open the top/bottom borders
@@ -265,7 +265,7 @@ do_raster:
         cmp #$01
         beq jump_high_scores            ; item 1? high scores
         cmp #$02
-        bne end                         ; item 2? about
+        beq jump_about                  ; item 2? about
         jmp end                         ; FIXME: add here jump to about
 
 end:
@@ -283,7 +283,16 @@ jump_high_scores:
 
         jsr scores_init                 ; takes over of the mainloop
                                         ; no need to update the jmp table
+        jmp set_mainmenu
 
+
+jump_about:
+        lda #SCENE_STATE::ABOUT_MENU
+        sta scene_state
+
+        jsr about_init                  ; takes over of the mainloop
+                                        ; no need to update the jmp table
+set_mainmenu:
         lda #SCENE_STATE::MAIN_MENU     ; restore stuff modifying by scores
         sta scene_state
 
@@ -306,11 +315,10 @@ jump_high_scores:
         lda #%00001000                  ; no scroll, hires (mono color), 40-cols
         sta $d016                       ; turn off multicolor
 
-        lda #01                         ; enable raster irq again
-        sta $d01a
         cli
 
         rts
+
 
 .endproc
 
@@ -341,39 +349,6 @@ irq_a:
         ldy #>irq_open_borders
         stx $fffe
         sty $ffff
-
-        ldx #0
-        stx $d021
-
-;        ldx palette_idx_top
-;        .repeat 6 * 8
-;                lda $d012
-;:               cmp $d012
-;                beq :-
-;                lda luminances,x
-;                sta $d021
-;                inx
-;                txa
-;                and #%00111111          ; only 64 values are loaded
-;                tax
-;        .endrepeat
-;
-;        ldx palette_idx_bottom
-;        .repeat 6 * 8
-;                lda $d012
-;:               cmp $d012
-;                beq :-
-;                lda luminances,x
-;                sta $d021
-;                dex
-;                txa
-;                and #%00111111          ; only 64 values are loaded
-;                tax
-;        .endrepeat
-;
-;        lda #0
-;        sta $d021
-
         inc sync_raster_irq
 
 @end_irq:
@@ -594,7 +569,7 @@ l1:     lda sprite_x,x
 
         rts
 
-        ; varaibles for BC's Tire sprites
+        ; variables for BC's Tire sprites
 sprite_x:
         .byte 183,176,176,176,296-256
 sprite_y:

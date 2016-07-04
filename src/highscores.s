@@ -41,10 +41,9 @@ UNI2_COL = 37
 .export scores_init
 .proc scores_init
         lda #0
-        sta $d01a                       ; no raster IRQ, only timer IRQ
         sta score_counter
 
-        lda #0
+        lda #%10000000                  ; enable only PAL/NTSC scprite
         sta VIC_SPR_ENA
 
         lda #$01

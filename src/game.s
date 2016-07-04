@@ -79,12 +79,15 @@ SCROLL_SPEED_P2 = $0130                 ; $0100 = normal speed. $0200 = 2x speed
                                         ; $0080 = half speed
 ACCEL_SPEED = $20                       ; how fast the speed will increase
 
+MUSIC_INIT = $1000
+MUSIC_PLAY = $1003
+
 .segment "HI_CODE"
 
 .proc game_init 
         sei
 
-        jsr game_init_data                   ; uncrunch data
+        jsr game_init_data              ; uncrunch data
 
         lda #01
         jsr ut_clear_color              ; clears the screen color ram
@@ -96,7 +99,8 @@ ACCEL_SPEED = $20                       ; how fast the speed will increase
         jsr ut_setup_tod                ; must be called AFTER detect_pal_...
 
         lda #$00
-        sta sync
+        sta sync_raster_irq
+        sta sync_timer_irq
 
         lda #$7f
         sta $dc0d                       ; turn off cia 1 interrupts
@@ -122,14 +126,26 @@ ACCEL_SPEED = $20                       ; how fast the speed will increase
         cli
 
 _mainloop:
-:       lda sync
-        beq :-
+        lda sync_raster_irq
+        bne do_raster
+
+        lda sync_timer_irq
+        beq _mainloop
+
+        dec sync_timer_irq
+
+        lda game_state
+        cmp #GAME_STATE::RIDING
+        bne _mainloop
+        jsr MUSIC_PLAY
+        jmp _mainloop
+
+do_raster:
+        dec sync_raster_irq
 
 .if (::DEBUG & 1)
         dec $d020
 .endif
-
-        dec sync
 
                                         ; events that happens on all game states
         jsr update_scroll               ; screen horizontal scroll
@@ -171,6 +187,26 @@ _mainloop:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void game_init_music(void)
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc game_init_music
+        lda #0
+        jsr MUSIC_INIT                  ; init song #0
+
+        lda music_speed                 ; init with PAL frequency
+        sta $dc04                       ; it plays at 50.125hz
+        lda music_speed+1
+        sta $dc05
+
+        lda #$81                        ; enable timer to play music
+        sta $dc0d                       ; CIA1
+
+        lda #$11
+        sta $dc0e                       ; start timer interrupt A
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void game_init_data()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 game_init_data:
@@ -178,6 +214,11 @@ game_init_data:
 
         dec $01                         ; $34: RAM 100%
 
+        ldx #<game_music_exo            ; game music
+        ldy #>game_music_exo
+        stx _crunched_byte_lo
+        sty _crunched_byte_hi
+        jsr decrunch                    ; uncrunch map
 
 level_map_address = *+1
         ldx #<level1_map_exo            ; self-modifyng
@@ -262,6 +303,14 @@ level_charset_address = *+1
         tya
         pha
 
+        asl $d019                       ; clears raster interrupt
+        bcs raster
+
+        lda $dc0d                       ; clears CIA interrupts, in particular timer A
+        inc sync_timer_irq
+        jmp end_irq
+
+raster:
         STABILIZE_RASTER
 
         .repeat 26
@@ -285,8 +334,9 @@ level_charset_address = *+1
 
         asl $d019                       ; ACK raster interrupt
 
-        inc sync
+        inc sync_raster_irq
 
+end_irq:
         pla                             ; restores A, X, Y
         tay
         pla
@@ -302,6 +352,14 @@ level_charset_address = *+1
         tya
         pha
 
+        asl $d019                       ; clears raster interrupt
+        bcs raster
+
+        lda $dc0d                       ; clears CIA interrupts, in particular timer A
+        inc sync_timer_irq
+        jmp end_irq
+
+raster:
         STABILIZE_RASTER
 
         .repeat 26
@@ -325,6 +383,7 @@ level_charset_address = *+1
 
         asl $d019                       ; ACK raster interrupt
 
+end_irq:
         pla                             ; restores A, X, Y
         tay
         pla
@@ -340,6 +399,14 @@ level_charset_address = *+1
         tya
         pha
 
+        asl $d019                       ; clears raster interrupt
+        bcs raster
+
+        lda $dc0d                       ; clears CIA interrupts, in particular timer A
+        inc sync_timer_irq
+        jmp end_irq
+
+raster:
         STABILIZE_RASTER
 
         .repeat 26
@@ -363,6 +430,7 @@ level_charset_address = *+1
 
         asl $d019                       ; ACK raster interrupt
 
+end_irq:
         pla                             ; restores A, X, Y
         tay
         pla
@@ -378,6 +446,14 @@ level_charset_address = *+1
         tya
         pha
 
+        asl $d019                       ; clears raster interrupt
+        bcs raster
+
+        lda $dc0d                       ; clears CIA interrupts, in particular timer A
+        inc sync_timer_irq
+        jmp end_irq
+
+raster:
         STABILIZE_RASTER
 
         .repeat 26
@@ -401,6 +477,7 @@ level_charset_address = *+1
 
         asl $d019                       ; ACK raster interrupt
 
+end_irq:
         pla                             ; restores A, X, Y
         tay
         pla
@@ -655,6 +732,8 @@ colors:         .byte 1, 1, 0, 7                ; player 1
 
         ldx #12*5                       ; Do: 5th octave
         jsr play_sound
+
+        jsr game_init_music
 
 @end:
         rts
@@ -1358,22 +1437,35 @@ p2_collision_tire:
 .proc play_sound
         lda #0                          ; gate: release previous sound
         sta $d404                       ; control register
+        sta $d404+7
+        sta $d404+14
 
         lda #%00001001
         sta $d405                       ; attack / decay
+        sta $d405+7                     ; attack / decay
+        sta $d405+14                    ; attack / decay
         lda #0
         sta $d406                       ; sustain / release
+        sta $d406+7                     ; sustain / release
+        sta $d406+14                    ; sustain / release
         lda freq_table_lo,x
         sta $d400                       ; freq lo
+        sta $d400+7                     ; freq lo
+        sta $d400+14                    ; freq lo
         lda freq_table_hi,x
         sta $d401                       ; freq hi
+        sta $d401+7                     ; freq hi
+        sta $d401+14                    ; freq hi
         lda #%00010001                  ; gate: start Attack/Decay/Sus. Sawtooth
         sta $d404                       ; control register
+        sta $d404+7                     ; control register
+        sta $d404+14                    ; control register
         rts
 .endproc
 
 
-sync:                   .byte $00
+sync_timer_irq:         .byte $00
+sync_raster_irq:        .byte $00
 game_state:             .byte GAME_STATE::GET_SET_GO
 p1_state:               .byte PLAYER_STATE::GET_SET_GO
 p2_state:               .byte PLAYER_STATE::GET_SET_GO
@@ -1454,6 +1546,8 @@ freq_table_hi:
 .byte $45,$49,$4e,$52,$57,$5c,$62,$68,$6e,$75,$7c,$83  ; 6
 .byte $8b,$93,$9c,$a5,$af,$b9,$c4,$d0,$dd,$ea,$f8,$ff  ; 7
 
+music_speed:    .word $4cc7             ; default: playing at PAL speed in PAL computer
+
 .segment "COMPRESSED_DATA"
         .incbin "level-cyclocross-charset.prg.exo"     ; 2k at $3000
 level_cyclocross_charset_exo:
@@ -1473,5 +1567,7 @@ level1_map_exo:
         .incbin "level1-colors.prg.exo"                 ; 256b at $4000
 level1_colors_exo:
 
+        .incbin "game_music.sid.exo"                    ; export at $1000
+game_music_exo:
 
 .byte 0                                                 ; ignore
