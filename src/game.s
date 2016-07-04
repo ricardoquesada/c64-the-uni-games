@@ -87,6 +87,16 @@ MUSIC_PLAY = $1003
 .proc game_init 
         sei
 
+        lda #$00                        ; turn off volume
+        sta SID_Amp
+        sta VIC_SPR_ENA                 ; disable sprites... temporary
+
+                                        ; multicolor mode + extended color causes
+        lda #%01011011                  ; the bug that blanks the screen
+        sta $d011                       ; extended color mode: on
+        lda #%00011000
+        sta $d016                       ; turn on multicolor
+
         jsr game_init_data              ; uncrunch data
 
         lda #01
@@ -122,6 +132,12 @@ MUSIC_PLAY = $1003
         lda $dd0d
         asl $d019
 
+                                        ; turn VIC on again
+        lda #%00011011                  ; charset mode, default scroll-Y position, 25-rows
+        sta $d011                       ; extended color mode: off
+
+        lda #%00001000                  ; no scroll, hires (mono color), 40-cols
+        sta $d016                       ; turn off multicolor
 
         cli
 

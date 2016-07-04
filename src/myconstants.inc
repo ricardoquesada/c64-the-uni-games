@@ -7,18 +7,17 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; zp
-MENU_MAX_ITEMS = $21                                    ; total number of items
-MENU_CURRENT_ITEM = $22                                 ; item idx  0<idx<max_items
-MENU_BYTES_BETWEEN_ITEMS = $23                          ; 40 for one after another
-MENU_ITEM_LEN = $24                                     ; 40 for complete line
-MENU_CURRENT_ROW_ADDR = $25 ; and $26                   ; screen ptr to current item
-MENU_EXEC_ADDR = $27  ; and $28                         ; When button is pressed, what to do
+MENU_MAX_ITEMS = $41                                    ; total number of items
+MENU_CURRENT_ITEM = $42                                 ; item idx  0<idx<max_items
+MENU_BYTES_BETWEEN_ITEMS = $43                          ; 40 for one after another
+MENU_ITEM_LEN = $44                                     ; 40 for complete line
+MENU_CURRENT_ROW_ADDR = $45 ; and $46                   ; screen ptr to current item
+MENU_EXEC_ADDR = $47  ; and $48                         ; When button is pressed, what to do
 
 
 ; game constants
 BANK_BASE = $0000
 SCREEN0_BASE = BANK_BASE + $0400                        ; screen address
-COLORMAP_BASE = $4000                                   ; 256 bytes for tile colors
 SPRITES_BASE = BANK_BASE + $2400                        ; Sprite 0 at $2400
                                                         ; reserved space for 48 sprites
                                                         ; from $2400 to $3000

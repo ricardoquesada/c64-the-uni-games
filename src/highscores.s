@@ -4,7 +4,7 @@
 ;
 ; High Scores screen
 ;
-; Uses $f0/$f1. $f0/$f1 CANNOT be used by other functions
+; Uses $fe/$ff. $fe/$ff CANNOT be used by other functions
 ;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
@@ -14,11 +14,12 @@
 ; from main.s
 .import sync_timer_irq
 .import menu_read_events
+.import mainscreen_colors
 
-UNI1_ROW = 13                           ; unicyclist #1 x,y
+UNI1_ROW = 10                           ; unicyclist #1 x,y
 UNI1_COL = 0
-UNI2_ROW = 3                            ; unicylists #2 x,y
-UNI2_COL = 37
+UNI2_ROW = 37                           ; unicylists #2 x,y
+UNI2_COL = 10
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -40,6 +41,7 @@ UNI2_COL = 37
 ;------------------------------------------------------------------------------;
 .export scores_init
 .proc scores_init
+        sei
         lda #0
         sta score_counter
 
@@ -50,6 +52,7 @@ UNI2_COL = 37
         jsr ut_clear_color
 
         jsr init_screen
+        cli
 
 
 scores_mainloop:
@@ -73,12 +76,39 @@ play_music:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_screen
 
-        lda #$20
-        jsr ut_clear_screen
+        ldx #0
+l0:
+        lda hiscores_map,x
+        sta SCREEN0_BASE,x
+        tay
+        lda mainscreen_colors,y
+        sta $d800,x
+
+        lda hiscores_map + $0100,x
+        sta SCREEN0_BASE + $0100,x
+        tay
+        lda mainscreen_colors,y
+        sta $d900,x
+
+        lda hiscores_map + $0200,x
+        sta SCREEN0_BASE + $0200,x
+        tay
+        lda mainscreen_colors,y
+        sta $da00,x
+
+        lda hiscores_map + $02e8,x
+        sta SCREEN0_BASE + $02e8,x
+        tay
+        lda mainscreen_colors,y
+        sta $dae8,x
+
+        inx
+        bne l0
+
 
         ldx #39
 :       lda categories,x                ; displays the  category: "10k road racing"
-        sta SCREEN0_BASE,x
+        sta SCREEN0_BASE + 280,x
         dex
         bpl :-
 
@@ -100,21 +130,11 @@ play_music:
                 bpl :-
         .endrepeat
 
-        .repeat 10,YY                    ; paint two unicyclist
-            ldx #2
-:           lda unicyclists_map+6*YY,x ; bottom left unicyclsit
-            sta SCREEN0_BASE+40*(YY+UNI1_ROW)+UNI1_COL,x
-            lda unicyclists_map+6*YY+3,x   ; top right unicyclist
-            sta SCREEN0_BASE+40*(YY+UNI2_ROW)+UNI2_COL,x
-            dex
-            bpl :-
-        .endrepeat
 
-
-        ldx #<(SCREEN0_BASE + 40 * 3)    ; init "save" pointer
-        ldy #>(SCREEN0_BASE + 40 * 3)    ; start writing at 3rd line
-        stx $f0
-        sty $f1
+        ldx #<(SCREEN0_BASE + 40 * 10 + 6)  ; init "save" pointer
+        ldy #>(SCREEN0_BASE + 40 * 10 + 6)  ; start writing at 10th line
+        stx $fe
+        sty $ff
         rts
 .endproc
 
@@ -134,17 +154,17 @@ paint:
         sta delay
 
         ldx score_counter
-        cpx #10
+        cpx #8                          ; paint only 8 scores
         beq @end
 
         jsr @print_highscore_entry
 
         clc                             ; pointer to the next line in the screen
-        lda $f0
-        adc #40 * 2 + 1                 ; skip one line
-        sta $f0
+        lda $fe
+        adc #(40 * 2)                   ; skip one line
+        sta $fe
         bcc :+
-        inc $f1
+        inc $ff
 :
         inc score_counter
 
@@ -164,7 +184,7 @@ paint:
         bne @print_second_digit
 
         lda #$31                        ; hack: if number is 10, print '1'. $31 = '1'
-        sta ($f0),y                     ; otherwise, skip to second number
+        sta ($fe),y                     ; otherwise, skip to second number
         ora #$40
         iny
         lda #00                         ; second digit is '0'
@@ -175,15 +195,15 @@ paint:
 :
         clc
         adc #$30                        ; A = high_score entry.
-        sta ($f0),y
+        sta ($fe),y
         iny
 
         lda #$2e                        ; print '.'
-        sta ($f0),y
+        sta ($fe),y
         iny
 
 
-        lda #10                         ; print name
+        lda #10                         ; print name. 10 chars
         sta @tmp_counter
 
         txa                             ; multiply x by 16, since each entry has 16 bytes
@@ -194,25 +214,25 @@ paint:
         tax                             ; x = high score pointer
 
 :       lda entries,x                   ; points to entry[i].name
-        sta ($f0),y                     ; pointer to screen
+        sta ($fe),y                     ; pointer to screen
         iny
         inx
         dec @tmp_counter
         bne :-
 
 
-        lda #6                          ; print score
+        lda #6                          ; print score. 6 digits
         sta @tmp_counter
 
         tya                             ; advance some chars
         clc
-        adc #11
+        adc #8
         tay
 
 :       lda entries,x                   ; points to entry[i].score
         clc
         adc #$30
-        sta ($f0),y                     ; pointer to screen
+        sta ($fe),y                     ; pointer to screen
         iny
         inx
         dec @tmp_counter
@@ -239,75 +259,10 @@ paint:
         lda #50
         sta delay
 
-        ldy #0
-        ldx #15
-l0:
-        lda addresses_lo,x          ; swaps values
-        sta $fc
-        lda addresses_hi,x
-        sta $fd
-        lda addresses_lo+16,x
-        sta $fe
-        lda addresses_hi+16,x
-        sta $ff
-                                    ; swaps left and right values
-                                    ; using $fb as tmp variable
-        lda ($fc),y                 ; A = left
-        sta $fb                     ; tmp = A
-        lda ($fe),y                 ; A = right
-        sta ($fc),y                 ; left = A
-        lda $fb                     ; A = tmp
-        sta ($fe),y                 ; right = tmp
-
-        dex
-        bpl l0
 
         rts
 delay:
         .byte 50
-bytes_to_swap:
-ADDRESS0 = SCREEN0_BASE+(UNI1_ROW+0)*40+UNI1_COL+0   ; left hair
-ADDRESS1 = SCREEN0_BASE+(UNI1_ROW+0)*40+UNI1_COL+1   ; middle hair
-ADDRESS2 = SCREEN0_BASE+(UNI1_ROW+0)*40+UNI1_COL+2   ; right hair
-ADDRESS3 = SCREEN0_BASE+(UNI1_ROW+2)*40+UNI1_COL+0   ; left eye
-ADDRESS4 = SCREEN0_BASE+(UNI1_ROW+2)*40+UNI1_COL+2   ; right eye
-ADDRESS5 = SCREEN0_BASE+(UNI1_ROW+4)*40+UNI1_COL+0   ; left arm
-ADDRESS6 = SCREEN0_BASE+(UNI1_ROW+4)*40+UNI1_COL+2   ; right arm
-ADDRESS7 = SCREEN0_BASE+(UNI1_ROW+7)*40+UNI1_COL+0   ; wheel tl
-ADDRESS8 = SCREEN0_BASE+(UNI1_ROW+7)*40+UNI1_COL+1   ; wheel tm
-ADDRESS9 = SCREEN0_BASE+(UNI1_ROW+7)*40+UNI1_COL+2   ; wheel tr
-ADDRESS10 = SCREEN0_BASE+(UNI1_ROW+8)*40+UNI1_COL+0  ; wheel ml
-ADDRESS11 = SCREEN0_BASE+(UNI1_ROW+8)*40+UNI1_COL+1  ; wheel hub
-ADDRESS12 = SCREEN0_BASE+(UNI1_ROW+8)*40+UNI1_COL+2  ; wheel mr
-ADDRESS13 = SCREEN0_BASE+(UNI1_ROW+9)*40+UNI1_COL+0  ; wheel bl
-ADDRESS14 = SCREEN0_BASE+(UNI1_ROW+9)*40+UNI1_COL+1  ; wheel bm
-ADDRESS15 = SCREEN0_BASE+(UNI1_ROW+9)*40+UNI1_COL+2  ; wheel br
-
-ADDRESS16 = SCREEN0_BASE+(UNI2_ROW+0)*40+UNI2_COL+0  ; left hair
-ADDRESS17 = SCREEN0_BASE+(UNI2_ROW+0)*40+UNI2_COL+1  ; middle hair
-ADDRESS18 = SCREEN0_BASE+(UNI2_ROW+0)*40+UNI2_COL+2  ; right hair
-ADDRESS19 = SCREEN0_BASE+(UNI2_ROW+2)*40+UNI2_COL+0  ; left eye
-ADDRESS20 = SCREEN0_BASE+(UNI2_ROW+2)*40+UNI2_COL+2  ; right eye
-ADDRESS21 = SCREEN0_BASE+(UNI2_ROW+4)*40+UNI2_COL+0  ; left arm
-ADDRESS22 = SCREEN0_BASE+(UNI2_ROW+4)*40+UNI2_COL+2  ; right arm
-ADDRESS23 = SCREEN0_BASE+(UNI2_ROW+7)*40+UNI2_COL+0  ; wheel tl
-ADDRESS24 = SCREEN0_BASE+(UNI2_ROW+7)*40+UNI2_COL+1  ; wheel tm
-ADDRESS25 = SCREEN0_BASE+(UNI2_ROW+7)*40+UNI2_COL+2  ; wheel tr
-ADDRESS26 = SCREEN0_BASE+(UNI2_ROW+8)*40+UNI2_COL+0  ; wheel ml
-ADDRESS27 = SCREEN0_BASE+(UNI2_ROW+8)*40+UNI2_COL+1  ; wheel hub
-ADDRESS28 = SCREEN0_BASE+(UNI2_ROW+8)*40+UNI2_COL+2  ; wheel mr
-ADDRESS29 = SCREEN0_BASE+(UNI2_ROW+9)*40+UNI2_COL+0  ; wheel bl
-ADDRESS30 = SCREEN0_BASE+(UNI2_ROW+9)*40+UNI2_COL+1  ; wheel bm
-ADDRESS31 = SCREEN0_BASE+(UNI2_ROW+9)*40+UNI2_COL+2  ; wheel br
-
-addresses_lo:
-.repeat 32,YY
-        .byte <.IDENT(.CONCAT("ADDRESS", .STRING(YY)))
-.endrepeat
-addresses_hi:
-.repeat 32,YY
-        .byte >.IDENT(.CONCAT("ADDRESS", .STRING(YY)))
-.endrepeat
 
 .endproc
 
@@ -339,13 +294,9 @@ entries:
         .byte  3,0,0,0,0,0
         scrcode "michele   "
         .byte  2,0,0,0,0,0
-        scrcode "nathan    "
-        .byte  1,0,0,0,0,0
-        scrcode "stefan    "
-        .byte  0,0,0,0,0,0
 
 score_counter: .byte 0                  ; score that has been drawn
 delay:         .byte $10                ; delay used to print the scores
 
-unicyclists_map:
-        .incbin "unicyclists-map.bin"
+hiscores_map:
+        .incbin "hiscores-map.bin"

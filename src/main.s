@@ -40,6 +40,8 @@
         ABOUT_MENU
 .endenum
 
+DEBUG = 0                               ; bitwise: 1=raster-sync code
+
 .segment "CODE"
         jmp main
 
@@ -183,10 +185,6 @@ LABEL2_LEN = * - label2
 
         lda #$00                        ; turn off volume
         sta SID_Amp
-
-        lda #$00                        ; avoid garbage when opening borders
-        sta $bfff                       ; should be $3fff, but I'm in the 2 bank
-
                                         ; multicolor mode + extended color causes
         lda #%01011011                  ; the bug that blanks the screen
         sta $d011                       ; extended color mode: on
@@ -216,11 +214,22 @@ main_loop:
         lda sync_timer_irq
         beq main_loop
 
+
+.if (::DEBUG & 1)
+        inc $d020
+.endif
         dec sync_timer_irq
         jsr MUSIC_PLAY
+
+.if (::DEBUG & 1)
+        dec $d020
+.endif
         jmp main_loop
 
 do_raster:
+.if (::DEBUG & 1)
+        dec $d020
+.endif
         dec sync_raster_irq
 
 ;        jsr animate_palette
@@ -228,6 +237,10 @@ do_raster:
         jsr animate_sprites
 
         jsr menu_handle_events          ; will disable/enable interrupts
+
+.if (::DEBUG & 1)
+        inc $d020
+.endif
 
         jmp main_loop
 .endproc
@@ -296,30 +309,10 @@ set_mainmenu:
         lda #SCENE_STATE::MAIN_MENU     ; restore stuff modifying by scores
         sta scene_state
 
-        lda #0                          ; turn off volume
-        sta $d418
-                                        ; turn off video.
-                                        ; multicolor mode + extended color causes
-        lda #%01011011                  ; the bug that blanks the screen
-        sta $d011                       ; extended color mode: on
-        lda #%00011000
-        sta $d016                       ; turn on multicolor
-
-        sei
-        jsr init_data_screen
         jsr init_screen
         jsr mainmenu_init
-                                        ; turn VIC on again
-        lda #%00011011                  ; charset mode, default scroll-Y position, 25-rows
-        sta $d011                       ; extended color mode: off
-        lda #%00001000                  ; no scroll, hires (mono color), 40-cols
-        sta $d016                       ; turn off multicolor
-
-        cli
 
         rts
-
-
 .endproc
 
 
@@ -433,31 +426,9 @@ irq_open_borders:
 
         inc $01                         ; $35: RAM + IO ($D000-$DFFF)
 
-        jmp init_data_screen
-.endproc
-
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_data_screen
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc init_data_screen
-        dec $01
-
-        ldx #<mainscreen_map_exo        ; decrunch main screen
-        ldy #>mainscreen_map_exo
-        stx _crunched_byte_lo
-        sty _crunched_byte_hi
-        jsr decrunch                    ; uncrunch
-
-        ldx #<mainscreen_colors_exo     ; decrunch main screen colors
-        ldy #>mainscreen_colors_exo
-        stx _crunched_byte_lo
-        sty _crunched_byte_hi
-        jsr decrunch                    ; uncrunch
-
-        inc $01
         rts
 .endproc
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void init_screen()
@@ -466,30 +437,36 @@ irq_open_borders:
 ; MUST BE CALLED after init_data()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_screen
-        ldx #0                          ; put correct colors on screen
+        ldx #0
+
 l0:
-        lda $400,x
+        lda mainscreen_map,x
+        sta SCREEN0_BASE,x
         tay
-        lda COLORMAP_BASE,y
+        lda mainscreen_colors,y
         sta $d800,x
 
-        lda $500,x
+        lda mainscreen_map + $0100,x
+        sta SCREEN0_BASE + $0100,x
         tay
-        lda COLORMAP_BASE,y
+        lda mainscreen_colors,y
         sta $d900,x
 
-        lda $600,x
+        lda mainscreen_map + $0200,x
+        sta SCREEN0_BASE + $0200,x
         tay
-        lda COLORMAP_BASE,y
+        lda mainscreen_colors,y
         sta $da00,x
 
-        lda $6e8,x
+        lda mainscreen_map + $02e8,x
+        sta SCREEN0_BASE + $02e8,x
         tay
-        lda COLORMAP_BASE,y
+        lda mainscreen_colors,y
         sta $dae8,x
 
         inx
         bne l0
+
 
         lda #$0b                         ; set color for copyright
         ldx #39
@@ -677,18 +654,18 @@ sync_timer_irq:     .byte 0            ; enabled when timer is triggred (used by
 scene_state:        .byte SCENE_STATE::MAIN_MENU ; scene state. which scene to render
 
 
+mainscreen_map:
+    .incbin "src/mainscreen-map.bin"
+
+.export mainscreen_colors
+mainscreen_colors:
+    .incbin "src/mainscreen-colors.bin"
+
+
 .segment "COMPRESSED_DATA"
         ; export it at 0x1000
         .incbin "src/maintitle_music.sid.exo"
 mainsid_exo:
-
-        ; export it at 0x0400
-        .incbin "src/mainscreen-map.prg.exo"
-mainscreen_map_exo:
-
-        ; export it at 0x4000
-        .incbin "src/mainscreen-colors.prg.exo"
-mainscreen_colors_exo:
 
         ; export it at 0x3000
         .incbin "src/mainscreen-charset.prg.exo"

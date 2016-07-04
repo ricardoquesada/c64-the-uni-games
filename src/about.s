@@ -11,6 +11,7 @@
 .import sync_timer_irq
 .import ut_clear_color, ut_get_key, ut_clear_screen
 .import menu_read_events
+.import mainscreen_colors
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -31,47 +32,45 @@
 ;------------------------------------------------------------------------------;
 .export about_init
 .proc about_init
+        sei
         lda #%10000000                          ; enable only PAL/NTSC scprite
         sta VIC_SPR_ENA
 
-        sei
-
-        ldx #<about_map
-        ldy #>about_map
-        stx _crunched_byte_lo
-        sty _crunched_byte_hi
-
-        dec $01                                 ; $34: RAM 100%
-
-        jsr decrunch                            ; uncrunch map
-
-        inc $01                                 ; $35: RAM + IO ($D000-$DF00)
-
-
-        ldx #0                                  ; put correct colors on screen
+        ldx #0
 l0:
-        lda $400,x
+        lda about_map,x
+        sta SCREEN0_BASE,x
         tay
-        lda COLORMAP_BASE,y
+        lda mainscreen_colors,y
         sta $d800,x
 
-        lda $500,x
+        lda about_map + $0100,x
+        sta SCREEN0_BASE + $0100,x
         tay
-        lda COLORMAP_BASE,y
+        lda mainscreen_colors,y
         sta $d900,x
 
-        lda $600,x
+        lda about_map + $0200,x
+        sta SCREEN0_BASE + $0200,x
         tay
-        lda COLORMAP_BASE,y
+        lda mainscreen_colors,y
         sta $da00,x
 
-        lda $6e8,x
+        lda about_map + $02e8,x
+        sta SCREEN0_BASE + $02e8,x
         tay
-        lda COLORMAP_BASE,y
+        lda mainscreen_colors,y
         sta $dae8,x
 
         inx
         bne l0
+
+        lda #$0b                         ; set color for "without permission"
+        ldx #39
+:       sta $d800+24*40,x
+        dex
+        bpl :-
+
         cli
 
 about_mainloop:
@@ -89,8 +88,7 @@ play_music:
 .endproc
 
 
-.segment "COMPRESSED_DATA"
-        .incbin "about-map.prg.exo"
 about_map:
+        .incbin "about-map.bin"
 
         .byte 0                                 ; ignore

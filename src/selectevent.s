@@ -32,19 +32,15 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export selectevent_init
 .proc selectevent_init
-        sei
 
-        ldx #<selectevent_map
-        ldy #>selectevent_map
-        stx _crunched_byte_lo
-        sty _crunched_byte_hi
+        ldx #0
+l0:
+        lda selectevent_map,x
+        sta SCREEN0_BASE + $0280,x
 
-        dec $01                                 ; $34: RAM 100%
-
-        jsr decrunch                            ; uncrunch map
-
-        inc $01                                 ; $35: RAM + IO ($D000-$DF00)
-        cli
+        inx
+        cpx #240                                ; 6 * 40. six rows
+        bne l0
 
         lda #2                                  ; setup the global variables
         sta MENU_MAX_ITEMS                      ; needed for the menu code
@@ -77,8 +73,5 @@
 .endproc
 
 
-.segment "COMPRESSED_DATA"
-; select_event-map.prg.exo: should be exported to $0680
-.incbin "select_event-map.prg.exo"
 selectevent_map:
-        .byte 0                         ; ignore
+    .incbin "select_event-map.bin"
