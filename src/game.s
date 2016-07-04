@@ -511,10 +511,6 @@ end_irq:
         lda #%00011100                  ; screen:  $0400 %0001xxxx
         sta $d018                       ; charset: $3000 %xxxx110x
 
-        lda #14
-        sta $d020
-        sta $d021
-
         ldx #$00                        ; screen starts at SCREEN_BASE
 _loop:
         lda #$20
