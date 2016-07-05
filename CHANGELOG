@@ -1,19 +1,23 @@
 v0.2.2 - July, 2016
 
-    - new music for intro: popcorn
-	- in-game music
-	- Cyclocross event added
-	- About added
-	- new intro screen
+  - new music for intro: popcorn
+  - in-game music
+  - Cyclocross event added
+  - About added
+  - new intro screen
+  - PAL / NSTC / Drean fixes
+  - Riders can jump
+  - Riders can't go above certain height
+
 
 v0.2 - June, 2016
 
-	- new menu system
-	- joystick needs to be moved up,right,down,left instead of right,left
-	- better maps
-	- new memory model: it is going to be a single-load game
-	- physics: resistance + velocity + crashing: improved
+  - new menu system
+  - joystick needs to be moved up,right,down,left instead of right,left
+  - better maps
+  - new memory model: it is going to be a single-load game
+  - physics: resistance + velocity + crashing: improved
 
 
 v0.1 - April 6, 2016
-	- initial public release
+  - initial public release

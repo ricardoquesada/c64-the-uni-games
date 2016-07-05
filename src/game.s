@@ -11,7 +11,7 @@
 
 ; from utils.s
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
-.import ut_clear_color, ut_setup_tod
+.import ut_clear_color, ut_setup_tod, ut_vic_video_type
 
 .enum GAME_STATE
         ON_YOUR_MARKS                   ; initial scroll
@@ -60,12 +60,12 @@ SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
 SPRITE_PTR = SCREEN_BASE + 1016                     ; right after the screen, at $7f8
 
 SCROLL_ROW_P1= 4
-RASTER_TOP_P1 = 50 + 8 * (SCROLL_ROW_P2 + LEVEL1_HEIGHT) - 2    ; first raster line (where P2 scroll ends)
-RASTER_BOTTOM_P1 = 50 + 8 * (SCROLL_ROW_P1-EMPTY_ROWS) - 2      ; moving part of the screen
+RASTER_TOP_P1 = 50 + 8 * (SCROLL_ROW_P2 + LEVEL1_HEIGHT)        ; first raster line (where P2 scroll ends)
+RASTER_BOTTOM_P1 = 50 + 8 * (SCROLL_ROW_P1-EMPTY_ROWS)          ; moving part of the screen
 
 SCROLL_ROW_P2 = 17
-RASTER_TOP_P2 = 50 + 8 * (SCROLL_ROW_P1 + LEVEL1_HEIGHT) - 2    ; first raster line (where P1 scroll ends)
-RASTER_BOTTOM_P2 = 50 + 8 * (SCROLL_ROW_P2-EMPTY_ROWS) - 2      ; moving part of the screen
+RASTER_TOP_P2 = 50 + 8 * (SCROLL_ROW_P1 + LEVEL1_HEIGHT)        ; first raster line (where P1 scroll ends)
+RASTER_BOTTOM_P2 = 50 + 8 * (SCROLL_ROW_P2-EMPTY_ROWS)          ; moving part of the screen
 
 ON_YOUR_MARKS_ROW = 12                  ; row to display on your marks
 
@@ -86,6 +86,9 @@ MUSIC_PLAY = $1003
 
 .proc game_init
         sei
+
+        lda #0
+        sta $d020
 
         jsr init_sound                  ; turn off volume right now
 
@@ -337,14 +340,13 @@ level_charset_address = *+1
         jmp end_irq
 
 raster:
-        STABILIZE_RASTER
-
+;        STABILIZE_RASTER
         .repeat 26
                 nop
         .endrepeat
 
         lda #HUD_BKG_COLOR            ; border and background color
-        sta $d020                       ; to place the score and time
+;        sta $d020                       ; to place the score and time
         sta $d021
 
         lda #%00001000                  ; no scroll,single-color,40-cols
@@ -386,14 +388,41 @@ end_irq:
         jmp end_irq
 
 raster:
-        STABILIZE_RASTER
+                                        ; consume PAL-B: 40 cycles
+                                        ;         NTSC: 20 cycles
+                                        ;         PAL-N: 48 cycles
+                                        ;
+        lda ut_vic_video_type           ; $01 --> PAL        4 cycles
+                                        ; $2F --> PAL-N
+                                        ; $28 --> NTSC
+                                        ; $2e --> NTSC-OLD
+        cmp #$28                        ; 2 cycles
+        beq ntsc1                       ; 2 cycles
+        cmp #$2e                        ; 2 cycles
+        beq ntsc2                       ; 2 cycles
+        cmp #$01                        ; 2 cycles
+        beq palb                        ; 2 cycles
 
-        .repeat 26
+        .repeat 4                       ; pal-n path
                 nop
         .endrepeat
+palb:
+        .repeat 6                       ; pal-b branch
+                nop
+        .endrepeat
+ntsc1:
+        .repeat 2
+                nop
+        .endrepeat
+ntsc2:
+        nop                             ; consume 8 cycles
+        nop
+        nop
+        nop
+
 
         lda #LEVEL_BKG_COLOR
-        sta $d020                       ; border color
+;        sta $d020                       ; border color
         sta $d021                       ; background color
 
         lda smooth_scroll_x_p1+1        ; scroll x
@@ -433,14 +462,13 @@ end_irq:
         jmp end_irq
 
 raster:
-        STABILIZE_RASTER
-
+;        STABILIZE_RASTER
         .repeat 26
                 nop
         .endrepeat
 
         lda #HUD_BKG_COLOR            ; border and background color
-        sta $d020                       ; to place the score and time
+;        sta $d020                       ; to place the score and time
         sta $d021
 
         lda #%00001000                  ; no scroll,single-color,40-cols
@@ -480,14 +508,40 @@ end_irq:
         jmp end_irq
 
 raster:
-        STABILIZE_RASTER
+                                        ; consume PAL-B: 40 cycles
+                                        ;         NTSC: 20 cycles
+                                        ;         PAL-N: 48 cycles
+                                        ;
+        lda ut_vic_video_type           ; $01 --> PAL        4 cycles
+                                        ; $2F --> PAL-N
+                                        ; $28 --> NTSC
+                                        ; $2e --> NTSC-OLD
+        cmp #$28                        ; 2 cycles
+        beq ntsc1                       ; 2 cycles
+        cmp #$2e                        ; 2 cycles
+        beq ntsc2                       ; 2 cycles
+        cmp #$01                        ; 2 cycles
+        beq palb                        ; 2 cycles
 
-        .repeat 26
+        .repeat 4                       ; pal-n path
                 nop
         .endrepeat
+palb:
+        .repeat 6                       ; pal-b branch
+                nop
+        .endrepeat
+ntsc1:
+        .repeat 2
+                nop
+        .endrepeat
+ntsc2:
+        nop                             ; consume 8 cycles
+        nop
+        nop
+        nop
 
         lda #LEVEL_BKG_COLOR
-        sta $d020                       ; border color
+;        sta $d020                       ; border color
         sta $d021                       ; background color
 
         lda smooth_scroll_x_p2+1        ; scroll x
@@ -1268,8 +1322,10 @@ hex:    scrcode "0123456789abcdef"
 
         txa                                     ; 3rd: check tire/rim collision
         and #%00000011                          ; if so, do the collision handler
-        bne p1_collision_tire
+        beq :+
+        jmp p1_collision_tire
 
+:
         lda #PLAYER_STATE::AIR_DOWN             ; 4th: else, go down
         cmp p1_state                            ; Was it already going down?
         beq l0
@@ -1297,10 +1353,14 @@ l2:     lda p1_jump_idx                         ; if it is already 0, stop dec
 p1_go_up:
         ldx p1_jump_idx                         ; fetch sine index
         lda jump_tbl,x
-        beq l4                                 ; don't go up if value is 0
+        beq l4                                  ; don't go up if value is 0
         tay
 
-l3:     dec VIC_SPR0_Y                          ; tire
+l3:     lda VIC_SPR0_Y                          ; don't go above a certain height
+        cmp #60                                 ; sky is the limit
+        bmi l4
+
+        dec VIC_SPR0_Y                          ; tire
         dec VIC_SPR1_Y                          ; rim
         dec VIC_SPR2_Y                          ; head
         dec VIC_SPR3_Y                          ; hair
@@ -1367,8 +1427,10 @@ p1_collision_tire:
 
         txa                                     ; 3rd: check tire/rim collision
         and #%00110000                          ; if so, do the collision handler
-        bne p2_collision_tire
+        beq :+
+        jmp p2_collision_tire
 
+:
         lda #PLAYER_STATE::AIR_DOWN             ; 4th: else, go down
         cmp p2_state                            ; Was it already going down?
         beq l0
@@ -1399,7 +1461,11 @@ p2_go_up:
         beq l4                                 ; don't go up if value is 0
         tay
 
-l3:     dec VIC_SPR4_Y                          ; tire
+l3:     lda VIC_SPR4_Y                          ; don't go above a certain height
+        cmp #164                                ; sky is the limit
+        bmi l4
+
+        dec VIC_SPR4_Y                          ; tire
         dec VIC_SPR5_Y                          ; rim
         dec VIC_SPR6_Y                          ; head
         dec VIC_SPR7_Y                          ; hair
