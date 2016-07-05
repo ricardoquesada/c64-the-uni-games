@@ -84,11 +84,12 @@ MUSIC_PLAY = $1003
 
 .segment "HI_CODE"
 
-.proc game_init 
+.proc game_init
         sei
 
-        lda #$00                        ; turn off volume
-        sta SID_Amp
+        jsr init_sound                  ; turn off volume right now
+
+        lda #$00
         sta VIC_SPR_ENA                 ; disable sprites... temporary
 
                                         ; multicolor mode + extended color causes
@@ -102,7 +103,6 @@ MUSIC_PLAY = $1003
         lda #01
         jsr ut_clear_color              ; clears the screen color ram
         jsr init_screen
-        jsr init_sound
 
         jsr init_game
 
@@ -118,7 +118,6 @@ MUSIC_PLAY = $1003
 
         lda #01                         ; Enable raster irq
         sta $d01a
-
 
         ldx #<irq_top_p1                ; raster irq vector
         ldy #>irq_top_p1
@@ -230,8 +229,9 @@ game_init_data:
 
         dec $01                         ; $34: RAM 100%
 
-        ldx #<game_music_exo            ; game music
-        ldy #>game_music_exo
+game_music_address = *+1
+        ldx #<game_music1_exo           ; self-modifying. game music
+        ldy #>game_music1_exo
         stx _crunched_byte_lo
         sty _crunched_byte_hi
         jsr decrunch                    ; uncrunch map
@@ -282,6 +282,11 @@ level_charset_address = *+1
         stx level_charset_address
         sty level_charset_address+2
 
+        ldx #<game_music1_exo
+        ldy #>game_music1_exo
+        stx game_music_address
+        sty game_music_address+2
+
         jmp game_init
 .endproc
 
@@ -304,6 +309,11 @@ level_charset_address = *+1
         ldy #>level_cyclocross_charset_exo
         stx level_charset_address
         sty level_charset_address+2
+
+        ldx #<game_music2_exo
+        ldy #>game_music2_exo
+        stx game_music_address
+        sty game_music_address+2
 
         jmp game_init
 .endproc
@@ -583,7 +593,7 @@ _loop2:
         bpl :-
 
         lda #15
-        sta $d418                       ; volume
+        sta SID_Amp                     ; volume
 
         rts
 .endproc
@@ -745,7 +755,7 @@ colors:         .byte 1, 1, 0, 7                ; player 1
         ldx #12*5                       ; Do: 5th octave
         jsr play_sound
 
-        jsr game_init_music
+        jsr game_init_music             ; enable timer, play music
 
 @end:
         rts
@@ -1579,7 +1589,10 @@ level1_map_exo:
         .incbin "level1-colors.prg.exo"                 ; 256b at $4000
 level1_colors_exo:
 
-        .incbin "game_music.sid.exo"                    ; export at $1000
-game_music_exo:
+        .incbin "game_music1.sid.exo"                    ; export at $1000
+game_music1_exo:
+
+        .incbin "game_music2.sid.exo"                    ; export at $1000
+game_music2_exo:
 
 .byte 0                                                 ; ignore

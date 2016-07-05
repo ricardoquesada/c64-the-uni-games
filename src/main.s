@@ -309,8 +309,10 @@ set_mainmenu:
         lda #SCENE_STATE::MAIN_MENU     ; restore stuff modifying by scores
         sta scene_state
 
+        sei
         jsr init_screen
         jsr mainmenu_init
+        cli
 
         rts
 .endproc

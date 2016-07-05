@@ -25,7 +25,8 @@ res:
 	cp res/about-map.bin src
 	cp res/hiscores-map.bin src
 	cp res/Popcorn_2.exo src/maintitle_music.sid.exo
-	cp res/Action_G.exo src/game_music.sid.exo
+	cp res/Action_G.exo src/game_music1.sid.exo
+	cp res/12_Bar_Blues.exo src/game_music2.sid.exo
 
 unigames: ${SRC}
 	cl65 -d -g -Ln bin/$@.sym -o bin/$@.prg -u __EXEHDR__ -t c64 -C $@.cfg $^
