@@ -388,37 +388,7 @@ end_irq:
         jmp end_irq
 
 raster:
-                                        ; consume PAL-B: 40 cycles
-                                        ;         NTSC: 20 cycles
-                                        ;         PAL-N: 48 cycles
-                                        ;
-        lda ut_vic_video_type           ; $01 --> PAL        4 cycles
-                                        ; $2F --> PAL-N
-                                        ; $28 --> NTSC
-                                        ; $2e --> NTSC-OLD
-        cmp #$28                        ; 2 cycles
-        beq ntsc1                       ; 2 cycles
-        cmp #$2e                        ; 2 cycles
-        beq ntsc2                       ; 2 cycles
-        cmp #$01                        ; 2 cycles
-        beq palb                        ; 2 cycles
-
-        .repeat 4                       ; pal-n path
-                nop
-        .endrepeat
-palb:
-        .repeat 6                       ; pal-b branch
-                nop
-        .endrepeat
-ntsc1:
-        .repeat 2
-                nop
-        .endrepeat
-ntsc2:
-        nop                             ; consume 8 cycles
-        nop
-        nop
-        nop
+        jsr consume_cycles
 
 
         lda #LEVEL_BKG_COLOR
@@ -508,37 +478,7 @@ end_irq:
         jmp end_irq
 
 raster:
-                                        ; consume PAL-B: 40 cycles
-                                        ;         NTSC: 20 cycles
-                                        ;         PAL-N: 48 cycles
-                                        ;
-        lda ut_vic_video_type           ; $01 --> PAL        4 cycles
-                                        ; $2F --> PAL-N
-                                        ; $28 --> NTSC
-                                        ; $2e --> NTSC-OLD
-        cmp #$28                        ; 2 cycles
-        beq ntsc1                       ; 2 cycles
-        cmp #$2e                        ; 2 cycles
-        beq ntsc2                       ; 2 cycles
-        cmp #$01                        ; 2 cycles
-        beq palb                        ; 2 cycles
-
-        .repeat 4                       ; pal-n path
-                nop
-        .endrepeat
-palb:
-        .repeat 6                       ; pal-b branch
-                nop
-        .endrepeat
-ntsc1:
-        .repeat 2
-                nop
-        .endrepeat
-ntsc2:
-        nop                             ; consume 8 cycles
-        nop
-        nop
-        nop
+        jsr consume_cycles
 
         lda #LEVEL_BKG_COLOR
 ;        sta $d020                       ; border color
@@ -564,6 +504,36 @@ end_irq:
         tax
         pla
         rti                             ; restores previous PC, status
+.endproc
+
+.proc consume_cycles
+                                        ; consume PAL-B: 40 cycles
+                                        ;         NTSC: 20 cycles
+                                        ;         PAL-N: 48 cycles
+
+                                        ; jsr callee 6 cycles
+
+        lda ut_vic_video_type           ; $01 --> PAL        4 cycles
+                                        ; $2F --> PAL-N
+                                        ; $28 --> NTSC
+                                        ; $2e --> NTSC-OLD
+        cmp #$28                        ; 2 cycles
+        beq ntsc1                       ; 2 cycles
+        cmp #$2e                        ; 2 cycles
+        beq ntsc2                       ; 2 cycles
+        cmp #$01                        ; 2 cycles
+        beq palb                        ; 2 cycles
+
+        .repeat 4                       ; pal-n path
+                nop                     ; 8 cycles
+        .endrepeat
+palb:
+        .repeat 6                       ; pal-b branch
+                nop                     ; 12 cycles
+        .endrepeat
+ntsc1:
+ntsc2:                                  ; BUG: old ntsc are consuming 4 extra cycles
+        rts                             ; 6 cycles
 .endproc
 
 
