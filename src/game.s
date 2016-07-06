@@ -78,6 +78,7 @@ SCROLL_SPEED_P1 = $0130                 ; $0100 = normal speed. $0200 = 2x speed
 SCROLL_SPEED_P2 = $0130                 ; $0100 = normal speed. $0200 = 2x speed
                                         ; $0080 = half speed
 ACCEL_SPEED = $20                       ; how fast the speed will increase
+MAX_SPEED = $05                         ; max speed MSB: eg: $05 means $0500
 
 MUSIC_INIT = $1000
 MUSIC_PLAY = $1003
@@ -105,7 +106,7 @@ MUSIC_PLAY = $1003
 
         lda #01
         jsr ut_clear_color              ; clears the screen color ram
-        jsr init_screen
+        jsr game_init_screen
 
         jsr init_game
 
@@ -542,9 +543,9 @@ ntsc2:                                  ; BUG: old ntsc are consuming 4 extra cy
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_screen()
+; void game_init_screen()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc init_screen
+.proc game_init_screen
 
         lda #%00011100                  ; screen:  $0400 %0001xxxx
         sta $d018                       ; charset: $3000 %xxxx110x
@@ -863,7 +864,15 @@ increase_velocity_p1:
         sta scroll_speed_p1             ; LSB
         bcc :+
         inc scroll_speed_p1+1           ; MSB
-:       rts
+:
+        lda scroll_speed_p1+1
+        cmp #MAX_SPEED                  ; max speed MSB
+        bne @end
+
+        lda #$00                        ; if $0500 or more, then make it $500
+        sta scroll_speed_p1
+@end:
+        rts
 
 decrease_speed_p1:
         ldx resistance_idx_p1
@@ -934,7 +943,16 @@ increase_velocity_p2:
         sta scroll_speed_p2             ; LSB
         bcc :+
         inc scroll_speed_p2+1           ; MSB
-:       rts
+
+:                                       ; check if it reached max speed
+        lda scroll_speed_p2+1
+        cmp #MAX_SPEED                  ; max speed MSB
+        bne @end
+
+        lda #$00                        ; if $0500 or more, then make it $500
+        sta scroll_speed_p2
+@end:
+        rts
 
 decrease_speed_p2:
         ldx resistance_idx_p2
@@ -1143,74 +1161,55 @@ update_scroll_p2:
 .proc print_speed
 
         ; player one
-        lda scroll_speed_p1                             ; firt digit
-        tay
-        and #%00001111
-        tax
-        lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 11
+        lda scroll_speed_p1                     ; firt digit
+        sta tmp
+        lda scroll_speed_p1+1
+        sta tmp+1
 
-        tya                                             ; second digit
-        lsr
-        lsr
-        lsr
-        lsr
-        tax
-        lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 10
+        ldx #7                                  ; divide by 128. MAX_SPEED/128 should not be > 10
+l0:     lsr tmp+1                               ; tmp will have a value
+        ror tmp                                 ; between 0 and 10
+        dex
+        bne l0
 
-        lda scroll_speed_p1+1                           ; third digit
-        tay
-        and #%00001111
-        tax
-        lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 9
+        ldx #9                                  ; print speed bar. 10 chars
+l1:     lda #102                                ; char to fill the speed bar
+        cpx tmp
+        bmi print_p1
 
-        tya                                             ; fourth digit
-        lsr
-        lsr
-        lsr
-        lsr
-        tax
-        lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 8
+        lda #104                                ; empty char
+print_p1:
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 6,x
+        dex
+        bne l1
 
+        ; player two 
+        lda scroll_speed_p2                     ; firt digit
+        sta tmp
+        lda scroll_speed_p2+1
+        sta tmp+1
 
-        ; player two
-        lda scroll_speed_p2                             ; firt digit
-        tay
-        and #%00001111
-        tax
-        lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 11
+        ldx #7                                  ; divide by 128. MAX_SPEED/128 should not be > 10
+l2:     lsr tmp+1                               ; tmp will have a value
+        ror tmp                                 ; between 0 and 10
+        dex
+        bne l2
 
-        tya                                             ; second digit
-        lsr
-        lsr
-        lsr
-        lsr
-        tax
-        lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 10
+        ldx #9                                  ; print speed bar. 10 chars
+l3:     lda #102                                ; char to fill the speed bar
+        cpx tmp
+        bmi print_p2
 
-        lda scroll_speed_p2+1                           ; third digit
-        tay
-        and #%00001111
-        tax
-        lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 9
-
-        tya                                             ; fourth digit
-        lsr
-        lsr
-        lsr
-        lsr
-        tax
-        lda hex,x
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 8
+        lda #104                                ; empty char
+print_p2:
+        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 6,x
+        dex
+        bne l3
 
         rts
-hex:    scrcode "0123456789abcdef"
+
+tmp:
+.byte 0, 0
 
 .endproc
 
@@ -1609,7 +1608,9 @@ on_your_marks_lbl:
 
 screen:
                 ;0123456789|123456789|123456789|123456789|
-        scrcode "speed: 0000                time: 00:00:0"
+        scrcode "speed: "
+        .byte 102,102,102,102,102,102,102,102,102
+        scrcode                 "           time: 00:00:0"
 
 
 ; autogenerated table: freq_table_generator.py -b440 -o8 -s12 985248
