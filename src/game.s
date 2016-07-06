@@ -388,11 +388,10 @@ end_irq:
         jmp end_irq
 
 raster:
-        jsr consume_cycles
+        jsr consume_cycles              ; make the IRQ kind of stable
 
 
         lda #LEVEL_BKG_COLOR
-;        sta $d020                       ; border color
         sta $d021                       ; background color
 
         lda smooth_scroll_x_p1+1        ; scroll x
@@ -437,9 +436,8 @@ raster:
                 nop
         .endrepeat
 
-        lda #HUD_BKG_COLOR            ; border and background color
-;        sta $d020                       ; to place the score and time
-        sta $d021
+        lda #HUD_BKG_COLOR              ; border and background color
+        sta $d021                       ; to place the score and time
 
         lda #%00001000                  ; no scroll,single-color,40-cols
         sta $d016
@@ -481,7 +479,6 @@ raster:
         jsr consume_cycles
 
         lda #LEVEL_BKG_COLOR
-;        sta $d020                       ; border color
         sta $d021                       ; background color
 
         lda smooth_scroll_x_p2+1        ; scroll x
@@ -506,6 +503,11 @@ end_irq:
         rti                             ; restores previous PC, status
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void consume_cycles()
+; consumes cycles to make the IRQ kind of stable.
+; works in NTSC, PAL-B and PAL-N (Drean)
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc consume_cycles
                                         ; consume PAL-B: 40 cycles
                                         ;         NTSC: 20 cycles
@@ -532,7 +534,9 @@ palb:
                 nop                     ; 12 cycles
         .endrepeat
 ntsc1:
-ntsc2:                                  ; BUG: old ntsc are consuming 4 extra cycles
+ntsc2:                                  ; BUG: old ntsc are consuming 4 extra cycles,
+                                        ; but seems to run ok consuming 24 cycles instead
+                                        ; of 20.
         rts                             ; 6 cycles
 .endproc
 
@@ -1232,6 +1236,15 @@ hex:    scrcode "0123456789abcdef"
         beq :+
         rts
 :
+        ldx frame_head_idx_p1
+        lda frame_head_tbl,x
+        sta SPRITE_PTR + 3                      ; head is 4th sprite
+        inx
+        cpx #FRAME_HEAD_TBL_SIZE
+        bne :+
+        ldx #0
+:       stx frame_head_idx_p1
+
         lda #ACTOR_ANIMATION_SPEED
         sta animation_delay_p1
 
@@ -1258,6 +1271,15 @@ hex:    scrcode "0123456789abcdef"
         beq :+
         rts
 :
+        ldx frame_head_idx_p2
+        lda frame_head_tbl,x
+        sta SPRITE_PTR + 7                      ; head is 8th sprite
+        inx
+        cpx #FRAME_HEAD_TBL_SIZE
+        bne :+
+        ldx #0
+:       stx frame_head_idx_p2
+
         lda #ACTOR_ANIMATION_SPEED
         sta animation_delay_p2
 
@@ -1565,6 +1587,12 @@ jump_tbl:
 .byte   1,  2,  1,  0,  1,  1,  0,  0
 JUMP_TBL_SIZE = * - jump_tbl
 
+frame_head_idx_p1:      .byte 0                         ; index for frame_head p1
+frame_head_idx_p2:      .byte 0                         ; index for frame_head p2
+frame_head_tbl:
+        .byte SPRITES_POINTER + 3                       ; frame for the head: hair normal
+        .byte SPRITES_POINTER + 4                       ; frame for the head: hair up
+FRAME_HEAD_TBL_SIZE = * - frame_head_tbl
 animation_delay_p1:     .byte ACTOR_ANIMATION_SPEED
 animation_delay_p2:     .byte ACTOR_ANIMATION_SPEED
 animation_idx_p1:       .byte 0         ; index in the animation table
