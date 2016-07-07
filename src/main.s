@@ -42,111 +42,14 @@
 
 DEBUG = 0                               ; bitwise: 1=raster-sync code
 
-.segment "CODE"
-        jmp main
-
 .segment "HI_CODE"
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void main()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export main
 .proc main
-        jsr ut_start_clean              ; no basic, no kernal, no interrupts
-
-        lda #$ff
-        sta CIA1_DDRA                   ; port a ddr (output)
-        lda #$0
-        sta CIA1_DDRB                   ; port b ddr (input)
-
-        jsr display_intro_banner
         jsr ut_detect_pal_paln_ntsc     ; pal, pal-n or ntsc?
 
-
-        ; disable NMI
-;       sei
-;       ldx #<disable_nmi
-;       ldy #>disable_nmi
-;       sta $fffa
-;       sta $fffb
-;       cli
-
-        jmp main_init
-
-disable_nmi:
-        rti
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void display_intro_banner()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc display_intro_banner
-        lda #$20
-        jsr ut_clear_screen
-        lda #1
-        jsr ut_clear_color
-        lda #0
-        sta $d020
-        sta $d021
-
-        ldx #0
-l0:
-        lda label1,x
-        sta $0400,x
-        jsr delay
-        inx
-        cpx #LABEL1_LEN
-        bne l0
-
-        ldx #0
-l1:
-        lda label2,x
-        sta $0400 + 51,x
-        jsr delay
-        inx
-        cpx #LABEL2_LEN
-        bne l1
-
-        rts
-
-delay:
-        lda #%01111111                  ; space ?
-        sta CIA1_PRA                    ; row 7
-        lda CIA1_PRB
-        and #%00010000                  ; col 4
-        bne do_delay
-        lda #$08
-        sta delay_value
-
-do_delay:
-        txa
-        pha
-delay_value = *+1
-        ldx #$30
-l2:
-        ldy #0
-l3:     iny
-        bne l3
-        dex
-        bne l2
-
-        pla
-        tax
-        rts
-
-label1:
-                ;1234567890123456789012345678901234567890
-        scrcode "winners don't use joysticks..."
-LABEL1_LEN = * - label1
-
-label2:
-        scrcode           "    ...they use unijoysticles"
-        scrcode "                   "
-LABEL2_LEN = * - label2
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void main_init()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc main_init
         sei
 
         lda #SCENE_STATE::MAIN_MENU     ; menu to display

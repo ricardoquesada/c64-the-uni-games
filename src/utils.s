@@ -363,9 +363,9 @@ get_crunched_byte:
         bne @_byte_skip_hi
         dec _crunched_byte_hi
 @_byte_skip_hi:
-        dec $01
-        sta $d020
-        inc $01
+;        dec $01
+;        sta $d020
+;        inc $01
 
         dec _crunched_byte_lo
 _crunched_byte_lo = * + 1

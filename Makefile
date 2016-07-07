@@ -8,7 +8,7 @@ X64 = x64
 
 all: unigames
 
-SRC=src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s src/about.s
+SRC=src/intro.s src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s src/about.s
 
 res:
 	exomizer mem -q res/sprites.prg -o src/sprites.prg.exo
@@ -19,6 +19,8 @@ res:
 	exomizer mem -q res/level-cyclocross-map.prg -o src/level-cyclocross-map.prg.exo
 	exomizer mem -q res/level-cyclocross-colors.prg -o src/level-cyclocross-colors.prg.exo
 	exomizer mem -q res/level-cyclocross-charset.prg -o src/level-cyclocross-charset.prg.exo
+	exomizer mem -q res/intro-charset.prg -o src/intro-charset.prg.exo
+	exomizer mem -q res/intro-map.prg -o src/intro-map.prg.exo
 	cp res/select_event-map.bin src
 	cp res/mainscreen-map.bin src
 	cp res/mainscreen-colors.bin src
