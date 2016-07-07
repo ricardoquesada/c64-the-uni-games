@@ -90,6 +90,10 @@ MUSIC_PLAY = $1003
 
         lda #0
         sta $d020
+        lda #3
+        sta $d022                       ; used for extended background
+        lda #5
+        sta $d023                       ; used for extended background
 
         jsr init_sound                  ; turn off volume right now
 
@@ -98,7 +102,7 @@ MUSIC_PLAY = $1003
 
                                         ; multicolor mode + extended color causes
         lda #%01011011                  ; the bug that blanks the screen
-        sta $d011                       ; extended color mode: on
+        sta $d011                       ; extended background color mode: on
         lda #%00011000
         sta $d016                       ; turn on multicolor
 
@@ -346,12 +350,14 @@ raster:
                 nop
         .endrepeat
 
-        lda #HUD_BKG_COLOR            ; border and background color
-;        sta $d020                       ; to place the score and time
+        lda #HUD_BKG_COLOR              ; border and background color
         sta $d021
 
         lda #%00001000                  ; no scroll,single-color,40-cols
         sta $d016
+
+        lda #%01011011
+        sta $d011                       ; extended background color mode: on
 
         lda #<irq_bottom_p1             ; set a new irq vector
         sta $fffe
@@ -394,6 +400,9 @@ raster:
 
         lda #LEVEL_BKG_COLOR
         sta $d021                       ; background color
+
+        lda #%00011011
+        sta $d011                       ; extended color mode: off
 
         lda smooth_scroll_x_p1+1        ; scroll x
         sta $d016
@@ -443,6 +452,9 @@ raster:
         lda #%00001000                  ; no scroll,single-color,40-cols
         sta $d016
 
+        lda #%01011011
+        sta $d011                       ; extended background color mode: on
+
         lda #<irq_bottom_p2             ; set a new irq vector
         sta $fffe
         lda #>irq_bottom_p2
@@ -484,6 +496,9 @@ raster:
 
         lda smooth_scroll_x_p2+1        ; scroll x
         sta $d016
+
+        lda #%00011011
+        sta $d011                       ; extended color mode: off
 
         lda #<irq_top_p1                ; set new IRQ-raster vector
         sta $fffe
@@ -1170,11 +1185,11 @@ update_scroll_p2:
         rol tmp+1                               ; which is the same as using the
                                                 ; the first 4 MSB bits
         ldx #10                                 ; print speed bar. 10 chars
-l1:     lda #102                                ; char to fill the speed bar
+l1:     lda #38+128                             ; char to fill the speed bar
         cpx tmp+1
         bmi print_p1
 
-        lda #106                                ; empty char
+        lda #32+128                             ; empty char
 print_p1:
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 7,x
         dex
@@ -1188,11 +1203,8 @@ print_p1:
         lsr tmp
 
         lda tmp
-        eor #%00000011                          ; invert them since they are
-                                                ; in the reserver order in the
-                                                ; charset
         clc
-        adc #102                                ; base char
+        adc #35+128                             ; base char
 
         ldx tmp+1
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 7,x
@@ -1208,11 +1220,11 @@ print_p1:
         rol tmp+1                               ; which is the same as using the
                                                 ; the first 4 MSB bits
         ldx #10                                 ; print speed bar. 10 chars
-l2:     lda #102                                ; char to fill the speed bar
+l2:     lda #38+128                             ; char to fill the speed bar
         cpx tmp+1
         bmi print_p2
 
-        lda #106                                ; empty char
+        lda #32+128                             ; empty char
 print_p2:
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 7,x
         dex
@@ -1226,11 +1238,8 @@ print_p2:
         lsr tmp
 
         lda tmp
-        eor #%00000011                          ; invert them since they are
-                                                ; in the reserver order in the
-                                                ; charset
         clc
-        adc #102                                ; base char
+        adc #35+128                             ; base char
 
         ldx tmp+1
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 7,x
@@ -1638,7 +1647,7 @@ on_your_marks_lbl:
 screen:
                 ;0123456789|123456789|123456789|123456789|
         scrcode "speed: "
-        .byte 106,106,106,106,106,106,106,106,106,106,106
+        .byte 32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128
         scrcode                   "         time: 00:00:0"
 
 
@@ -1662,7 +1671,7 @@ freq_table_hi:
 .byte $45,$49,$4e,$52,$57,$5c,$62,$68,$6e,$75,$7c,$83  ; 6
 .byte $8b,$93,$9c,$a5,$af,$b9,$c4,$d0,$dd,$ea,$f8,$ff  ; 7
 
-music_speed:    .word $4cc7             ; default: playing at PAL speed in PAL computer
+music_speed:    .word $4cc7                             ; default: playing at PAL speed in PAL computer
 
 .segment "COMPRESSED_DATA"
         .incbin "level-cyclocross-charset.prg.exo"     ; 2k at $3000
@@ -1683,10 +1692,10 @@ level1_map_exo:
         .incbin "level1-colors.prg.exo"                 ; 256b at $4000
 level1_colors_exo:
 
-        .incbin "game_music1.sid.exo"                    ; export at $1000
+        .incbin "game_music1.sid.exo"                   ; export at $1000
 game_music1_exo:
 
-        .incbin "game_music2.sid.exo"                    ; export at $1000
+        .incbin "game_music2.sid.exo"                   ; export at $1000
 game_music2_exo:
 
 .byte 0                                                 ; ignore
