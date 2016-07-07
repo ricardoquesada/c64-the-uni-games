@@ -1599,9 +1599,9 @@ expected_joy1_idx:      .byte 0
 expected_joy2_idx:      .byte 0
 expected_joy:
 ;        .byte %00000001                 ; up
-        .byte %00001000                 ; right
+        .byte %00001001                 ; right or up 
 ;        .byte %00000010                 ; down
-        .byte %00000100                 ; left
+        .byte %00000110                 ; left or down
 resistance_idx_p2:      .byte 0         ; index in resistance table
 resistance_idx_p1:      .byte 0         ; index in resistance table
 resistance_tbl:                         ; how fast the unicycle will desacelerate
