@@ -81,9 +81,7 @@ LEVEL_BKG_COLOR = 15
 HUD_BKG_COLOR = 0
 
 ACTOR_ANIMATION_SPEED = 8               ; animation speed. the bigger the number, the slower it goes
-SCROLL_SPEED_P1 = $0130                 ; $0100 = normal speed. $0200 = 2x speed
-                                        ; $0080 = half speed
-SCROLL_SPEED_P2 = $0130                 ; $0100 = normal speed. $0200 = 2x speed
+SCROLL_SPEED = $0130                    ; $0100 = normal speed. $0200 = 2x speed
                                         ; $0080 = half speed
 ACCEL_SPEED = $20                       ; how fast the speed will increase
 MAX_SPEED = $05                         ; max speed MSB: eg: $05 means $0500
@@ -147,10 +145,11 @@ MUSIC_PLAY = $1003
         lda $dd0d
         asl $d019
 
+        lda #0
+        sta $d012
                                         ; turn VIC on again
         lda #%00011011                  ; charset mode, default scroll-Y position, 25-rows
         sta $d011                       ; extended color mode: off
-
         lda #%00001000                  ; no scroll, hires (mono color), 40-cols
         sta $d016                       ; turn off multicolor
 
@@ -643,6 +642,30 @@ _loop2:
         lda #0
         sta frame_idx_p1
         sta frame_idx_p2
+        sta animation_idx_p1
+        sta animation_idx_p2
+        sta resistance_idx_p1
+        sta resistance_idx_p2
+        sta jump_idx_p1
+        sta jump_idx_p2
+        sta smooth_scroll_x_p1
+        sta smooth_scroll_x_p1+1
+        sta smooth_scroll_x_p2
+        sta smooth_scroll_x_p2+1
+        sta expected_joy1_idx
+        sta expected_joy2_idx
+        sta sync_raster_irq
+        sta sync_timer_irq
+
+        ldx #<SCROLL_SPEED              ; initial speed
+        ldy #>SCROLL_SPEED
+        stx scroll_speed_p1             ; LSB
+        stx scroll_speed_p2
+        sty scroll_speed_p1+1           ; MSB
+        sty scroll_speed_p2+1
+
+        lda #$80
+        sta remove_go_counter
 
         ldx #<(LEVEL1_MAP+40)
         ldy #>(LEVEL1_MAP+40)
@@ -839,9 +862,9 @@ counter: .byte 0
 ; remove_go_lbl
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc remove_go_lbl
-        lda counter
+        lda remove_go_counter
         beq @end
-        dec counter
+        dec remove_go_counter
         bne @end
 
         ldx #39                         ; clean the "go" message
@@ -852,7 +875,6 @@ counter: .byte 0
 
 @end:
         rts
-counter: .byte $80
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -918,7 +940,7 @@ counter: .byte $40
         lda #PLAYER_STATE::AIR_UP       ; start jump sequence
         sta p1_state
         lda #0                          ; use sine to jump
-        sta p1_jump_idx                 ; set pointer to beginning of sine
+        sta jump_idx_p1                 ; set pointer to beginning of sine
         rts
 
 test_movement_p1:
@@ -997,7 +1019,7 @@ end_p1:
         lda #PLAYER_STATE::AIR_UP       ; start jump sequence
         sta p2_state
         lda #0                          ; use sine to jump
-        sta p2_jump_idx                 ; set pointer to beginning of sine
+        sta jump_idx_p2                 ; set pointer to beginning of sine
         rts
 
 test_movement_p2:
@@ -1501,9 +1523,9 @@ anim_riding:
         beq l0
         sta p1_state                            ; no? set it
         lda #JUMP_TBL_SIZE-1                    ; and the index to the correct position
-        sta p1_jump_idx
+        sta jump_idx_p1
 
-l0:     ldx p1_jump_idx
+l0:     ldx jump_idx_p1
         lda jump_tbl,x
         beq l2                                  ; don't go down if value is 0
         tay
@@ -1515,13 +1537,13 @@ l1:     inc VIC_SPR0_Y                          ; tire
         dey
         bne l1
 
-l2:     lda p1_jump_idx                         ; if it is already 0, stop dec
+l2:     lda jump_idx_p1                         ; if it is already 0, stop dec
         beq @end
-        dec p1_jump_idx
+        dec jump_idx_p1
 @end:   rts
 
 p1_go_up:
-        ldx p1_jump_idx                         ; fetch sine index
+        ldx jump_idx_p1                         ; fetch sine index
         lda jump_tbl,x
         beq l4                                  ; don't go up if value is 0
         tay
@@ -1537,19 +1559,19 @@ l3:     lda VIC_SPR0_Y                          ; don't go above a certain heigh
         dey
         bne l3
 
-l4:     inc p1_jump_idx                         ; reached max height?
-        lda p1_jump_idx
+l4:     inc jump_idx_p1                         ; reached max height?
+        lda jump_idx_p1
         cmp #JUMP_TBL_SIZE
         bne @end
 
-        dec p1_jump_idx                         ; set idx to JUMP_TBL_SIZE-1
+        dec jump_idx_p1                         ; set idx to JUMP_TBL_SIZE-1
         lda #PLAYER_STATE::AIR_DOWN             ; and start going down
         sta p1_state
 @end:   rts
 
 p1_collision_body:
         lda #JUMP_TBL_SIZE-1
-        sta p1_jump_idx                         ; reset jmp table just in case
+        sta jump_idx_p1                         ; reset jmp table just in case
         lda #PLAYER_STATE::RIDING               ; touching ground
         sta p1_state
 
@@ -1567,7 +1589,7 @@ l5:     dec VIC_SPR0_Y                          ; go up three times
 
 p1_collision_tire:
         ldy #JUMP_TBL_SIZE-1
-        sty p1_jump_idx                         ; reset jmp table just in case
+        sty jump_idx_p1                         ; reset jmp table just in case
         ldy #PLAYER_STATE::RIDING               ; touching ground
         sty p1_state
 
@@ -1606,9 +1628,9 @@ p1_collision_tire:
         beq l0
         sta p2_state                            ; no? set it
         lda #JUMP_TBL_SIZE-1                    ; and the index to the correct position
-        sta p2_jump_idx
+        sta jump_idx_p2
 
-l0:     ldx p2_jump_idx
+l0:     ldx jump_idx_p2
         lda jump_tbl,x
         beq l2                                  ; don't go down if value is 0
         tay
@@ -1620,13 +1642,13 @@ l1:     inc VIC_SPR4_Y                          ; tire
         dey
         bne l1
 
-l2:     lda p2_jump_idx                         ; if it is already 0, stop dec
+l2:     lda jump_idx_p2                         ; if it is already 0, stop dec
         beq @end
-        dec p2_jump_idx
+        dec jump_idx_p2
 @end:   rts
 
 p2_go_up:
-        ldx p2_jump_idx                         ; fetch sine index
+        ldx jump_idx_p2                         ; fetch sine index
         lda jump_tbl,x
         beq l4                                 ; don't go up if value is 0
         tay
@@ -1642,19 +1664,19 @@ l3:     lda VIC_SPR4_Y                          ; don't go above a certain heigh
         dey
         bne l3
 
-l4:     inc p2_jump_idx                         ; reached max height?
-        lda p2_jump_idx
+l4:     inc jump_idx_p2                         ; reached max height?
+        lda jump_idx_p2
         cmp #JUMP_TBL_SIZE
         bne @end
 
-        dec p2_jump_idx                         ; set idx to JUMP_TBL_SIZE-1
+        dec jump_idx_p2                         ; set idx to JUMP_TBL_SIZE-1
         lda #PLAYER_STATE::AIR_DOWN             ; and start going down
         sta p2_state
 @end:   rts
 
 p2_collision_body:
         lda #JUMP_TBL_SIZE-1
-        sta p2_jump_idx                         ; reset jmp table just in case
+        sta jump_idx_p2                         ; reset jmp table just in case
         lda #PLAYER_STATE::RIDING               ; touching ground
         sta p2_state
 
@@ -1672,7 +1694,7 @@ l5:     dec VIC_SPR4_Y                          ; go up three times
 
 p2_collision_tire:
         ldy #JUMP_TBL_SIZE-1
-        sty p2_jump_idx                         ; reset jmp table just in case
+        sty jump_idx_p2                         ; reset jmp table just in case
         ldy #PLAYER_STATE::RIDING               ; touching ground
         sty p2_state
 
@@ -1734,8 +1756,8 @@ smooth_scroll_x_p1:     .word $0000     ; MSB is used for $d016
 smooth_scroll_x_p2:     .word $0000     ; MSB is used for $d016
 scroll_idx_p1:          .word 0         ; initialized in init_game
 scroll_idx_p2:          .word 0
-scroll_speed_p1:        .word SCROLL_SPEED_P1  ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
-scroll_speed_p2:        .word SCROLL_SPEED_P2  ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
+scroll_speed_p1:        .word SCROLL_SPEED      ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
+scroll_speed_p2:        .word SCROLL_SPEED      ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
 expected_joy1_idx:      .byte 0
 expected_joy2_idx:      .byte 0
 expected_joy:
@@ -1757,8 +1779,8 @@ resistance_tbl:                         ; how fast the unicycle will desacelerat
 .byte  30, 31, 31, 31, 31, 32, 32, 32
 RESISTANCE_TBL_SIZE = * - resistance_tbl
 
-p1_jump_idx:            .byte 0         ; sine pointer for jump/down sequence
-p2_jump_idx:            .byte 0         ; sine pointer for jump/down sequence
+jump_idx_p1:            .byte 0         ; sine pointer for jump/down sequence
+jump_idx_p2:            .byte 0         ; sine pointer for jump/down sequence
 jump_tbl:
 ; autogenerated table: easing_table_generator.py -s32 -m20 -aFalse sin
 .byte   2,  2,  2,  2,  1,  2,  2,  1
@@ -1825,6 +1847,7 @@ freq_table_hi:
 .byte $8b,$93,$9c,$a5,$af,$b9,$c4,$d0,$dd,$ea,$f8,$ff  ; 7
 
 music_speed:    .word $4cc7                             ; default: playing at PAL speed in PAL computer
+remove_go_counter:  .byte $80                           ; delay to remove "go" label
 
 .segment "COMPRESSED_DATA"
         .incbin "level-cyclocross-charset.prg.exo"     ; 2k at $3000
