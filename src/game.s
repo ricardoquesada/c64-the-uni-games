@@ -98,7 +98,7 @@ MUSIC_PLAY = $1003
         sta $d020
         lda #2
         sta $d022                       ; used for extended background
-        lda #5
+        lda #12
         sta $d023                       ; used for extended background
 
         jsr init_sound                  ; turn off volume right now
