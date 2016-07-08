@@ -8,6 +8,7 @@ v0.2.5 - July, 2016
   - PAL / NSTC / Drean fixes
   - Riders can jump
   - Riders can't go above certain height
+  - Jumping doesn't generate that much resistance
 
 
 v0.2 - June, 2016
