@@ -15,7 +15,7 @@
 ; from utils.s
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
 .import menu_handle_events
-.import ut_clear_color, ut_start_clean
+.import ut_clear_color, ut_start_clean, ut_detect_pal_paln_ntsc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -37,7 +37,9 @@
 ; void intro_main()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc intro_main
+                                        ; one time init code here
         jsr ut_start_clean              ; no basic, no kernal, no interrupts
+        jsr ut_detect_pal_paln_ntsc     ; pal, pal-n or ntsc?
 
         sei
 

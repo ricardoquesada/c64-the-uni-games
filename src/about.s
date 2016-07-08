@@ -65,9 +65,17 @@ l0:
         inx
         bne l0
 
-        lda #$0b                         ; set color for "without permission"
         ldx #39
-:       sta $d800+24*40,x
+:       lda #$0b                         ; set color for "without permission"
+        sta $d800+24*40,x
+
+        lda #$0c                         ; set color for BC unicycle
+        sta $d800+20*40,x
+        sta $d800+21*40,x
+        sta $d800+22*40,x
+
+        lda #$0f                         ; set color for copyright
+        sta $d800+8*40,x
         dex
         bpl :-
 

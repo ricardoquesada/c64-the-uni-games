@@ -17,7 +17,7 @@
 
 ; from utils.s
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
-.import ut_get_key, ut_read_joy2, ut_detect_pal_paln_ntsc
+.import ut_get_key, ut_read_joy2
 .import ut_vic_video_type, ut_start_clean
 .import ut_clear_screen, ut_clear_color
 .import menu_handle_events, menu_invert_row
@@ -48,9 +48,10 @@ DEBUG = 0                               ; bitwise: 1=raster-sync code
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export main
 .proc main
-        jsr ut_detect_pal_paln_ntsc     ; pal, pal-n or ntsc?
-
         sei
+
+        lda #0
+        sta VIC_SPR_ENA                 ; no sprites while initing the screen
 
         lda #SCENE_STATE::MAIN_MENU     ; menu to display
         sta scene_state                 ; is "main menu"

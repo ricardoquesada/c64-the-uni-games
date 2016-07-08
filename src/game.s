@@ -12,6 +12,7 @@
 ; from utils.s
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
 .import ut_clear_color, ut_setup_tod, ut_vic_video_type
+.import main
 
 .enum GAME_STATE
         ON_YOUR_MARKS                   ; initial scroll
@@ -20,12 +21,19 @@
         GAME_OVER                       ; race finished
 .endenum
 
+; finished is in a different state for some reason
+; but I can't remember why... related to scrolling and finished
 .enum PLAYER_STATE
         GET_SET_GO = 1                  ; race not started
         RIDING     = 2                  ; riding: touching ground
         AIR_DOWN   = 3                  ; riding: not touching ground, falling
         AIR_UP     = 4                  ; riding: impulse, going up
-        FALL       = 5                  ; fall down
+.endenum
+
+.enum FINISH_STATE                      ; used by p?_finished,
+        NOT_FINISHED = 0
+        WINNER = 1
+        LOSER = 2
 .endenum
 
 
@@ -157,9 +165,24 @@ _mainloop:
 
         dec sync_timer_irq
 
-        lda game_state
-        cmp #GAME_STATE::RIDING
+        lda game_state                  ; play music only in GAME_OVER or RIDING
+        cmp #GAME_STATE::RIDING         ; states
+        beq @play_music                 ; riding: do the riding stuff
+
+        cmp #GAME_STATE::GAME_OVER      ; game over: do the game over stuff
         bne _mainloop
+
+        jsr show_press_space            ; display "press space"
+
+        lda #%01111111                  ; space ?
+        sta CIA1_PRA                    ; row 7
+        lda CIA1_PRB
+        and #%00010000                  ; col 4
+        bne @play_music                 ; space pressed ?
+
+        jmp main                        ; yes, return to main
+
+@play_music:
         jsr MUSIC_PLAY
         jmp _mainloop
 
@@ -200,7 +223,8 @@ do_raster:
         jmp @cont
 
 @game_over:
-
+        jsr process_events
+        jsr print_speed
 @cont:
 
 .if (::DEBUG & 1)
@@ -612,9 +636,13 @@ _loop2:
         lda #PLAYER_STATE::GET_SET_GO   ; player state machine = "get set"
         sta p1_state
         sta p2_state
-        lda #0
+        lda #FINISH_STATE::NOT_FINISHED
         sta p1_finished
         sta p2_finished
+
+        lda #0
+        sta frame_idx_p1
+        sta frame_idx_p2
 
         ldx #<(LEVEL1_MAP+40)
         ldy #>(LEVEL1_MAP+40)
@@ -825,6 +853,43 @@ counter: .byte 0
 @end:
         rts
 counter: .byte $80
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void show_press_space()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc show_press_space
+        dec counter
+        beq @display
+        rts
+
+@display:
+        lda #$40
+        sta counter
+
+        lda on_off
+        eor #%00000001
+        sta on_off
+
+        beq show_label
+
+        ldx #39                         ; clean the "go" message
+        lda #$20
+l0:     sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
+        dex
+        bpl l0
+        rts
+
+show_label:
+        ldx #39                         ; clean the "go" message
+l1:     lda press_space_lbl,x
+        sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
+        dex
+        bpl l1
+        rts
+
+on_off: .byte 0
+counter: .byte $40
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -1051,8 +1116,14 @@ update_scroll_p1:
         lda scroll_idx_p1+1                     ; game over?
         cmp #>(LEVEL1_MAP + LEVEL1_WIDTH)       ; if so, the p1 state to finished
         bne @end
-        lda #1
-        sta p1_finished
+
+        ldx #FINISH_STATE::WINNER               ; winner?
+        lda p2_finished                         ; only if p2 hasn't finished yet
+        beq :+
+        lda #GAME_STATE::GAME_OVER              ; if loser, it also means game over
+        sta game_state                          ; since both players have finished
+        ldx #FINISH_STATE::LOSER                ; loser then
+:       stx p1_finished
 @end:
         rts
 
@@ -1107,8 +1178,14 @@ update_scroll_p2:
         lda scroll_idx_p2+1                     ; game over?
         cmp #>(LEVEL1_MAP + LEVEL1_WIDTH)       ; if so, the p2 state to finished
         bne @end
-        lda #1
-        sta p2_finished
+
+        ldx #FINISH_STATE::WINNER               ; winner?
+        lda p1_finished                         ; only if p1 hasn't finished yet
+        beq :+
+        lda #GAME_STATE::GAME_OVER              ; if loser, it also means game over
+        sta game_state                          ; since both players have finished
+        ldx #FINISH_STATE::LOSER                ; loser then
+:       stx p2_finished
 @end:
 
         rts
@@ -1273,17 +1350,50 @@ tmp:
         beq :+
         rts
 :
-        ldx frame_head_idx_p1
-        lda frame_head_tbl,x
-        sta SPRITE_PTR + 3                      ; head is 4th sprite
-        inx
-        cpx #FRAME_HEAD_TBL_SIZE
-        bne :+
-        ldx #0
-:       stx frame_head_idx_p1
-
         lda #ACTOR_ANIMATION_SPEED
         sta animation_delay_p1
+
+
+        lda p1_finished
+        beq anim_riding                         ; riding animation
+        cmp #FINISH_STATE::WINNER
+        beq anim_winner                         ; winner animation
+
+                                                ; default: loser animation
+        lda scroll_speed_p1+1                   ; but only anim when speed is low
+        bne anim_riding
+
+        lda #SPRITES_POINTER+10                 ; hair sprite
+        sta SPRITE_PTR+3
+        lda #SPRITES_POINTER+9                  ; body sprite
+        sta SPRITE_PTR+2
+        rts
+
+anim_winner:
+        lda scroll_speed_p1+1                   ; only anim when speed is low
+        bne anim_riding
+
+        ldx frame_idx_p1
+        lda frame_hair_winner_tbl,x
+        sta SPRITE_PTR+3                        ; hair
+        lda frame_body_winner_tbl,x
+        sta SPRITE_PTR+2                        ; body
+        inx
+        cpx #FRAME_HAIR_WINNER_TBL_SIZE
+        bne @end
+        ldx #0
+@end:   stx frame_idx_p1
+        rts
+
+anim_riding:
+        ldx frame_idx_p1
+        lda frame_hair_riding_tbl,x
+        sta SPRITE_PTR + 3                      ; head is 4th sprite
+        inx
+        cpx #FRAME_HAIR_RIDING_TBL_SIZE
+        bne :+
+        ldx #0
+:       stx frame_idx_p1
 
         ldx animation_idx_p1
         lda VIC_SPR2_Y
@@ -1308,17 +1418,48 @@ tmp:
         beq :+
         rts
 :
-        ldx frame_head_idx_p2
-        lda frame_head_tbl,x
-        sta SPRITE_PTR + 7                      ; head is 8th sprite
-        inx
-        cpx #FRAME_HEAD_TBL_SIZE
-        bne :+
-        ldx #0
-:       stx frame_head_idx_p2
-
         lda #ACTOR_ANIMATION_SPEED
         sta animation_delay_p2
+
+        lda p2_finished
+        beq anim_riding                         ; riding animation
+        cmp #FINISH_STATE::WINNER
+        beq anim_winner                         ; winner animation
+
+                                                ; default: loser animation
+        lda scroll_speed_p2+1                   ; but only anim when speed is low
+        bne anim_riding
+
+        lda #SPRITES_POINTER+10                 ; hair sprite
+        sta SPRITE_PTR+7
+        lda #SPRITES_POINTER+9                  ; body sprite
+        sta SPRITE_PTR+6
+        rts
+anim_winner:
+        lda scroll_speed_p2+1                   ; only anim when speed is low
+        bne anim_riding
+
+        ldx frame_idx_p2
+        lda frame_hair_winner_tbl,x
+        sta SPRITE_PTR+7
+        lda frame_body_winner_tbl,x
+        sta SPRITE_PTR+6
+        inx
+        cpx #FRAME_HAIR_WINNER_TBL_SIZE
+        bne @end
+        ldx #0
+@end:   stx frame_idx_p2
+        rts
+
+anim_riding:
+        ldx frame_idx_p2
+        lda frame_hair_riding_tbl,x
+        sta SPRITE_PTR + 7                      ; head is 8th sprite
+        inx
+        cpx #FRAME_HAIR_RIDING_TBL_SIZE
+        bne :+
+        ldx #0
+:       stx frame_idx_p2
 
         ldx animation_idx_p2
         lda VIC_SPR6_Y
@@ -1586,8 +1727,8 @@ sync_raster_irq:        .byte $00
 game_state:             .byte GAME_STATE::GET_SET_GO
 p1_state:               .byte PLAYER_STATE::GET_SET_GO
 p2_state:               .byte PLAYER_STATE::GET_SET_GO
-p1_finished:            .byte 0         ; don't mix p_finished and p_state together
-p2_finished:            .byte 0         ; since scrolling should still happen while player is finished
+p1_finished:            .byte FINISH_STATE::NOT_FINISHED  ; don't mix p_finished and p_state together. 0=Not finished, 1=Finished Winner, 2=Finished Loser
+p2_finished:            .byte FINISH_STATE::NOT_FINISHED  ; since scrolling should still happen while player is finished
 
 smooth_scroll_x_p1:     .word $0000     ; MSB is used for $d016
 smooth_scroll_x_p2:     .word $0000     ; MSB is used for $d016
@@ -1599,7 +1740,7 @@ expected_joy1_idx:      .byte 0
 expected_joy2_idx:      .byte 0
 expected_joy:
 ;        .byte %00000001                 ; up
-        .byte %00001001                 ; right or up 
+        .byte %00001001                 ; right or up
 ;        .byte %00000010                 ; down
         .byte %00000110                 ; left or down
 resistance_idx_p2:      .byte 0         ; index in resistance table
@@ -1624,12 +1765,20 @@ jump_tbl:
 .byte   1,  2,  1,  0,  1,  1,  0,  0
 JUMP_TBL_SIZE = * - jump_tbl
 
-frame_head_idx_p1:      .byte 0                         ; index for frame_head p1
-frame_head_idx_p2:      .byte 0                         ; index for frame_head p2
-frame_head_tbl:
-        .byte SPRITES_POINTER + 3                       ; frame for the head: hair normal
-        .byte SPRITES_POINTER + 4                       ; frame for the head: hair up
-FRAME_HEAD_TBL_SIZE = * - frame_head_tbl
+; riding
+frame_idx_p1:      .byte 0                              ; index for frame p1
+frame_idx_p2:      .byte 0                              ; index for frame p2
+frame_hair_riding_tbl:
+        .byte SPRITES_POINTER + 3                       ; hair #1 riding
+        .byte SPRITES_POINTER + 4                       ; hair #2 riding
+FRAME_HAIR_RIDING_TBL_SIZE = * - frame_hair_riding_tbl
+frame_hair_winner_tbl:
+        .byte SPRITES_POINTER + 7                       ; hair #1 winner
+        .byte SPRITES_POINTER + 8                       ; hair #2 winner
+FRAME_HAIR_WINNER_TBL_SIZE = * - frame_hair_winner_tbl
+frame_body_winner_tbl:
+        .byte SPRITES_POINTER + 5                       ; body winner #1
+        .byte SPRITES_POINTER + 6                       ; body winner #2
 animation_delay_p1:     .byte ACTOR_ANIMATION_SPEED
 animation_delay_p2:     .byte ACTOR_ANIMATION_SPEED
 animation_idx_p1:       .byte 0         ; index in the animation table
@@ -1643,6 +1792,10 @@ on_your_marks_lbl:
         scrcode "             on your marks              "
         scrcode "                get set                 "
         scrcode "                  go!                   "
+
+press_space_lbl:
+                ;0123456789|123456789|123456789|123456789|
+        scrcode "              press space               "
 
 screen:
                 ;0123456789|123456789|123456789|123456789|
