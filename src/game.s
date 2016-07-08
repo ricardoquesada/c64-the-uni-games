@@ -96,7 +96,7 @@ MUSIC_PLAY = $1003
 
         lda #0
         sta $d020
-        lda #3
+        lda #2
         sta $d022                       ; used for extended background
         lda #5
         sta $d023                       ; used for extended background
@@ -428,6 +428,7 @@ raster:
         sta $d011                       ; extended color mode: off
 
         lda smooth_scroll_x_p1+1        ; scroll x
+        ora #%00010000                  ; multicolor on
         sta $d016
 
         lda #<irq_top_p2                ; set new IRQ-raster vector
@@ -518,6 +519,7 @@ raster:
         sta $d021                       ; background color
 
         lda smooth_scroll_x_p2+1        ; scroll x
+        ora #%00010000                  ; multicolor on
         sta $d016
 
         lda #%00011011
