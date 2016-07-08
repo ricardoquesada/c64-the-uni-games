@@ -1379,7 +1379,7 @@ tmp:
         lda p1_finished
         beq anim_riding                         ; riding animation
 
-        ldx #(RESISTANCE_TBL_SIZE/2)-1          ; if not riding, then it finishes
+        ldx #(RESISTANCE_TBL_SIZE/3)-1          ; if not riding, then it finishes
         stx resistance_idx_p1                   ; so slow down quickly
 
         cmp #FINISH_STATE::WINNER
@@ -1460,7 +1460,7 @@ anim_riding:
         lda p2_finished
         beq anim_riding                         ; riding animation
 
-        ldx #(RESISTANCE_TBL_SIZE/2)-1          ; if not riding, then it finishes
+        ldx #(RESISTANCE_TBL_SIZE/3)-1          ; if not riding, then it finishes
         stx resistance_idx_p2                   ; so slow down quickly
 
         cmp #FINISH_STATE::WINNER
