@@ -1286,7 +1286,7 @@ update_scroll_p2:
         rol tmp+1                               ; which is the same as using the
                                                 ; the first 4 MSB bits
         ldx #10                                 ; print speed bar. 10 chars
-l1:     lda #38+128                             ; char to fill the speed bar
+l1:     lda #42+128                             ; char to fill the speed bar
         cpx tmp+1
         bmi print_p1
 
@@ -1294,18 +1294,17 @@ l1:     lda #38+128                             ; char to fill the speed bar
 print_p1:
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 7,x
         dex
-        bne l1
+        bpl l1
 
-        lsr tmp                                 ; use first 2 MSB bits
-        lsr tmp                                 ; and use them to print
-        lsr tmp                                 ; the correct char
-        lsr tmp
-        lsr tmp
-        lsr tmp
+        lda tmp                                 ; use 3-MSB bits
+        lsr                                     ; from tmp for the
+        lsr                                     ; variable char
+        lsr
+        lsr
+        lsr
 
-        lda tmp
         clc
-        adc #35+128                             ; base char
+        adc #35+128                             ; base char is 35
 
         ldx tmp+1
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 7,x
@@ -1321,7 +1320,7 @@ print_p1:
         rol tmp+1                               ; which is the same as using the
                                                 ; the first 4 MSB bits
         ldx #10                                 ; print speed bar. 10 chars
-l2:     lda #38+128                             ; char to fill the speed bar
+l2:     lda #42+128                             ; char to fill the speed bar
         cpx tmp+1
         bmi print_p2
 
@@ -1329,16 +1328,15 @@ l2:     lda #38+128                             ; char to fill the speed bar
 print_p2:
         sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 7,x
         dex
-        bne l2
+        bpl l2
 
-        lsr tmp                                 ; use first 2 MSB bits
-        lsr tmp                                 ; and use them to print
-        lsr tmp                                 ; the correct char
-        lsr tmp
-        lsr tmp
-        lsr tmp
+        lda tmp                                 ; use 3-MSB bits
+        lsr                                     ; from tmp for the
+        lsr                                     ; variable char
+        lsr
+        lsr
+        lsr
 
-        lda tmp
         clc
         adc #35+128                             ; base char
 
