@@ -268,23 +268,23 @@ game_music_address = *+1
         jsr decrunch                    ; uncrunch map
 
 level_map_address = *+1
-        ldx #<level1_map_exo            ; self-modifyng
-        ldy #>level1_map_exo
+        ldx #<level_roadrace_map_exo            ; self-modifyng
+        ldy #>level_roadrace_map_exo
         stx _crunched_byte_lo
         sty _crunched_byte_hi
         jsr decrunch                    ; uncrunch map
 
 
 level_color_address = *+1
-        ldx #<level1_colors_exo         ; self-modifying
-        ldy #>level1_colors_exo
+        ldx #<level_roadrace_colors_exo         ; self-modifying
+        ldy #>level_roadrace_colors_exo
         stx _crunched_byte_lo
         sty _crunched_byte_hi
         jsr decrunch                    ; uncrunch
 
 level_charset_address = *+1
-        ldx #<level1_charset_exo         ; self-modifying
-        ldy #>level1_charset_exo
+        ldx #<level_roadrace_charset_exo         ; self-modifying
+        ldy #>level_roadrace_charset_exo
         stx _crunched_byte_lo
         sty _crunched_byte_hi
         jsr decrunch                    ; uncrunch
@@ -298,18 +298,18 @@ level_charset_address = *+1
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export game_start_roadrace
 .proc game_start_roadrace
-        ldx #<level1_map_exo
-        ldy #>level1_map_exo
+        ldx #<level_roadrace_map_exo
+        ldy #>level_roadrace_map_exo
         stx level_map_address
         sty level_map_address+2
 
-        ldx #<level1_colors_exo
-        ldy #>level1_colors_exo
+        ldx #<level_roadrace_colors_exo
+        ldy #>level_roadrace_colors_exo
         stx level_color_address
         sty level_color_address+2
 
-        ldx #<level1_charset_exo
-        ldy #>level1_charset_exo
+        ldx #<level_roadrace_charset_exo
+        ldy #>level_roadrace_charset_exo
         stx level_charset_address
         sty level_charset_address+2
 
@@ -1933,14 +1933,14 @@ remove_go_counter:  .byte $80                           ; delay to remove "go" l
 .segment "COMPRESSED_DATA"
 
         ; road race data
-        .incbin "level1-charset.prg.exo"                ; 2k at $3000
-level1_charset_exo:
+        .incbin "level-roadrace-charset.prg.exo"                ; 2k at $3000
+level_roadrace_charset_exo:
 
-        .incbin "level1-map.prg.exo"                    ; 6k at $4100
-level1_map_exo:
+        .incbin "level-roadrace-map.prg.exo"                    ; 6k at $4100
+level_roadrace_map_exo:
 
-        .incbin "level1-colors.prg.exo"                 ; 256b at $4000
-level1_colors_exo:
+        .incbin "level-roadrace-colors.prg.exo"                 ; 256b at $4000
+level_roadrace_colors_exo:
 
         .incbin "game_music2.sid.exo"                   ; export at $1000
 game_music2_exo:

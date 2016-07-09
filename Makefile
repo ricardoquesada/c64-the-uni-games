@@ -13,9 +13,9 @@ SRC=src/intro.s src/main.s src/about.s src/utils.s src/game.s src/highscores.s s
 res:
 	exomizer mem -q res/sprites.prg -o src/sprites.prg.exo
 	exomizer mem -q res/mainscreen-charset.prg -o src/mainscreen-charset.prg.exo
-	exomizer mem -q res/level1-map.prg -o src/level1-map.prg.exo
-	exomizer mem -q res/level1-colors.prg -o src/level1-colors.prg.exo
-	exomizer mem -q res/level1-charset.prg -o src/level1-charset.prg.exo
+	exomizer mem -q res/level-roadrace-map.prg -o src/level-roadrace-map.prg.exo
+	exomizer mem -q res/level-roadrace-colors.prg -o src/level-roadrace-colors.prg.exo
+	exomizer mem -q res/level-roadrace-charset.prg -o src/level-roadrace-charset.prg.exo
 	exomizer mem -q res/level-cyclocross-map.prg -o src/level-cyclocross-map.prg.exo
 	exomizer mem -q res/level-cyclocross-colors.prg -o src/level-cyclocross-colors.prg.exo
 	exomizer mem -q res/level-cyclocross-charset.prg -o src/level-cyclocross-charset.prg.exo
