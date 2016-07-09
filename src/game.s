@@ -764,14 +764,14 @@ loop:
         rts
 sprites_x:      .byte 80, 80, 80, 80            ; player 1
                 .byte 80, 80, 80, 80            ; player 2
-sprites_y:      .byte (SCROLL_ROW_P1+5)*8+36    ; player 1
-                .byte (SCROLL_ROW_P1+5)*8+36
-                .byte (SCROLL_ROW_P1+5)*8+36
-                .byte (SCROLL_ROW_P1+5)*8+36
-                .byte (SCROLL_ROW_P2+5)*8+36    ; player 2
-                .byte (SCROLL_ROW_P2+5)*8+36
-                .byte (SCROLL_ROW_P2+5)*8+36
-                .byte (SCROLL_ROW_P2+5)*8+36
+sprites_y:      .byte (SCROLL_ROW_P1+5)*7+30    ; player 1
+                .byte (SCROLL_ROW_P1+5)*7+30
+                .byte (SCROLL_ROW_P1+5)*7+30
+                .byte (SCROLL_ROW_P1+5)*7+30
+                .byte (SCROLL_ROW_P2+5)*7+30    ; player 2
+                .byte (SCROLL_ROW_P2+5)*7+30
+                .byte (SCROLL_ROW_P2+5)*7+30
+                .byte (SCROLL_ROW_P2+5)*7+30
 frames:
                 .byte SPRITES_POINTER + 0       ; player 1
                 .byte SPRITES_POINTER + 1
