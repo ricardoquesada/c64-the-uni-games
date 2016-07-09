@@ -19,6 +19,9 @@ res:
 	exomizer mem -q res/level-cyclocross-map.prg -o src/level-cyclocross-map.prg.exo
 	exomizer mem -q res/level-cyclocross-colors.prg -o src/level-cyclocross-colors.prg.exo
 	exomizer mem -q res/level-cyclocross-charset.prg -o src/level-cyclocross-charset.prg.exo
+	exomizer mem -q res/level-crosscountry-map.prg -o src/level-crosscountry-map.prg.exo
+	exomizer mem -q res/level-crosscountry-colors.prg -o src/level-crosscountry-colors.prg.exo
+	exomizer mem -q res/level-crosscountry-charset.prg -o src/level-crosscountry-charset.prg.exo
 	exomizer mem -q res/intro-charset.prg -o src/intro-charset.prg.exo
 	exomizer mem -q res/intro-map.prg -o src/intro-map.prg.exo
 	cp res/select_event-map.bin src
@@ -29,6 +32,7 @@ res:
 	cp res/Popcorn_2.exo src/maintitle_music.sid.exo
 	cp res/Action_G.exo src/game_music1.sid.exo
 	cp res/12_Bar_Blues.exo src/game_music2.sid.exo
+	cp res/Sunny_Day.exo src/game_music3.sid.exo
 
 unigames: ${SRC}
 	cl65 -d -g -Ln bin/$@.sym -o bin/$@.prg -u __EXEHDR__ -t c64 -C $@.cfg $^

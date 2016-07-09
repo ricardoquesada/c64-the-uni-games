@@ -349,6 +349,34 @@ level_charset_address = *+1
         jmp game_init
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void game_start_crosscountry()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export game_start_crosscountry
+.proc game_start_crosscountry
+        ldx #<level_crosscountry_map_exo
+        ldy #>level_crosscountry_map_exo
+        stx level_map_address
+        sty level_map_address+2
+
+        ldx #<level_crosscountry_colors_exo
+        ldy #>level_crosscountry_colors_exo
+        stx level_color_address
+        sty level_color_address+2
+
+        ldx #<level_crosscountry_charset_exo
+        ldy #>level_crosscountry_charset_exo
+        stx level_charset_address
+        sty level_charset_address+2
+
+        ldx #<game_music3_exo
+        ldy #>game_music3_exo
+        stx game_music_address
+        sty game_music_address+2
+
+        jmp game_init
+.endproc
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; IRQ handlers
@@ -1903,15 +1931,8 @@ music_speed:    .word $4cc7                             ; default: playing at PA
 remove_go_counter:  .byte $80                           ; delay to remove "go" label
 
 .segment "COMPRESSED_DATA"
-        .incbin "level-cyclocross-charset.prg.exo"     ; 2k at $3000
-level_cyclocross_charset_exo:
 
-        .incbin "level-cyclocross-map.prg.exo"          ; 6k at $4100
-level_cyclocross_map_exo:
-
-        .incbin "level-cyclocross-colors.prg.exo"       ; 256b at $4000
-level_cyclocross_colors_exo:
-
+        ; road race data
         .incbin "level1-charset.prg.exo"                ; 2k at $3000
 level1_charset_exo:
 
@@ -1921,10 +1942,35 @@ level1_map_exo:
         .incbin "level1-colors.prg.exo"                 ; 256b at $4000
 level1_colors_exo:
 
+        .incbin "game_music2.sid.exo"                   ; export at $1000
+game_music2_exo:
+
+
+        ; cyclo cross data
+        .incbin "level-cyclocross-charset.prg.exo"     ; 2k at $3000
+level_cyclocross_charset_exo:
+
+        .incbin "level-cyclocross-map.prg.exo"          ; 6k at $4100
+level_cyclocross_map_exo:
+
+        .incbin "level-cyclocross-colors.prg.exo"       ; 256b at $4000
+level_cyclocross_colors_exo:
+
         .incbin "game_music1.sid.exo"                   ; export at $1000
 game_music1_exo:
 
-        .incbin "game_music2.sid.exo"                   ; export at $1000
-game_music2_exo:
+
+        ; cross country data
+        .incbin "level-crosscountry-charset.prg.exo"    ; 2k at $3000
+level_crosscountry_charset_exo:
+
+        .incbin "level-crosscountry-map.prg.exo"        ; 6k at $4100
+level_crosscountry_map_exo:
+
+        .incbin "level-crosscountry-colors.prg.exo"     ; 256b at $4000
+level_crosscountry_colors_exo:
+
+        .incbin "game_music3.sid.exo"                   ; export at $1000
+game_music3_exo:
 
 .byte 0                                                 ; ignore

@@ -10,7 +10,7 @@
 .import _crunched_byte_hi, _crunched_byte_lo    ; from utils
 .import sync_timer_irq
 .import ut_clear_color, ut_get_key
-.import game_start_cyclocross, game_start_roadrace
+.import game_start_cyclocross, game_start_roadrace, game_start_crosscountry
 .import menu_handle_events, menu_invert_row
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -35,14 +35,16 @@
 
         ldx #0
 l0:
-        lda selectevent_map,x
-        sta SCREEN0_BASE + $0280,x
+        lda selectevent_map,x                   ; copy 7 * 40 chars in total
+        sta SCREEN0_BASE + 40 * 16,x
+
+        lda selectevent_map + 24,x
+        sta SCREEN0_BASE + 40 * 16 + 24,x
 
         inx
-        cpx #240                                ; 6 * 40. six rows
         bne l0
 
-        lda #2                                  ; setup the global variables
+        lda #3                                  ; setup the global variables
         sta MENU_MAX_ITEMS                      ; needed for the menu code
         lda #0
         sta MENU_CURRENT_ITEM
@@ -50,8 +52,8 @@ l0:
         sta MENU_ITEM_LEN
         lda #(40*2)
         sta MENU_BYTES_BETWEEN_ITEMS
-        ldx #<(SCREEN0_BASE + 40 * 19 + 5)
-        ldy #>(SCREEN0_BASE + 40 * 19 + 5)
+        ldx #<(SCREEN0_BASE + 40 * 18 + 5)
+        ldy #>(SCREEN0_BASE + 40 * 18 + 5)
         stx MENU_CURRENT_ROW_ADDR
         sty MENU_CURRENT_ROW_ADDR+1
         ldx #<selectevent_exec
@@ -69,7 +71,10 @@ l0:
         lda MENU_CURRENT_ITEM
         bne :+
         jmp game_start_roadrace
-:       jmp game_start_cyclocross
+:       cmp #1
+        bne :+
+        jmp game_start_cyclocross
+:       jmp game_start_crosscountry
 .endproc
 
 
