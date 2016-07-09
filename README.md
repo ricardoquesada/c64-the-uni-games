@@ -2,11 +2,11 @@
 
 The first and only "Unicycle Games" games for the Commodore 64 compatible with Uni-Joysti-Cle™.
 
-## Preview Version v0.1
+## Version v0.2.4
 
-![Title Screen](https://lh3.googleusercontent.com/-lS8RLTwCrjg/VwLiawqXoHI/AAAAAAABdoU/VhVqIy8xSkglfyyL45PODNooTTixcZ1mgCCo/s288-Ic42/Screen%2BShot%2B2016-04-04%2Bat%2B2.38.14%2BPM.png)
-![Riding](https://lh3.googleusercontent.com/-0AO3EXGssnE/VwLia951ibI/AAAAAAABdoc/WckCySb2-0oFOKJgvXXGUnmBJ0es2lMwACCo/s288-Ic42/Screen%2BShot%2B2016-04-04%2Bat%2B2.39.10%2BPM.png)
-![High Scores](https://lh3.googleusercontent.com/-UQPThcDYF6w/VwLia-4tEaI/AAAAAAABdoY/I7FzbnVJTc4SdXxMbJIMrI5aa8KZwiUBgCCo/s288-Ic42/Screen%2BShot%2B2016-04-04%2Bat%2B2.40.39%2BPM.png)
+![Title Screen](https://lh3.googleusercontent.com/-iIjET-7cb9M/V4BFVkcc5WI/AAAAAAABexI/tiyfWHQSNlAIULfSHkY7qe_09n3qgJ7xwCCo/s288/capture2.png)
+![Riding](https://lh3.googleusercontent.com/-2aUt6XxtEAU/V4BFVmPdHMI/AAAAAAABexE/zj73EICjTpk27gcDmljJfO6nXWSlWawDgCCo/s288/capture4.png)
+![About](https://lh3.googleusercontent.com/-SbLrO1sAhWM/V4BFVvCHjYI/AAAAAAABexA/iloekpcOv5ohmgoRzsXHDbFYnpvAmXMcQCCo/s288/capture3.png)
 
 The game is far from finished. __IT IS NOT IN A PLAYABLE STATE__.
 However, if you want to see the progress of the game, feel free to clone it, report bugs, submit pull requests, etc.
@@ -18,7 +18,7 @@ If you don't have one, go and get one. In the meantime you can try it with a Joy
 
 ## Download
 
-Download preview version (v0.1) from here: [unigames.prg](https://github.com/ricardoquesada/c64-the-uni-games/raw/master/bin/unigames.prg)
+Download version v0.2.4 from here: [unigames_exo.prg](https://github.com/ricardoquesada/c64-the-uni-games/raw/master/bin/unigames_exo.prg)
 
 ## How to compile it
 
