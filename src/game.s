@@ -962,7 +962,7 @@ counter: .byte $40
         cmp #PLAYER_STATE::AIR_UP
         beq decrease_speed_p1
 
-        lda $dc01                       ; read from joy1
+        jsr read_joy1                   ; read from joy1
         tay
         and #%00010000                  ; button
         bne test_movement_p1
@@ -1041,7 +1041,7 @@ end_p1:
         cmp #PLAYER_STATE::AIR_UP
         beq decrease_speed_p2
 
-        lda $dc00                       ; read from joy2
+        jsr read_joy2
         tay
         and #%00010000                  ; button
         bne test_movement_p2
@@ -1108,6 +1108,129 @@ end_p2:
         ldx #RESISTANCE_TBL_SIZE-1
 :       stx resistance_idx_p2
         rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void read_joy1()
+; returns A values
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc read_joy1
+        lda $dc01                       ; self modified
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void read_joy1_left_right()
+; returns A values
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc read_joy1_left_right
+        lda $dc01                       ; self modified
+        ora #%11110011                 ; only enable left & right
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void read_joy1_jump()
+; returns A values
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc read_joy1_jump
+        lda $dc01                       ; self modified
+        ora #%11101111                 ; only enable jump
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void read_joy2()
+; returns A values
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc read_joy2
+;        lda $dc00                       ; self modified
+        jsr read_joy2_jump
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void read_joy2_left_right()
+; returns A values
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc read_joy2_left_right
+        lda $dc00                       ; self modified
+        ora #%11110011                 ; only enable left & right
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void read_joy2_jump()
+; returns A values
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc read_joy2_jump
+        jsr simulate_left_right
+
+        lda $dc00                       ; self modified
+        ora #%11101111                 ; only enable jump
+        and last_value
+        rts
+
+simulate_left_right:
+        dec delay
+        beq :+
+        lda last_value
+        rts
+:
+        lda #$04
+        sta delay
+
+        lda left
+        eor #%00000001
+        sta left
+
+        beq doleft
+        lda #%11110111
+        sta last_value
+        rts
+doleft:
+        lda #%11111011
+        sta last_value
+        rts
+delay:
+        .byte $04
+last_value:
+        .byte %11111111
+left:
+        .byte 0
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void read_joy_computer
+; returns A values
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc read_joy_computer
+        dec delay
+        beq :+
+        lda last_value
+        rts
+:
+        lda #$04
+        sta delay
+
+        lda left
+        eor #%00000001
+        sta left
+
+        beq doleft
+        lda #%11110111
+        sta last_value
+        rts
+doleft:
+        lda #%11111011
+        sta last_value
+        rts
+delay:
+        .byte $04
+last_value:
+        .byte %11111111
+left:
+        .byte 0
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
