@@ -294,91 +294,6 @@ level_charset_address = *+1
         rts
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void game_start_roadrace()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export game_start_roadrace
-.proc game_start_roadrace
-        ldx #<level_roadrace_map_exo
-        ldy #>level_roadrace_map_exo
-        stx level_map_address
-        sty level_map_address+2
-
-        ldx #<level_roadrace_colors_exo
-        ldy #>level_roadrace_colors_exo
-        stx level_color_address
-        sty level_color_address+2
-
-        ldx #<level_roadrace_charset_exo
-        ldy #>level_roadrace_charset_exo
-        stx level_charset_address
-        sty level_charset_address+2
-
-        ldx #<game_music1_exo
-        ldy #>game_music1_exo
-        stx game_music_address
-        sty game_music_address+2
-
-        jmp game_init
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void game_start_cyclocross()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export game_start_cyclocross
-.proc game_start_cyclocross
-        ldx #<level_cyclocross_map_exo
-        ldy #>level_cyclocross_map_exo
-        stx level_map_address
-        sty level_map_address+2
-
-        ldx #<level_cyclocross_colors_exo
-        ldy #>level_cyclocross_colors_exo
-        stx level_color_address
-        sty level_color_address+2
-
-        ldx #<level_cyclocross_charset_exo
-        ldy #>level_cyclocross_charset_exo
-        stx level_charset_address
-        sty level_charset_address+2
-
-        ldx #<game_music2_exo
-        ldy #>game_music2_exo
-        stx game_music_address
-        sty game_music_address+2
-
-        jmp game_init
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void game_start_crosscountry()
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export game_start_crosscountry
-.proc game_start_crosscountry
-        ldx #<level_crosscountry_map_exo
-        ldy #>level_crosscountry_map_exo
-        stx level_map_address
-        sty level_map_address+2
-
-        ldx #<level_crosscountry_colors_exo
-        ldy #>level_crosscountry_colors_exo
-        stx level_color_address
-        sty level_color_address+2
-
-        ldx #<level_crosscountry_charset_exo
-        ldy #>level_crosscountry_charset_exo
-        stx level_charset_address
-        sty level_charset_address+2
-
-        ldx #<game_music3_exo
-        ldy #>game_music3_exo
-        stx game_music_address
-        sty game_music_address+2
-
-        jmp game_init
-.endproc
-
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; IRQ handlers
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc irq_top_p1
@@ -962,7 +877,8 @@ counter: .byte $40
         cmp #PLAYER_STATE::AIR_UP
         beq decrease_speed_p1
 
-        jsr read_joy1                   ; read from joy1
+joy1_address = *+1
+        jsr read_joy1                   ; self modified
         tay
         and #%00010000                  ; button
         bne test_movement_p1
@@ -984,8 +900,8 @@ test_movement_p1:
 increase_velocity_p1:
         inx
         txa
-        and #%00000011
-        sta expected_joy1_idx           ; cycles between 0,1,2,3
+        and #%00000001
+        sta expected_joy1_idx           ; cycles between 0,1
 
         lda #0
         sta resistance_idx_p1
@@ -1041,7 +957,8 @@ end_p1:
         cmp #PLAYER_STATE::AIR_UP
         beq decrease_speed_p2
 
-        jsr read_joy2
+joy2_address = *+1
+        jsr read_joy2                   ; self modified
         tay
         and #%00010000                  ; button
         bne test_movement_p2
@@ -1063,8 +980,8 @@ test_movement_p2:
 increase_velocity_p2:
         inx
         txa
-        and #%00000011
-        sta expected_joy2_idx           ; cycles between 0,1,2,3
+        and #%00000001
+        sta expected_joy2_idx           ; cycles between 0,1
 
         lda #0
         sta resistance_idx_p2
@@ -1124,8 +1041,8 @@ end_p2:
 ; returns A values
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_joy1_left_right
-        lda $dc01                       ; self modified
-        ora #%11110011                 ; only enable left & right
+        lda $dc01
+        ora #%11110011                  ; only enable left & right
         rts
 .endproc
 
@@ -1134,9 +1051,39 @@ end_p2:
 ; returns A values
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_joy1_jump
-        lda $dc01                       ; self modified
-        ora #%11101111                 ; only enable jump
+        jsr @simulate_left_right
+
+        lda $dc01
+        ora #%11101111                  ; only enable jump
+        and last_value
         rts
+
+@simulate_left_right:
+        dec delay
+        beq :+
+        rts
+:
+        lda #$04
+        sta delay
+
+        lda left
+        eor #%00000001
+        sta left
+
+        beq doleft
+        lda #%11110111
+        sta last_value
+        rts
+doleft:
+        lda #%11111011
+        sta last_value
+        rts
+delay:
+        .byte $04
+last_value:
+        .byte %11111111
+left:
+        .byte 0
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -1144,8 +1091,7 @@ end_p2:
 ; returns A values
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_joy2
-;        lda $dc00                       ; self modified
-        jsr read_joy2_jump
+        lda $dc00
         rts
 .endproc
 
@@ -1154,7 +1100,7 @@ end_p2:
 ; returns A values
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_joy2_left_right
-        lda $dc00                       ; self modified
+        lda $dc00
         ora #%11110011                 ; only enable left & right
         rts
 .endproc
@@ -1164,17 +1110,16 @@ end_p2:
 ; returns A values
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_joy2_jump
-        jsr simulate_left_right
+        jsr @simulate_left_right
 
-        lda $dc00                       ; self modified
-        ora #%11101111                 ; only enable jump
+        lda $dc00
+        ora #%01101111                 ; only enable jump
         and last_value
         rts
 
-simulate_left_right:
+@simulate_left_right:
         dec delay
         beq :+
-        lda last_value
         rts
 :
         lda #$04
@@ -1922,6 +1867,122 @@ p2_collision_tire:
         sta $d404+14                    ; control register
         rts
 .endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void game_start_roadrace()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export game_start_roadrace
+.proc game_start_roadrace
+        ldx #<level_roadrace_map_exo            ; map
+        ldy #>level_roadrace_map_exo
+        stx level_map_address
+        sty level_map_address+2
+
+        ldx #<level_roadrace_colors_exo         ; colors
+        ldy #>level_roadrace_colors_exo
+        stx level_color_address
+        sty level_color_address+2
+
+        ldx #<level_roadrace_charset_exo        ; charset
+        ldy #>level_roadrace_charset_exo
+        stx level_charset_address
+        sty level_charset_address+2
+
+        ldx #<game_music1_exo                   ; music
+        ldy #>game_music1_exo
+        stx game_music_address
+        sty game_music_address+2
+
+        ldx #<read_joy1_left_right              ; joy #1 left right only
+        ldy #>read_joy1_left_right
+        stx process_p1::joy1_address
+        sty process_p1::joy1_address+1
+
+        ldx #<read_joy2_left_right              ; joy #2 left right only
+        ldy #>read_joy2_left_right
+        stx process_p2::joy2_address
+        sty process_p2::joy2_address+1
+
+        jmp game_init
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void game_start_cyclocross()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export game_start_cyclocross
+.proc game_start_cyclocross
+        ldx #<level_cyclocross_map_exo          ; map
+        ldy #>level_cyclocross_map_exo
+        stx level_map_address
+        sty level_map_address+2
+
+        ldx #<level_cyclocross_colors_exo       ; color for map
+        ldy #>level_cyclocross_colors_exo
+        stx level_color_address
+        sty level_color_address+2
+
+        ldx #<level_cyclocross_charset_exo      ; charset
+        ldy #>level_cyclocross_charset_exo
+        stx level_charset_address
+        sty level_charset_address+2
+
+        ldx #<game_music2_exo                   ; music
+        ldy #>game_music2_exo
+        stx game_music_address
+        sty game_music_address+2
+
+        ldx #<read_joy1_jump                    ; joy #1 only jump
+        ldy #>read_joy1_jump
+        stx process_p1::joy1_address
+        sty process_p1::joy1_address+1
+
+        ldx #<read_joy2_jump                    ; joy #2 only jump
+        ldy #>read_joy2_jump
+        stx process_p2::joy2_address
+        sty process_p2::joy2_address+1
+
+        jmp game_init
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void game_start_crosscountry()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export game_start_crosscountry
+.proc game_start_crosscountry
+        ldx #<level_crosscountry_map_exo        ; map
+        ldy #>level_crosscountry_map_exo
+        stx level_map_address
+        sty level_map_address+2
+
+        ldx #<level_crosscountry_colors_exo     ; color
+        ldy #>level_crosscountry_colors_exo
+        stx level_color_address
+        sty level_color_address+2
+
+        ldx #<level_crosscountry_charset_exo    ; charset
+        ldy #>level_crosscountry_charset_exo
+        stx level_charset_address
+        sty level_charset_address+2
+
+        ldx #<game_music3_exo                   ; music
+        ldy #>game_music3_exo
+        stx game_music_address
+        sty game_music_address+2
+
+        ldx #<read_joy1                         ; joy #1
+        ldy #>read_joy1
+        stx process_p1::joy1_address
+        sty process_p1::joy1_address+1
+
+        ldx #<read_joy2                         ; joy #2
+        ldy #>read_joy2
+        stx process_p2::joy2_address
+        sty process_p2::joy2_address+1
+
+        jmp game_init
+.endproc
+
+
 
 
 sync_timer_irq:         .byte $00
