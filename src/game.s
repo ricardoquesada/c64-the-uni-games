@@ -1113,7 +1113,7 @@ left:
         jsr @simulate_left_right
 
         lda $dc00
-        ora #%01101111                 ; only enable jump
+        ora #%11101111                 ; only enable jump
         and last_value
         rts
 
