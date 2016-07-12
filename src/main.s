@@ -22,6 +22,7 @@
 .import ut_vic_video_type, ut_start_clean
 .import ut_clear_screen, ut_clear_color
 .import menu_handle_events, menu_invert_row
+.import music_patch_table_1
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -333,7 +334,7 @@ irq_open_borders:
 
         inc $01                         ; $35: RAM + IO ($D000-$DFFF)
 
-        rts
+        jmp music_patch_table_1         ; convert to PAL if needed
 .endproc
 
 

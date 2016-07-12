@@ -14,6 +14,7 @@
 .import ut_clear_color, ut_setup_tod, ut_vic_video_type
 .import main
 .import music_speed, palb_freq_table_lo, palb_freq_table_hi
+.import music_patch_table_1, music_patch_table_2
 
 .enum GAME_STATE
         ON_YOUR_MARKS                   ; initial scroll
@@ -78,7 +79,7 @@
         .endrepeat
 @ntsc2:
 
-        .repeat 2
+        .repeat 4
                 nop
         .endrepeat
 .endmacro
@@ -255,6 +256,7 @@ do_raster:
         jmp @cont
 
 @riding:
+        jsr MUSIC_PLAY
         jsr remove_go_lbl
         jsr process_events
         jsr print_elpased_time          ; updates playing time
@@ -262,8 +264,18 @@ do_raster:
         jmp @cont
 
 @game_over:
+        jsr MUSIC_PLAY
         jsr process_events
         jsr print_speed
+        jsr show_press_space            ; display "press space"
+
+        lda #%01111111                  ; space ?
+        sta CIA1_PRA                    ; row 7
+        lda CIA1_PRB
+        and #%00010000                  ; col 4
+        bne @cont                       ; space pressed ?
+        jmp main                        ; yes, return to main
+
 @cont:
 
 .if (::DEBUG & 1)
@@ -279,16 +291,16 @@ do_raster:
         lda #0
         jsr MUSIC_INIT                  ; init song #0
 
-        lda music_speed                 ; init with PAL frequency
-        sta $dc04                       ; it plays at 50.125hz
-        lda music_speed+1
-        sta $dc05
-
-        lda #$81                        ; enable timer to play music
-        sta $dc0d                       ; CIA1
-
-        lda #$11
-        sta $dc0e                       ; start timer interrupt A
+;        lda music_speed                 ; init with PAL frequency
+;        sta $dc04                       ; it plays at 50.125hz
+;        lda music_speed+1
+;        sta $dc05
+;
+;        lda #$81                        ; enable timer to play music
+;        sta $dc0d                       ; CIA1
+;
+;        lda #$11
+;        sta $dc0e                       ; start timer interrupt A
         rts
 .endproc
 
@@ -344,23 +356,23 @@ level_charset_address = *+1
         pha
 
         asl $d019                       ; clears raster interrupt
-        bcs raster
-
-        lda $dc0d                       ; clears CIA interrupts, in particular timer A
-        inc sync_timer_irq
-        jmp end_irq
-
-raster:
+;        bcs raster
+;
+;        lda $dc0d                       ; clears CIA interrupts, in particular timer A
+;        inc sync_timer_irq
+;        jmp end_irq
+;
+;raster:
 ;        STABILIZE_RASTER
         .repeat 26
                 nop
         .endrepeat
 
-        lda #HUD_BKG_COLOR              ; border and background color
-        sta $d021
-
         lda #%00001000                  ; no scroll,single-color,40-cols
         sta $d016
+
+        lda #HUD_BKG_COLOR              ; border and background color
+        sta $d021
 
         lda #%01011011
         sta $d011                       ; extended background color mode: on
@@ -372,8 +384,6 @@ raster:
 
         lda #RASTER_BOTTOM_P1           ; should be triggered when raster = RASTER_BOTTOM
         sta $d012
-
-        asl $d019                       ; ACK raster interrupt
 
         inc sync_raster_irq
 
@@ -394,24 +404,24 @@ end_irq:
         pha
 
         asl $d019                       ; clears raster interrupt
-        bcs raster
-
-        lda $dc0d                       ; clears CIA interrupts, in particular timer A
-        inc sync_timer_irq
-        jmp end_irq
-
-raster:
+;        bcs raster
+;
+;        lda $dc0d                       ; clears CIA interrupts, in particular timer A
+;        inc sync_timer_irq
+;        jmp end_irq
+;
+;raster:
         CONSUME_CYCLES
 
         lda smooth_scroll_x_p1+1        ; scroll x
         ora #%00010000                  ; multicolor on
         sta $d016
 
-        lda #%00011011
-        sta $d011                       ; extended color mode: off
-
         lda #LEVEL_BKG_COLOR
         sta $d021                       ; background color
+
+        lda #%00011011
+        sta $d011                       ; extended color mode: off
 
         lda #<irq_top_p2                ; set new IRQ-raster vector
         sta $fffe
@@ -438,23 +448,23 @@ end_irq:
         pha
 
         asl $d019                       ; clears raster interrupt
-        bcs raster
-
-        lda $dc0d                       ; clears CIA interrupts, in particular timer A
-        inc sync_timer_irq
-        jmp end_irq
-
-raster:
+;        bcs raster
+;
+;        lda $dc0d                       ; clears CIA interrupts, in particular timer A
+;        inc sync_timer_irq
+;        jmp end_irq
+;
+;raster:
 ;        STABILIZE_RASTER
         .repeat 26
                 nop
         .endrepeat
 
-        lda #HUD_BKG_COLOR              ; border and background color
-        sta $d021                       ; to place the score and time
-
         lda #%00001000                  ; no scroll,single-color,40-cols
         sta $d016
+
+        lda #HUD_BKG_COLOR              ; border and background color
+        sta $d021                       ; to place the score and time
 
         lda #%01011011
         sta $d011                       ; extended background color mode: on
@@ -484,24 +494,24 @@ end_irq:
         pha
 
         asl $d019                       ; clears raster interrupt
-        bcs raster
-
-        lda $dc0d                       ; clears CIA interrupts, in particular timer A
-        inc sync_timer_irq
-        jmp end_irq
-
-raster:
+;        bcs raster
+;
+;        lda $dc0d                       ; clears CIA interrupts, in particular timer A
+;        inc sync_timer_irq
+;        jmp end_irq
+;
+;raster:
         CONSUME_CYCLES
 
         lda smooth_scroll_x_p2+1        ; scroll x
         ora #%00010000                  ; multicolor on
         sta $d016
 
-        lda #%00011011
-        sta $d011                       ; extended color mode: off
-
         lda #LEVEL_BKG_COLOR
         sta $d021                       ; background color
+
+        lda #%00011011
+        sta $d011                       ; extended color mode: off
 
         lda #<irq_top_p1                ; set new IRQ-raster vector
         sta $fffe
@@ -1900,6 +1910,8 @@ p2_collision_tire:
         stx process_p2::joy2_address
         sty process_p2::joy2_address+1
 
+        jsr music_patch_table_1                 ; convert to PAL if needed
+
         jmp game_init
 .endproc
 
@@ -1938,6 +1950,8 @@ p2_collision_tire:
         stx process_p2::joy2_address
         sty process_p2::joy2_address+1
 
+        jsr music_patch_table_1                 ; convert to PAL if needed
+
         jmp game_init
 .endproc
 
@@ -1975,6 +1989,8 @@ p2_collision_tire:
         ldy #>read_joy2
         stx process_p2::joy2_address
         sty process_p2::joy2_address+1
+
+        jsr music_patch_table_2                 ; convert to NTSC if needed
 
         jmp game_init
 .endproc
