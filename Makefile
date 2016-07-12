@@ -8,7 +8,7 @@ X64 = x64
 
 all: unigames
 
-SRC=src/intro.s src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s src/about.s
+SRC=src/intro.s src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s src/about.s src/music_table.s
 
 res:
 	exomizer mem -q res/sprites.prg -o src/sprites.prg.exo
@@ -30,9 +30,9 @@ res:
 	cp res/about-map.bin src
 	cp res/hiscores-map.bin src
 	cp res/Popcorn_2.exo src/maintitle_music.sid.exo
-	cp res/Action_G.exo src/game_music1.sid.exo
-	cp res/12_Bar_Blues.exo src/game_music2.sid.exo
-	cp res/Sunny_Day.exo src/game_music3.sid.exo
+	cp res/Action_G.exo src/music_cyclocross.sid.exo
+	cp res/12_Bar_Blues.exo src/music_roadrace.sid.exo
+	cp res/Sunny_Day.exo src/music_crosscountry.sid.exo
 
 unigames: ${SRC}
 	cl65 -d -g -Ln bin/$@.sym -o bin/$@.prg -u __EXEHDR__ -t c64 -C $@.cfg $^

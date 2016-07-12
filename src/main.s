@@ -11,6 +11,7 @@
 
 .import roadrace_init, selectevent_init, scores_init, about_init
 .import selectevent_loop
+.import music_speed, PALB_MUSIC_SPEED, NTSC_MUSIC_SPEED, PALN_MUSIC_SPEED
 
 ; from exodecrunch.s
 .import decrunch                                ; exomizer decrunch
@@ -428,23 +429,23 @@ l1:     lda sprite_x,x
         beq @ntscold                    ; yes
 
         ldx #(SPRITES_POINTER + $0e)    ; otherwise it is NTSC
-        lda ntsc_speed
+        lda #<NTSC_MUSIC_SPEED
         sta music_speed
-        lda ntsc_speed+1
+        lda #>NTSC_MUSIC_SPEED
         sta music_speed+1
         bne @end
 
 @ntscold:
-        lda ntsc_speed
+        lda #<NTSC_MUSIC_SPEED
         sta music_speed
-        lda ntsc_speed+1
+        lda #>NTSC_MUSIC_SPEED
         sta music_speed+1
         ldx #(SPRITES_POINTER + $0c)    ; NTSC old
         bne @end
 @paln:
-        lda drean_speed
+        lda #<PALN_MUSIC_SPEED
         sta music_speed
-        lda drean_speed+1
+        lda #>PALN_MUSIC_SPEED
         sta music_speed+1
         ldx #(SPRITES_POINTER + $0d)    ; PAL-N (Drean)
 @end:
@@ -537,10 +538,6 @@ sprite2_frames:
         .byte SPRITES_POINTER + 42
         .byte SPRITES_POINTER + 44
 .endproc
-
-music_speed:    .word $4cc7             ; default: playing at PAL speed in PAL computer
-ntsc_speed:     .word $4fb2             ; playing at PAL speed in NTSC computer
-drean_speed:    .word $4fc1             ; playing at PAL seped in Drean computer
 
 palette_idx_top:        .byte 0         ; color index for top palette
 palette_idx_bottom:     .byte 48        ; color index for bottom palette (palette_size / 2)

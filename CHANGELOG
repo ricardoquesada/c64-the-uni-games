@@ -1,3 +1,10 @@
+v0.3 -
+  - controls:
+     - road race: joy left + right
+	 - cyclo cross: joy fire
+	 - cross country: joy left + right + fire
+  - fix: expected joy value is the correct one
+
 v0.2.4 - 8 July, 2016
 
   - new intro screen: unijoysticle logo

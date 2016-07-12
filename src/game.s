@@ -13,6 +13,7 @@
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
 .import ut_clear_color, ut_setup_tod, ut_vic_video_type
 .import main
+.import music_speed, palb_freq_table_lo, palb_freq_table_hi
 
 .enum GAME_STATE
         ON_YOUR_MARKS                   ; initial scroll
@@ -42,6 +43,45 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .macpack cbm                            ; adds support for scrcode
 .macpack mymacros                       ; my own macros
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void consume_cycles()
+; consumes cycles to make the IRQ kind of stable.
+; works in NTSC, PAL-B and PAL-N (Drean)
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.macro CONSUME_CYCLES
+                                        ; consume PAL-B: 40 cycles
+                                        ;         NTSC: 20 cycles
+                                        ;         PAL-N: 48 cycles
+
+        lda ut_vic_video_type           ; $01 --> PAL        4 cycles
+                                        ; $2F --> PAL-N
+                                        ; $28 --> NTSC
+                                        ; $2e --> NTSC-OLD
+        cmp #$28                        ; 2 cycles
+        beq @ntsc1                      ; 2 cycles
+        cmp #$2e                        ; 2 cycles
+        beq @ntsc2                      ; 2 cycles
+        cmp #$01                        ; 2 cycles
+        beq @palb                       ; 2 cycles
+
+        .repeat 4                       ; pal-n path
+                nop                     ; 8 cycles
+        .endrepeat
+@palb:
+        .repeat 6                       ; pal-b branch
+                nop                     ; 12 cycles
+        .endrepeat
+@ntsc1:
+        .repeat 2
+                nop                     ; 4 cycles
+        .endrepeat
+@ntsc2:
+
+        .repeat 2
+                nop
+        .endrepeat
+.endmacro
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Constants
@@ -361,18 +401,17 @@ end_irq:
         jmp end_irq
 
 raster:
-        jsr consume_cycles              ; make the IRQ kind of stable
-
-
-        lda #LEVEL_BKG_COLOR
-        sta $d021                       ; background color
-
-        lda #%00011011
-        sta $d011                       ; extended color mode: off
+        CONSUME_CYCLES
 
         lda smooth_scroll_x_p1+1        ; scroll x
         ora #%00010000                  ; multicolor on
         sta $d016
+
+        lda #%00011011
+        sta $d011                       ; extended color mode: off
+
+        lda #LEVEL_BKG_COLOR
+        sta $d021                       ; background color
 
         lda #<irq_top_p2                ; set new IRQ-raster vector
         sta $fffe
@@ -381,8 +420,6 @@ raster:
 
         lda #RASTER_TOP_P2
         sta $d012
-
-        asl $d019                       ; ACK raster interrupt
 
 end_irq:
         pla                             ; restores A, X, Y
@@ -430,8 +467,6 @@ raster:
         lda #RASTER_BOTTOM_P2           ; should be triggered when raster = RASTER_BOTTOM
         sta $d012
 
-        asl $d019                       ; ACK raster interrupt
-
 end_irq:
         pla                             ; restores A, X, Y
         tay
@@ -456,10 +491,7 @@ end_irq:
         jmp end_irq
 
 raster:
-        jsr consume_cycles
-
-        lda #LEVEL_BKG_COLOR
-        sta $d021                       ; background color
+        CONSUME_CYCLES
 
         lda smooth_scroll_x_p2+1        ; scroll x
         ora #%00010000                  ; multicolor on
@@ -468,6 +500,9 @@ raster:
         lda #%00011011
         sta $d011                       ; extended color mode: off
 
+        lda #LEVEL_BKG_COLOR
+        sta $d021                       ; background color
+
         lda #<irq_top_p1                ; set new IRQ-raster vector
         sta $fffe
         lda #>irq_top_p1
@@ -475,8 +510,6 @@ raster:
 
         lda #RASTER_TOP_P1
         sta $d012
-
-        asl $d019                       ; ACK raster interrupt
 
 end_irq:
         pla                             ; restores A, X, Y
@@ -487,42 +520,6 @@ end_irq:
         rti                             ; restores previous PC, status
 .endproc
 
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void consume_cycles()
-; consumes cycles to make the IRQ kind of stable.
-; works in NTSC, PAL-B and PAL-N (Drean)
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc consume_cycles
-                                        ; consume PAL-B: 40 cycles
-                                        ;         NTSC: 20 cycles
-                                        ;         PAL-N: 48 cycles
-
-                                        ; jsr callee 6 cycles
-
-        lda ut_vic_video_type           ; $01 --> PAL        4 cycles
-                                        ; $2F --> PAL-N
-                                        ; $28 --> NTSC
-                                        ; $2e --> NTSC-OLD
-        cmp #$28                        ; 2 cycles
-        beq ntsc1                       ; 2 cycles
-        cmp #$2e                        ; 2 cycles
-        beq ntsc2                       ; 2 cycles
-        cmp #$01                        ; 2 cycles
-        beq palb                        ; 2 cycles
-
-        .repeat 4                       ; pal-n path
-                nop                     ; 8 cycles
-        .endrepeat
-palb:
-        .repeat 6                       ; pal-b branch
-                nop                     ; 12 cycles
-        .endrepeat
-ntsc1:
-ntsc2:                                  ; BUG: old ntsc are consuming 4 extra cycles,
-                                        ; but seems to run ok consuming 24 cycles instead
-                                        ; of 20.
-        rts                             ; 6 cycles
-.endproc
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -1853,11 +1850,11 @@ p2_collision_tire:
         sta $d406                       ; sustain / release
         sta $d406+7                     ; sustain / release
         sta $d406+14                    ; sustain / release
-        lda freq_table_lo,x
+        lda palb_freq_table_lo,x
         sta $d400                       ; freq lo
         sta $d400+7                     ; freq lo
         sta $d400+14                    ; freq lo
-        lda freq_table_hi,x
+        lda palb_freq_table_hi,x
         sta $d401                       ; freq hi
         sta $d401+7                     ; freq hi
         sta $d401+14                    ; freq hi
@@ -2091,27 +2088,7 @@ screen:
         scrcode                   "         time: 00:00:0"
 
 
-; autogenerated table: freq_table_generator.py -b440 -o8 -s12 985248
-freq_table_lo:
-.byte $16,$27,$39,$4b,$5f,$74,$8a,$a1,$ba,$d4,$f0,$0e  ; 0
-.byte $2d,$4e,$71,$96,$be,$e7,$14,$42,$74,$a9,$e0,$1b  ; 1
-.byte $5a,$9c,$e2,$2d,$7b,$cf,$27,$85,$e8,$51,$c1,$37  ; 2
-.byte $b4,$38,$c4,$59,$f7,$9d,$4e,$0a,$d0,$a2,$81,$6d  ; 3
-.byte $67,$70,$89,$b2,$ed,$3b,$9c,$13,$a0,$45,$02,$da  ; 4
-.byte $ce,$e0,$11,$64,$da,$76,$39,$26,$40,$89,$04,$b4  ; 5
-.byte $9c,$c0,$23,$c8,$b4,$eb,$72,$4c,$80,$12,$08,$68  ; 6
-.byte $39,$80,$45,$90,$68,$d6,$e3,$99,$00,$24,$10,$ff  ; 7
-freq_table_hi:
-.byte $01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$01,$02  ; 0
-.byte $02,$02,$02,$02,$02,$02,$03,$03,$03,$03,$03,$04  ; 1
-.byte $04,$04,$04,$05,$05,$05,$06,$06,$06,$07,$07,$08  ; 2
-.byte $08,$09,$09,$0a,$0a,$0b,$0c,$0d,$0d,$0e,$0f,$10  ; 3
-.byte $11,$12,$13,$14,$15,$17,$18,$1a,$1b,$1d,$1f,$20  ; 4
-.byte $22,$24,$27,$29,$2b,$2e,$31,$34,$37,$3a,$3e,$41  ; 5
-.byte $45,$49,$4e,$52,$57,$5c,$62,$68,$6e,$75,$7c,$83  ; 6
-.byte $8b,$93,$9c,$a5,$af,$b9,$c4,$d0,$dd,$ea,$f8,$ff  ; 7
 
-music_speed:    .word $4cc7                             ; default: playing at PAL speed in PAL computer
 remove_go_counter:  .byte $80                           ; delay to remove "go" label
 
 .segment "COMPRESSED_DATA"
@@ -2126,7 +2103,7 @@ level_roadrace_map_exo:
         .incbin "level-roadrace-colors.prg.exo"                 ; 256b at $4000
 level_roadrace_colors_exo:
 
-        .incbin "game_music2.sid.exo"                   ; export at $1000
+        .incbin "music_roadrace.sid.exo"                   ; export at $1000
 game_music2_exo:
 
 
@@ -2140,7 +2117,7 @@ level_cyclocross_map_exo:
         .incbin "level-cyclocross-colors.prg.exo"       ; 256b at $4000
 level_cyclocross_colors_exo:
 
-        .incbin "game_music1.sid.exo"                   ; export at $1000
+        .incbin "music_cyclocross.sid.exo"                   ; export at $1000
 game_music1_exo:
 
 
@@ -2154,7 +2131,7 @@ level_crosscountry_map_exo:
         .incbin "level-crosscountry-colors.prg.exo"     ; 256b at $4000
 level_crosscountry_colors_exo:
 
-        .incbin "game_music3.sid.exo"                   ; export at $1000
+        .incbin "music_crosscountry.sid.exo"                   ; export at $1000
 game_music3_exo:
 
 .byte 0                                                 ; ignore
