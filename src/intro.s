@@ -146,6 +146,9 @@ fadein:
 
 
 waitkey:
+        dec delay
+        beq start_fadeout
+
         lda #%01111111                  ; space ?
         sta CIA1_PRA                    ; row 7
         lda CIA1_PRB
@@ -161,6 +164,9 @@ start_fadeout:
 fadeout:
         jsr fade_out_logo
         jmp loop
+
+delay:
+        .byte $e0
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
