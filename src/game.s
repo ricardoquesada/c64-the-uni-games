@@ -12,7 +12,7 @@
 ; from utils.s
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
 .import ut_clear_color, ut_setup_tod, ut_vic_video_type
-.import main
+.import main_menu
 .import music_speed, palb_freq_table_lo, palb_freq_table_hi
 .import music_patch_table_1, music_patch_table_2
 
@@ -220,7 +220,7 @@ _mainloop:
         and #%00010000                  ; col 4
         bne @play_music                 ; space pressed ?
 
-        jmp main                        ; yes, return to main
+        jmp main_menu                   ; yes, return to main menu
 
 @play_music:
         jsr MUSIC_PLAY
@@ -274,7 +274,7 @@ do_raster:
         lda CIA1_PRB
         and #%00010000                  ; col 4
         bne @cont                       ; space pressed ?
-        jmp main                        ; yes, return to main
+        jmp main_menu                   ; yes, return to main
 
 @cont:
 

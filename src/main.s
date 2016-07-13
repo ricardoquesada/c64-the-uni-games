@@ -48,9 +48,12 @@ DEBUG = 0                               ; bitwise: 1=raster-sync code
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void main()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export main
-.proc main
+.export main_menu
+.proc main_menu
         sei
+
+        lda #0
+        sta $d01a                       ; no raster interrups
 
         lda #0
         sta VIC_SPR_ENA                 ; no sprites while initing the screen
@@ -74,16 +77,6 @@ DEBUG = 0                               ; bitwise: 1=raster-sync code
         lda #$7f                        ; turn off cia interrups
         sta $dc0d
         sta $dd0d
-
-        lda #01                         ; enable raster irq
-        sta $d01a                       ; needed to open borders
-
-        ldx #<irq_a                     ; next IRQ-raster vector
-        ldy #>irq_a                     ; needed to open the top/bottom borders
-        stx $fffe
-        sty $ffff
-        lda #50
-        sta $d012
 
         lda $dc0d                       ; clear interrupts and ACK irq
         lda $dd0d
@@ -110,13 +103,15 @@ DEBUG = 0                               ; bitwise: 1=raster-sync code
         lda #%00001000                  ; no scroll, hires (mono color), 40-cols
         sta $d016                       ; turn off multicolor
 
+
+        ldx #<irq_timer                 ; irq for timer
+        ldy #>irq_timer
+        stx $fffe
+        sty $ffff
+
         cli
 
-
 main_loop:
-        lda sync_raster_irq
-        bne do_raster
-
         lda sync_timer_irq
         beq main_loop
 
@@ -125,23 +120,9 @@ main_loop:
         inc $d020
 .endif
         dec sync_timer_irq
+
         jsr MUSIC_PLAY
-
-.if (::DEBUG & 1)
-        dec $d020
-.endif
-        jmp main_loop
-
-do_raster:
-.if (::DEBUG & 1)
-        dec $d020
-.endif
-        dec sync_raster_irq
-
-;        jsr animate_palette
-
         jsr animate_sprites
-
         jsr menu_handle_events          ; will disable/enable interrupts
 
 .if (::DEBUG & 1)
@@ -225,84 +206,25 @@ set_mainmenu:
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; IRQ: irq_open_borders()
-;------------------------------------------------------------------------------;
-; used to open the top/bottom borders
+; irq_timer
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-irq_a:
+.proc irq_timer
         pha                             ; saves A, X, Y
         txa
         pha
         tya
         pha
 
-        asl $d019                       ; clears raster interrupt
-        bcs @raster
-
         lda $dc0d                       ; clears CIA interrupts, in particular timer A
         inc sync_timer_irq
-        jmp @end_irq
 
-@raster:
-        lda #$f8
-        sta $d012
-        ldx #<irq_open_borders
-        ldy #>irq_open_borders
-        stx $fffe
-        sty $ffff
-        inc sync_raster_irq
-
-@end_irq:
         pla                             ; restores A, X, Y
         tay
         pla
         tax
         pla
         rti                             ; restores previous PC, status
-
-.export irq_open_borders
-irq_open_borders:
-        pha                             ; saves A, X, Y
-        txa
-        pha
-        tya
-        pha
-
-        asl $d019                       ; clears raster interrupt
-        bcs @raster
-
-        lda $dc0d                       ; clears CIA interrupts, in particular timer A
-        inc sync_timer_irq
-        jmp @end_irq
-
-@raster:
-        lda $d011                       ; open vertical borders trick
-        and #%11110111                  ; first switch to 24 cols-mode...
-        sta $d011
-
-:       lda $d012
-        cmp #$ff
-        bne :-
-
-        lda $d011                       ; ...a few raster lines switch to 25 cols-mode again
-        ora #%00001000
-        sta $d011
-
-
-        lda #50
-        sta $d012
-        ldx #<irq_a
-        ldy #>irq_a
-        stx $fffe
-        sty $ffff
-
-@end_irq:
-        pla                             ; restores A, X, Y
-        tay
-        pla
-        tax
-        pla
-        rti                             ; restores previous PC, status
+.endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void init_data()
@@ -325,12 +247,6 @@ irq_open_borders:
         sty _crunched_byte_hi
         jsr decrunch                    ; uncrunch
 
-
-        ldx #<mainsprites_exo           ; decrunch main sprites
-        ldy #>mainsprites_exo
-        stx _crunched_byte_lo
-        sty _crunched_byte_hi
-        jsr decrunch                    ; uncrunch
 
         inc $01                         ; $35: RAM + IO ($D000-$DFFF)
 
@@ -383,9 +299,9 @@ l0:
         bpl :-
 
 
-        lda #%10011111                  ; enable sprites
+        lda #%00011111                  ; enable sprites
         sta VIC_SPR_ENA
-        lda #%10010000                  ; set sprite #7 x-pos 9-bit ON
+        lda #%00010000                  ; set sprite #7 x-pos 9-bit ON
         sta $d010                       ; since x pos > 255
         lda #%00000111
         sta VIC_SPR_MCOLOR              ; enable multicolor
@@ -411,16 +327,6 @@ l1:     lda sprite_x,x
         cpx #5
         bne l1
 
-        lda #$40                        ; setup PAL/NTSC/ sprite
-        sta VIC_SPR7_X                  ; x= $140 = 320
-        lda #$f0
-        sta VIC_SPR7_Y
-
-        lda SPRITES_BASE + 64 * 15 + 63 ; sprite color
-        and #$0f
-        sta VIC_SPR7_COLOR
-
-        ldx #(SPRITES_POINTER + $0f)    ; sprite pointer to PAL (15)
         lda ut_vic_video_type           ; ntsc, pal or paln?
         cmp #$01                        ; Pal ?
         beq @end                        ; yes.
@@ -429,7 +335,6 @@ l1:     lda sprite_x,x
         cmp #$2e                        ; NTSC Old?
         beq @ntscold                    ; yes
 
-        ldx #(SPRITES_POINTER + $0e)    ; otherwise it is NTSC
         lda #<NTSC_MUSIC_SPEED
         sta music_speed
         lda #>NTSC_MUSIC_SPEED
@@ -441,17 +346,13 @@ l1:     lda sprite_x,x
         sta music_speed
         lda #>NTSC_MUSIC_SPEED
         sta music_speed+1
-        ldx #(SPRITES_POINTER + $0c)    ; NTSC old
         bne @end
 @paln:
         lda #<PALN_MUSIC_SPEED
         sta music_speed
         lda #>PALN_MUSIC_SPEED
         sta music_speed+1
-        ldx #(SPRITES_POINTER + $0d)    ; PAL-N (Drean)
 @end:
-        stx SPRITES_PTR0 + 7            ; set sprite pointer for screen0
-
         rts
 
         ; variables for BC's Tire sprites
@@ -574,9 +475,5 @@ mainsid_exo:
         ; export it at 0x3000
         .incbin "src/mainscreen-charset.prg.exo"
 mainscreen_charset_exo:
-
-        ; export it at 0x2400
-        .incbin "src/sprites.prg.exo"
-mainsprites_exo:
 
         .byte 0             ; ignore

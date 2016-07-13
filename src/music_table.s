@@ -24,6 +24,8 @@ SONG2_FREQ_TBL_HI = $1694
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void music_patch_table_1()
+; patches the frequency table only if the system is not NTSC
+; since the song already is in NTSC mode
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export music_patch_table_1
 .proc music_patch_table_1
@@ -31,23 +33,36 @@ SONG2_FREQ_TBL_HI = $1694
                                                 ; $2F --> PAL-N
                                                 ; $28 --> NTSC
                                                 ; $2e --> NTSC-OLD
-        cmp #1                                  ; table is already in NTSC
-        bne end                                 ; only patch it if in PAL
+        cmp #$2f                                ; paln ?
+        beq paln                                ;
+        cmp #$01                                ; palb ?
+        bne end                                 ; no?, then it must be ntsc. end
 
-        ldx #MUSIC_TABLE_SIZE-1
+        ldx #MUSIC_TABLE_SIZE-1                 ; palb
 l0:     lda palb_freq_table_lo,x
         sta SONG1_FREQ_TBL_LO,x
         lda palb_freq_table_hi,x
         sta SONG1_FREQ_TBL_HI,x
         dex
         bpl l0
+        rts
 
+paln:
+        ldx #MUSIC_TABLE_SIZE-1                 ; paln
+l1:     lda paln_freq_table_lo,x
+        sta SONG1_FREQ_TBL_LO,x
+        lda paln_freq_table_hi,x
+        sta SONG1_FREQ_TBL_HI,x
+        dex
+        bpl l1
 end:
         rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void music_patch_table_2()
+; patches the frequency table only if the system is not PAL-B
+; since the song already is in PAL-B mode
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export music_patch_table_2
 .proc music_patch_table_2
@@ -55,17 +70,28 @@ end:
                                                 ; $2F --> PAL-N
                                                 ; $28 --> NTSC
                                                 ; $2e --> NTSC-OLD
-        cmp #1                                  ; table is already in PAL
-        beq end                                 ; only patch it is not
+        cmp #$2f                                ; paln ?
+        beq paln                                ;
+        cmp #$01                                ; palb ?
+        beq end                                 ; yes?, so, end it.
 
-        ldx #MUSIC_TABLE_SIZE-1
+        ldx #MUSIC_TABLE_SIZE-1                 ; it must be ntsc then
 l0:     lda ntsc_freq_table_lo,x
         sta SONG2_FREQ_TBL_LO,x
         lda ntsc_freq_table_hi,x
         sta SONG2_FREQ_TBL_HI,x
         dex
         bpl l0
+        rts
 
+paln:
+        ldx #MUSIC_TABLE_SIZE-1                 ; paln
+l1:     lda paln_freq_table_lo,x
+        sta SONG1_FREQ_TBL_LO,x
+        lda paln_freq_table_hi,x
+        sta SONG1_FREQ_TBL_HI,x
+        dex
+        bpl l1
 end:
         rts
 .endproc
