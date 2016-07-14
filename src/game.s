@@ -79,7 +79,7 @@
         .endrepeat
 @ntsc2:
 
-        .repeat 4
+        .repeat 3
                 nop
         .endrepeat
 .endmacro
@@ -135,12 +135,6 @@ MUSIC_PLAY = $1003
 .proc game_init
         sei
 
-        lda #0
-        sta $d020
-        lda #2
-        sta $d022                       ; used for extended background
-        lda #12
-        sta $d023                       ; used for extended background
 
         jsr init_sound                  ; turn off volume right now
 
@@ -165,7 +159,6 @@ MUSIC_PLAY = $1003
 
         lda #$00
         sta sync_raster_irq
-        sta sync_timer_irq
 
         lda #$7f
         sta $dc0d                       ; turn off cia 1 interrupts
@@ -198,35 +191,8 @@ MUSIC_PLAY = $1003
 
 _mainloop:
         lda sync_raster_irq
-        bne do_raster
-
-        lda sync_timer_irq
         beq _mainloop
 
-        dec sync_timer_irq
-
-        lda game_state                  ; play music only in GAME_OVER or RIDING
-        cmp #GAME_STATE::RIDING         ; states
-        beq @play_music                 ; riding: do the riding stuff
-
-        cmp #GAME_STATE::GAME_OVER      ; game over: do the game over stuff
-        bne _mainloop
-
-        jsr show_press_space            ; display "press space"
-
-        lda #%01111111                  ; space ?
-        sta CIA1_PRA                    ; row 7
-        lda CIA1_PRB
-        and #%00010000                  ; col 4
-        bne @play_music                 ; space pressed ?
-
-        jmp main_menu                   ; yes, return to main menu
-
-@play_music:
-        jsr MUSIC_PLAY
-        jmp _mainloop
-
-do_raster:
         dec sync_raster_irq
 
 .if (::DEBUG & 1)
@@ -236,47 +202,53 @@ do_raster:
                                         ; events that happens on all game states
         jsr update_scroll               ; screen horizontal scroll
         jsr update_players              ; sprite animations, physics
+        jsr animate_level               ; level specific animation
 
         lda game_state
         cmp #GAME_STATE::ON_YOUR_MARKS
-        beq @on_your_marks
+        beq on_your_marks
         cmp #GAME_STATE::GET_SET_GO
-        beq @get_set_go
+        beq get_set_go
+
+        pha                             ; common events for RIDING and GAME_OVER
+music_play_addr = *+1
+        jsr MUSIC_PLAY                  ; self modifying since changes from song to song
+        jsr process_events
+        jsr print_speed
+        pla
+
         cmp #GAME_STATE::RIDING
-        beq @riding
+        beq riding
         cmp #GAME_STATE::GAME_OVER
-        beq @game_over
+        beq game_over
 
-@on_your_marks:
+        jmp main_menu                   ; end event
+
+
+on_your_marks:
         jsr update_on_your_marks
-        jmp @cont
+        jmp cont
 
-@get_set_go:
+get_set_go:
         jsr update_get_set_go
-        jmp @cont
+        jmp cont
 
-@riding:
-        jsr MUSIC_PLAY
+riding:
         jsr remove_go_lbl
-        jsr process_events
         jsr print_elpased_time          ; updates playing time
-        jsr print_speed
-        jmp @cont
+        jmp cont
 
-@game_over:
-        jsr MUSIC_PLAY
-        jsr process_events
-        jsr print_speed
+game_over:
         jsr show_press_space            ; display "press space"
 
         lda #%01111111                  ; space ?
         sta CIA1_PRA                    ; row 7
         lda CIA1_PRB
         and #%00010000                  ; col 4
-        bne @cont                       ; space pressed ?
+        bne cont                        ; space pressed ?
         jmp main_menu                   ; yes, return to main
 
-@cont:
+cont:
 
 .if (::DEBUG & 1)
         inc $d020
@@ -364,7 +336,7 @@ level_charset_address = *+1
 ;
 ;raster:
 ;        STABILIZE_RASTER
-        .repeat 26
+        .repeat 14
                 nop
         .endrepeat
 
@@ -417,7 +389,7 @@ end_irq:
         ora #%00010000                  ; multicolor on
         sta $d016
 
-        lda #LEVEL_BKG_COLOR
+        lda background_color
         sta $d021                       ; background color
 
         lda #%00011011
@@ -456,7 +428,7 @@ end_irq:
 ;
 ;raster:
 ;        STABILIZE_RASTER
-        .repeat 26
+        .repeat 14
                 nop
         .endrepeat
 
@@ -507,7 +479,7 @@ end_irq:
         ora #%00010000                  ; multicolor on
         sta $d016
 
-        lda #LEVEL_BKG_COLOR
+        lda background_color
         sta $d021                       ; background color
 
         lda #%00011011
@@ -607,7 +579,6 @@ _loop2:
         sta expected_joy1_idx
         sta expected_joy2_idx
         sta sync_raster_irq
-        sta sync_timer_irq
 
         ldx #<SCROLL_SPEED              ; initial speed
         ldy #>SCROLL_SPEED
@@ -1876,6 +1847,12 @@ p2_collision_tire:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void animate_level()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc animate_level
+        rts
+.endproc
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void game_start_roadrace()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export game_start_roadrace
@@ -1909,6 +1886,18 @@ p2_collision_tire:
         ldy #>read_joy2_left_right
         stx process_p2::joy2_address
         sty process_p2::joy2_address+1
+
+        lda #03                                 ; $1003
+        sta game_init::music_play_addr
+
+        lda #0
+        sta $d020
+        lda #15
+        sta background_color
+        lda #2
+        sta $d022                       ; used for extended background
+        lda #12
+        sta $d023                       ; used for extended background
 
         jsr music_patch_table_1                 ; convert to PAL if needed
 
@@ -1950,6 +1939,18 @@ p2_collision_tire:
         stx process_p2::joy2_address
         sty process_p2::joy2_address+1
 
+        lda #03                                 ; $1003
+        sta game_init::music_play_addr
+
+        lda #0
+        sta $d020
+        lda #15
+        sta background_color
+        lda #2
+        sta $d022                               ; used in level
+        lda #12
+        sta $d023                               ; used in level and extended background color
+
         jsr music_patch_table_1                 ; convert to PAL if needed
 
         jmp game_init
@@ -1990,6 +1991,18 @@ p2_collision_tire:
         stx process_p2::joy2_address
         sty process_p2::joy2_address+1
 
+        lda #06                                 ; $1006
+        sta game_init::music_play_addr
+
+        lda #0
+        sta $d020
+        lda #1
+        sta background_color
+        lda #11
+        sta $d022                               ; used in level
+        lda #12
+        sta $d023                               ; used in level and extended background color
+
         jsr music_patch_table_2                 ; convert to NTSC if needed
 
         jmp game_init
@@ -1998,7 +2011,6 @@ p2_collision_tire:
 
 
 
-sync_timer_irq:         .byte $00
 sync_raster_irq:        .byte $00
 game_state:             .byte GAME_STATE::GET_SET_GO
 p1_state:               .byte PLAYER_STATE::GET_SET_GO
@@ -2103,6 +2115,8 @@ screen:
         .byte 32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128
         scrcode                   "         time: 00:00:0"
 
+background_color:
+        .byte 1                                         ; $d021 color for game
 
 
 remove_go_counter:  .byte $80                           ; delay to remove "go" label
@@ -2110,21 +2124,21 @@ remove_go_counter:  .byte $80                           ; delay to remove "go" l
 .segment "COMPRESSED_DATA"
 
         ; road race data
-        .incbin "level-roadrace-charset.prg.exo"                ; 2k at $3000
+        .incbin "level-roadrace-charset.prg.exo"        ; 2k at $3000
 level_roadrace_charset_exo:
 
-        .incbin "level-roadrace-map.prg.exo"                    ; 6k at $4100
+        .incbin "level-roadrace-map.prg.exo"            ; 6k at $4100
 level_roadrace_map_exo:
 
-        .incbin "level-roadrace-colors.prg.exo"                 ; 256b at $4000
+        .incbin "level-roadrace-colors.prg.exo"         ; 256b at $4000
 level_roadrace_colors_exo:
 
-        .incbin "music_roadrace.sid.exo"                   ; export at $1000
+        .incbin "music_roadrace.sid.exo"                ; export at $1000
 game_music2_exo:
 
 
         ; cyclo cross data
-        .incbin "level-cyclocross-charset.prg.exo"     ; 2k at $3000
+        .incbin "level-cyclocross-charset.prg.exo"      ; 2k at $3000
 level_cyclocross_charset_exo:
 
         .incbin "level-cyclocross-map.prg.exo"          ; 6k at $4100

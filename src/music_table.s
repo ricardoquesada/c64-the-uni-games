@@ -17,6 +17,9 @@ SONG1_FREQ_TBL_HI = $16a7
 ; cross country (Sunny Day): uses a PAL table.
 ;  $1634 lo
 ;  $1694 hi
+; cross country (Seek and Destroy): uses a NTSC table.
+;  $1634 lo
+;  $160b hi
 SONG2_FREQ_TBL_LO = $1634
 SONG2_FREQ_TBL_HI = $1694
 
@@ -61,8 +64,8 @@ end:
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void music_patch_table_2()
-; patches the frequency table only if the system is not PAL-B
-; since the song already is in PAL-B mode
+; patches the frequency table only if the system is not NTSC
+; since the song already is in NTSC mode
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export music_patch_table_2
 .proc music_patch_table_2
@@ -73,12 +76,12 @@ end:
         cmp #$2f                                ; paln ?
         beq paln                                ;
         cmp #$01                                ; palb ?
-        beq end                                 ; yes?, so, end it.
+        bne end                                 ; no?, then it must be ntsc. end
 
-        ldx #MUSIC_TABLE_SIZE-1                 ; it must be ntsc then
-l0:     lda ntsc_freq_table_lo,x
+        ldx #MUSIC_TABLE_SIZE-1                 ; palb
+l0:     lda palb_freq_table_lo,x
         sta SONG2_FREQ_TBL_LO,x
-        lda ntsc_freq_table_hi,x
+        lda palb_freq_table_hi,x
         sta SONG2_FREQ_TBL_HI,x
         dex
         bpl l0
@@ -87,9 +90,9 @@ l0:     lda ntsc_freq_table_lo,x
 paln:
         ldx #MUSIC_TABLE_SIZE-1                 ; paln
 l1:     lda paln_freq_table_lo,x
-        sta SONG1_FREQ_TBL_LO,x
+        sta SONG2_FREQ_TBL_LO,x
         lda paln_freq_table_hi,x
-        sta SONG1_FREQ_TBL_HI,x
+        sta SONG2_FREQ_TBL_HI,x
         dex
         bpl l1
 end:

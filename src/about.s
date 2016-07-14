@@ -33,7 +33,7 @@
 .export about_init
 .proc about_init
         sei
-        lda #%10000000                          ; enable only PAL/NTSC scprite
+        lda #%00000000                          ; enable only PAL/NTSC scprite
         sta VIC_SPR_ENA
 
         ldx #0

@@ -45,7 +45,7 @@ UNI2_COL = 10
         lda #0
         sta score_counter
 
-        lda #%10000000                  ; enable only PAL/NTSC scprite
+        lda #%00000000                  ; enable only PAL/NTSC scprite
         sta VIC_SPR_ENA
 
         lda #$01
