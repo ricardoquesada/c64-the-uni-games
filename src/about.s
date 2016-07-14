@@ -69,10 +69,10 @@ source_addr = *+1
         inc scroll_row                          ; last row for scroll ?
         lda scroll_row
 
-        cmp #64+17                              ; end? loop the scroll
+        cmp #88+17                              ; end? loop the scroll
         beq loop_scroll
 
-        cmp #64                                 ; 64 or more ? fill next 16 lines with spaces
+        cmp #88                                 ; 88 or more ? fill next 16 lines with spaces
         bpl fake_spaces
 
         clc                                     ; else, increment source addr
@@ -240,6 +240,11 @@ raster:
         stx $fffe
         sty $ffff
 
+        lda #(50+8*24)
+        .repeat 8, YY
+                sta VIC_SPR0_Y + YY * 2
+        .endrepeat
+
 end_irq:
         pla                             ; restores A, X, Y
         tay
@@ -279,6 +284,11 @@ raster:
         stx $fffe
         sty $ffff
 
+        lda #(50+8*7)
+        .repeat 8, YY
+                sta VIC_SPR0_Y + YY * 2
+        .endrepeat
+
         inc about_sync_raster
 
 end_irq:
@@ -304,6 +314,6 @@ sprites_x:
 credits_map = * + 240                           ; 40 x 6
 about_map:
         .incbin "about-map.bin"                 ; 40 x 6 "ABOUT"
-                                                ; 40 x 54 CREDITS
+                                                ; 40 x 88 CREDITS
 
         .byte 0                                 ; ignore
