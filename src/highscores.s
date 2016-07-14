@@ -51,6 +51,9 @@ UNI2_COL = 10
         lda #$01
         jsr ut_clear_color
 
+        lda #$20
+        jsr ut_clear_screen
+
         jsr init_screen
         cli
 
@@ -67,7 +70,6 @@ play_music:
         dec sync_timer_irq
         jsr $1003
         jsr paint_score
-        jsr animate_unicyclists
         jmp scores_mainloop
 .endproc
 
@@ -84,25 +86,8 @@ l0:
         lda mainscreen_colors,y
         sta $d800,x
 
-        lda hiscores_map + $0100,x
-        sta SCREEN0_BASE + $0100,x
-        tay
-        lda mainscreen_colors,y
-        sta $d900,x
-
-        lda hiscores_map + $0200,x
-        sta SCREEN0_BASE + $0200,x
-        tay
-        lda mainscreen_colors,y
-        sta $da00,x
-
-        lda hiscores_map + $02e8,x
-        sta SCREEN0_BASE + $02e8,x
-        tay
-        lda mainscreen_colors,y
-        sta $dae8,x
-
         inx
+        cpx #240
         bne l0
 
 
@@ -111,25 +96,6 @@ l0:
         sta SCREEN0_BASE + 280,x
         dex
         bpl :-
-
-        lda #2                          ; set color for unicyclist
-        .repeat 5,YY
-                ldx #2
-:               sta $d800+(YY+UNI1_ROW)*40+UNI1_COL,x
-                sta $d800+(YY+UNI2_ROW)*40+UNI2_COL,x
-                dex
-                bpl :-
-        .endrepeat
-
-        lda #3                          ; set color for unicycle
-        .repeat 5,YY
-                ldx #2
-:               sta $d800+(YY+UNI1_ROW+6)*40+UNI1_COL,x
-                sta $d800+(YY+UNI2_ROW+6)*40+UNI2_COL,x
-                dex
-                bpl :-
-        .endrepeat
-
 
         ldx #<(SCREEN0_BASE + 40 * 10 + 6)  ; init "save" pointer
         ldy #>(SCREEN0_BASE + 40 * 10 + 6)  ; start writing at 10th line
@@ -246,26 +212,6 @@ paint:
         .byte 0
 .endproc
 
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void animate_unicyclists(void)
-; uses $fb-$ff
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc animate_unicyclists
-
-        dec delay
-        beq :+
-        rts
-:
-        lda #50
-        sta delay
-
-
-        rts
-delay:
-        .byte 50
-
-.endproc
-
 
                 ;0123456789|123456789|123456789|123456789|
 categories:
@@ -299,4 +245,4 @@ score_counter: .byte 0                  ; score that has been drawn
 delay:         .byte $10                ; delay used to print the scores
 
 hiscores_map:
-        .incbin "hiscores-map.bin"
+        .incbin "hiscores-map.bin"      ; 40 * 6

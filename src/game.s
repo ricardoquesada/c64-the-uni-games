@@ -628,11 +628,8 @@ loop:
         asl
         tay
 
-        lda frames,x
+        lda sprite_frames,x
         sta SPRITE_PTR,x
-
-        lda colors,x
-        sta VIC_SPR0_COLOR,x            ; sprite color
 
         lda sprites_x,x
         sta VIC_SPR0_X,y
@@ -655,27 +652,6 @@ loop:
 
 
         rts
-sprites_x:      .byte 80, 80, 80, 80            ; player 1
-                .byte 80, 80, 80, 80            ; player 2
-sprites_y:      .byte (SCROLL_ROW_P1+5)*7+30    ; player 1
-                .byte (SCROLL_ROW_P1+5)*7+30
-                .byte (SCROLL_ROW_P1+5)*7+30
-                .byte (SCROLL_ROW_P1+5)*7+30
-                .byte (SCROLL_ROW_P2+5)*7+30    ; player 2
-                .byte (SCROLL_ROW_P2+5)*7+30
-                .byte (SCROLL_ROW_P2+5)*7+30
-                .byte (SCROLL_ROW_P2+5)*7+30
-frames:
-                .byte SPRITES_POINTER + 0       ; player 1
-                .byte SPRITES_POINTER + 1
-                .byte SPRITES_POINTER + 2
-                .byte SPRITES_POINTER + 3
-                .byte SPRITES_POINTER + 0       ; player 2
-                .byte SPRITES_POINTER + 1
-                .byte SPRITES_POINTER + 2
-                .byte SPRITES_POINTER + 3
-colors:         .byte 1, 1, 0, 7                ; player 1
-                .byte 1, 1, 0, 7                ; player 2
 
 .endproc
 
@@ -1899,9 +1875,19 @@ p2_collision_tire:
         lda #12
         sta $d023                       ; used for extended background
 
+        ldx #7
+l0:     lda spr_colors,x
+        sta VIC_SPR0_COLOR,x            ; sprite color
+        dex
+        bpl l0
+
         jsr music_patch_table_1                 ; convert to PAL if needed
 
         jmp game_init
+
+spr_colors:
+                .byte 1, 1, 0, 7                ; player 1
+                .byte 1, 1, 0, 7                ; player 2
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -1951,9 +1937,19 @@ p2_collision_tire:
         lda #12
         sta $d023                               ; used in level and extended background color
 
+        ldx #7
+l0:     lda spr_colors,x
+        sta VIC_SPR0_COLOR,x            ; sprite color
+        dex
+        bpl l0
+
         jsr music_patch_table_1                 ; convert to PAL if needed
 
         jmp game_init
+
+spr_colors:
+                .byte 1, 1, 0, 7                ; player 1
+                .byte 1, 1, 0, 7                ; player 2
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -2003,9 +1999,19 @@ p2_collision_tire:
         lda #12
         sta $d023                               ; used in level and extended background color
 
+        ldx #7
+l0:     lda spr_colors,x
+        sta VIC_SPR0_COLOR,x            ; sprite color
+        dex
+        bpl l0
+
         jsr music_patch_table_2                 ; convert to NTSC if needed
 
         jmp game_init
+
+spr_colors:
+                .byte 15, 15, 0, 12                ; player 1
+                .byte 15, 15, 0, 12                ; player 2
 .endproc
 
 
@@ -2117,6 +2123,26 @@ screen:
 
 background_color:
         .byte 1                                         ; $d021 color for game
+
+sprites_x:      .byte 80, 80, 80, 80            ; player 1
+                .byte 80, 80, 80, 80            ; player 2
+sprites_y:      .byte (SCROLL_ROW_P1+5)*7+30    ; player 1
+                .byte (SCROLL_ROW_P1+5)*7+30
+                .byte (SCROLL_ROW_P1+5)*7+30
+                .byte (SCROLL_ROW_P1+5)*7+30
+                .byte (SCROLL_ROW_P2+5)*7+30    ; player 2
+                .byte (SCROLL_ROW_P2+5)*7+30
+                .byte (SCROLL_ROW_P2+5)*7+30
+                .byte (SCROLL_ROW_P2+5)*7+30
+sprite_frames:
+                .byte SPRITES_POINTER + 0       ; player 1
+                .byte SPRITES_POINTER + 1
+                .byte SPRITES_POINTER + 2
+                .byte SPRITES_POINTER + 3
+                .byte SPRITES_POINTER + 0       ; player 2
+                .byte SPRITES_POINTER + 1
+                .byte SPRITES_POINTER + 2
+                .byte SPRITES_POINTER + 3
 
 
 remove_go_counter:  .byte $80                           ; delay to remove "go" label

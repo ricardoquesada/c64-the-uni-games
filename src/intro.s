@@ -187,6 +187,8 @@ delay:
 
         lda #0                          ; color
         sta VIC_SPR7_COLOR
+        sta VIC_SPR_EXP_X               ; no expansion
+        sta VIC_SPR_EXP_Y
 
         ldx #(SPRITES_POINTER + $0f)    ; sprite pointer to PAL (15)
         lda ut_vic_video_type           ; ntsc, pal or paln?

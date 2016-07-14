@@ -197,6 +197,12 @@ set_mainmenu:
         sta scene_state
 
         sei
+
+        ldx #<irq_timer                 ; restore irq for timer
+        ldy #>irq_timer
+        stx $fffe
+        sty $ffff
+
         jsr init_screen
         jsr mainmenu_init
         cli
@@ -305,6 +311,11 @@ l0:
         sta $d010                       ; since x pos > 255
         lda #%00000111
         sta VIC_SPR_MCOLOR              ; enable multicolor
+
+        lda #0
+        sta VIC_SPR_EXP_X
+        sta VIC_SPR_EXP_Y
+        sta VIC_SPR_HI_X
 
         lda #10                         ; sprites multicolor values
         sta VIC_SPR_MCOLOR0
