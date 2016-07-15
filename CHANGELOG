@@ -4,6 +4,8 @@ v0.3 -
 	 - cyclo cross: joy fire
 	 - cross country: joy left + right + fire
   - fix: expected joy value is the correct one
+  - about: vertical scroll
+  - level cross country: re-done from scratch almost
 
 v0.2.4 - 8 July, 2016
 

@@ -404,23 +404,6 @@ sprite_frame:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void animate_palette(void)
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc animate_palette
-
-        dec palette_idx_top             ; animate top palette
-        lda palette_idx_top
-        and #%00111111
-        sta palette_idx_top
-
-        dec palette_idx_bottom          ; animate bottom palette
-        lda palette_idx_bottom
-        and #%00111111
-        sta palette_idx_bottom
-        rts
-.endproc
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void animate_sprites(void)
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc animate_sprites
@@ -452,23 +435,13 @@ sprite2_frames:
         .byte SPRITES_POINTER + 44
 .endproc
 
-palette_idx_top:        .byte 0         ; color index for top palette
-palette_idx_bottom:     .byte 48        ; color index for bottom palette (palette_size / 2)
-
-luminances:
-.byte $01,$01,$0d,$0d,$07,$07,$03,$03,$0f,$0f,$05,$05,$0a,$0a,$0e,$0e
-.byte $0c,$0c,$08,$08,$04,$04,$02,$02,$0b,$0b,$09,$09,$06,$06,$00,$00
-.byte $01,$01,$0d,$0d,$07,$07,$03,$03,$0f,$0f,$05,$05,$0a,$0a,$0e,$0e
-.byte $0c,$0c,$08,$08,$04,$04,$02,$02,$0b,$0b,$09,$09,$06,$06,$00,$00
-PALETTE_SIZE = * - luminances
-
-.export sync_raster_irq
-sync_raster_irq:    .byte 0            ; enabled when raster is triggred (once per frame)
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; variables
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export sync_timer_irq
 sync_timer_irq:     .byte 0            ; enabled when timer is triggred (used by music)
 
 scene_state:        .byte SCENE_STATE::MAIN_MENU ; scene state. which scene to render
-
 
 mainscreen_map:
     .incbin "src/mainscreen-map.bin"

@@ -202,7 +202,8 @@ _mainloop:
                                         ; events that happens on all game states
         jsr update_scroll               ; screen horizontal scroll
         jsr update_players              ; sprite animations, physics
-        jsr animate_level               ; level specific animation
+animate_level_addr = * + 1
+        jsr animate_level_roadrace      ; level specific animation: self modyfing
 
         lda game_state
         cmp #GAME_STATE::ON_YOUR_MARKS
@@ -1823,9 +1824,68 @@ p2_collision_tire:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void animate_level()
+; void animate_level_roadrace
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc animate_level
+.proc animate_level_roadrace
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void animate_level_cyclocross
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc animate_level_cyclocross
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void animate_level_crosscountry
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc animate_level_crosscountry
+        lda level_state                 ; delay or anim?
+        bne anim                        ; 0==delay, 1==anim
+
+        dec delay                       ; delay, so wait
+        beq :+
+        rts
+:       dec delay+1
+        beq init_anim                   ; delay reched zero?
+        rts
+
+init_anim:
+        lda #1                          ; reset variables
+        sta level_state                 ; and set state to "anim" (1)
+        lda #$00
+        sta delay
+        lda #$03
+        sta delay+1
+anim:
+        ldx colors_idx
+        lda colors,x
+        sta background_color
+        inx
+        stx colors_idx
+        cpx #TOTAL_COLORS
+        bne end
+
+        ldx #0
+        stx colors_idx
+        stx level_state
+end:
+        rts
+
+delay:
+        .word $0300
+
+level_state:
+        .byte 0
+colors_idx:     .byte 0
+colors:
+        .byte 1,15,15,15,12,12,12,11,11,11
+        .byte 0,0,0,0,0,0,0,11
+        .byte 0,0,0,0,0,0,0,11
+        .byte 0,0,0,0,0,0,0,11
+        .byte 11,11,11,12,12,12,15,15,15,1
+TOTAL_COLORS = * - colors
         rts
 .endproc
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -1874,6 +1934,11 @@ p2_collision_tire:
         sta $d022                       ; used for extended background
         lda #12
         sta $d023                       ; used for extended background
+
+        ldx #<animate_level_roadrace
+        ldy #>animate_level_roadrace
+        stx game_init::animate_level_addr
+        sty game_init::animate_level_addr+1
 
         ldx #7
 l0:     lda spr_colors,x
@@ -1937,6 +2002,11 @@ spr_colors:
         lda #12
         sta $d023                               ; used in level and extended background color
 
+        ldx #<animate_level_cyclocross
+        ldy #>animate_level_cyclocross
+        stx game_init::animate_level_addr
+        sty game_init::animate_level_addr+1
+
         ldx #7
 l0:     lda spr_colors,x
         sta VIC_SPR0_COLOR,x            ; sprite color
@@ -1998,6 +2068,11 @@ spr_colors:
         sta $d022                               ; used in level
         lda #12
         sta $d023                               ; used in level and extended background color
+
+        ldx #<animate_level_crosscountry
+        ldy #>animate_level_crosscountry
+        stx game_init::animate_level_addr
+        sty game_init::animate_level_addr+1
 
         ldx #7
 l0:     lda spr_colors,x
