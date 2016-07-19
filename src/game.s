@@ -44,9 +44,9 @@
         CROSS_COUNTRY = 2
 .endenum
 
-RECORD_FIRE = 0                         ; record fire, or play fire?
-                                        ; 0 for "PLAY" (normal value)
-                                        ; 1 for "RECORD"
+RECORD_FIRE = 0                         ; computer player: record fire, or play fire? 
+                                        ; 0 for "PLAY" (normal mode)
+                                        ; 1 to "RECORD" jumps
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -126,6 +126,8 @@ SCROLL_ROW_P2 = 17
 RASTER_TOP_P2 = 50 + 8 * (SCROLL_ROW_P1 + LEVEL1_HEIGHT)        ; first raster line (where P1 scroll ends)
 RASTER_BOTTOM_P2 = 50 + 8 * (SCROLL_ROW_P2-EMPTY_ROWS)          ; moving part of the screen
 
+RASTER_TRIGGER_ANIMS = 0                ; raster to trigger the animations
+
 ON_YOUR_MARKS_ROW = 12                  ; row to display on your marks
 
 LEVEL_BKG_COLOR = 15
@@ -170,9 +172,6 @@ MUSIC_PLAY = $1003
 
         jsr ut_setup_tod                ; must be called AFTER detect_pal_...
 
-        lda #$00
-        sta sync_raster_irq
-
         lda #$7f
         sta $dc0d                       ; turn off cia 1 interrupts
         sta $dd0d                       ; turn off cia 2 interrupts
@@ -203,17 +202,41 @@ MUSIC_PLAY = $1003
         cli
 
 _mainloop:
-        lda sync_raster_irq
+        lda sync_raster_anims
+        bne animations
+        lda sync_raster_bottom_p1
+        bne scroll_p2
+        lda sync_raster_bottom_p2
         beq _mainloop
 
-        dec sync_raster_irq
+.if (::DEBUG & 1)
+        dec $d020
+.endif
+        dec sync_raster_bottom_p2
+        jsr update_scroll_p1                   ; when P1 irq is triggered, scroll P2
+.if (::DEBUG & 1)
+        inc $d020
+.endif
+        jmp _mainloop
+
+scroll_p2:
+.if (::DEBUG & 1)
+        dec $d020
+.endif
+        dec sync_raster_bottom_p1
+        jsr update_scroll_p2                   ; when P2 irq is triggered, scroll P1
+.if (::DEBUG & 1)
+        inc $d020
+.endif
+        jmp _mainloop
+
+animations:
+        dec sync_raster_anims
 
 .if (::DEBUG & 1)
         dec $d020
 .endif
 
-                                        ; events that happens on all game states
-        jsr update_scroll               ; screen horizontal scroll
         jsr update_players              ; sprite animations, physics
 animate_level_addr = * + 1
         jsr animate_level_roadrace      ; level specific animation: self modyfing
@@ -306,7 +329,7 @@ game_music_address = *+1
         jsr decrunch                    ; uncrunch map
 
 level_map_address = *+1
-        ldx #<level_roadrace_map_exo            ; self-modifyng
+        ldx #<level_roadrace_map_exo    ; self-modifyng
         ldy #>level_roadrace_map_exo
         stx _crunched_byte_lo
         sty _crunched_byte_hi
@@ -314,14 +337,14 @@ level_map_address = *+1
 
 
 level_color_address = *+1
-        ldx #<level_roadrace_colors_exo         ; self-modifying
+        ldx #<level_roadrace_colors_exo ; self-modifying
         ldy #>level_roadrace_colors_exo
         stx _crunched_byte_lo
         sty _crunched_byte_hi
         jsr decrunch                    ; uncrunch
 
 level_charset_address = *+1
-        ldx #<level_roadrace_charset_exo         ; self-modifying
+        ldx #<level_roadrace_charset_exo        ; self-modifying
         ldy #>level_roadrace_charset_exo
         stx _crunched_byte_lo
         sty _crunched_byte_hi
@@ -332,7 +355,14 @@ level_charset_address = *+1
         rts
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+;
 ; IRQ handlers
+; 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; irq_top_p1
+; triggered at bottom of the screen, where the scroll of player two ends
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc irq_top_p1
         pha                             ; saves A, X, Y
@@ -342,14 +372,7 @@ level_charset_address = *+1
         pha
 
         asl $d019                       ; clears raster interrupt
-;        bcs raster
-;
-;        lda $dc0d                       ; clears CIA interrupts, in particular timer A
-;        inc sync_timer_irq
-;        jmp end_irq
-;
-;raster:
-;        STABILIZE_RASTER
+
         .repeat 14
                 nop
         .endrepeat
@@ -363,15 +386,13 @@ level_charset_address = *+1
         lda #%01011011
         sta $d011                       ; extended background color mode: on
 
-        lda #<irq_bottom_p1             ; set a new irq vector
+        lda #<irq_anims                 ; set a new irq vector
         sta $fffe
-        lda #>irq_bottom_p1
+        lda #>irq_anims
         sta $ffff
 
-        lda #RASTER_BOTTOM_P1           ; should be triggered when raster = RASTER_BOTTOM
+        lda #RASTER_TRIGGER_ANIMS       ; should be triggered when raster = RASTER_TRIGGER_ANIMS
         sta $d012
-
-        inc sync_raster_irq
 
 end_irq:
         pla                             ; restores A, X, Y
@@ -382,6 +403,42 @@ end_irq:
         rti                             ; restores previous PC, status
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; irq_anims
+; triggered 0... will trigger when to do the animations
+; we can't use irq_top_p1 to trigger them, because the raster will still be consumed
+; by the previous raster stuff
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc irq_anims
+        pha                             ; saves A, X, Y
+        txa
+        pha
+        tya
+        pha
+
+        asl $d019                       ; clears raster interrupt
+        inc sync_raster_anims
+
+        lda #<irq_bottom_p1             ; set a new irq vector
+        sta $fffe
+        lda #>irq_bottom_p1
+        sta $ffff
+
+        lda #RASTER_BOTTOM_P1           ; should be triggered when raster = RASTER_BOTTOM
+        sta $d012
+
+        pla                             ; restores A, X, Y
+        tay
+        pla
+        tax
+        pla
+        rti                             ; restores previous PC, status
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; irq_bottom_p1
+; triggered at top of the screen, where the scroll of player one starts
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc irq_bottom_p1
         pha                             ; saves A, X, Y
         txa
@@ -417,6 +474,8 @@ end_irq:
         lda #RASTER_TOP_P2
         sta $d012
 
+        inc sync_raster_bottom_p1
+
 end_irq:
         pla                             ; restores A, X, Y
         tay
@@ -426,6 +485,10 @@ end_irq:
         rti                             ; restores previous PC, status
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; irq_top_p2
+; triggered at middle of the screen, where the scroll of player one ends
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc irq_top_p2
         pha                             ; saves A, X, Y
         txa
@@ -472,6 +535,10 @@ end_irq:
         rti                             ; restores previous PC, status
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; irq_bottom_p2
+; triggered at middle of the screen, where the scroll of player two starts
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc irq_bottom_p2
         pha                             ; saves A, X, Y
         txa
@@ -506,6 +573,8 @@ end_irq:
 
         lda #RASTER_TOP_P1
         sta $d012
+
+        inc sync_raster_bottom_p2
 
 end_irq:
         pla                             ; restores A, X, Y
@@ -592,7 +661,9 @@ _loop2:
         sta smooth_scroll_x_p2+1
         sta expected_joy1_idx
         sta expected_joy2_idx
-        sta sync_raster_irq
+        sta sync_raster_anims
+        sta sync_raster_bottom_p1
+        sta sync_raster_bottom_p2
 
         ldx #<SCROLL_SPEED              ; initial speed
         ldy #>SCROLL_SPEED
@@ -1198,15 +1269,15 @@ store_fire:                                     ; record "button pressed"
 .else
 play_fire:
         ldx computer_fires_idx
-        lda scroll_idx_p1+1
+        lda scroll_idx_p1+1                     ; MSB
         cmp computer_fires_hi,x
         bcc do_no_fire                          ; p1 < fires_hi
         bne do_fire                             ; p1 > fires_hi
 
         lda scroll_idx_p1
         cmp computer_fires_lo,x
-        bcc do_no_fire
-
+        bcc do_no_fire                          ; p1 < fires_lo? yes.
+                                                ; else: p1 >= fires_lo.. do fire
 do_fire:
         inc computer_fires_idx                  ; next index of fires
         lda last_value                          ; simulate "button pressed"
@@ -1230,13 +1301,9 @@ left:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void update_scroll()
+; void update_scroll_p1()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc update_scroll
-        jsr update_scroll_p1
-        jmp update_scroll_p2
-
-update_scroll_p1:
+.proc update_scroll_p1
         sec                                     ; 16-bit substract
         lda smooth_scroll_x_p1                  ; LSB
         sbc scroll_speed_p1
@@ -1248,18 +1315,15 @@ update_scroll_p1:
         bcc :+                                  ; only scroll if result is negative
         rts
 :
-        ldx #0                                  ; move the chars to the left and right
-@loop:
-        .repeat 6,i                             ; 6 == LEVEL1_HEIGHT but doesn't compile
-                lda SCREEN_BASE+40*(SCROLL_ROW_P1+i)+1,x        ; scroll screen
-                sta SCREEN_BASE+40*(SCROLL_ROW_P1+i)+0,x
-                lda $d800+40*(SCROLL_ROW_P1+i)+1,x              ; scroll color RAM
-                sta $d800+40*(SCROLL_ROW_P1+i)+0,x
+        .repeat 6,YY                            ; 6 == LEVEL1_HEIGHT but doesn't compile
+                .repeat 39,XX                   ; 40 chars 
+                        lda SCREEN_BASE+40*(SCROLL_ROW_P1+YY)+XX+1      ; scroll screen
+                        sta SCREEN_BASE+40*(SCROLL_ROW_P1+YY)+XX+0
+                        lda $d800+40*(SCROLL_ROW_P1+YY)+XX+1            ; scroll color RAM
+                        sta $d800+40*(SCROLL_ROW_P1+YY)+XX+0
+                .endrepeat
         .endrepeat
 
-        inx
-        cpx #39
-        bne @loop
 
         ldx scroll_idx_p1
         ldy scroll_idx_p1+1
@@ -1277,7 +1341,6 @@ update_scroll_p1:
                 lda $f9                         ; fetch char 1024 chars ahead
                 adc #>LEVEL1_WIDTH              ; LEVEL1_WIDTH must be multiple of 256
                 sta $f9
-
         .endrepeat
 
         inc scroll_idx_p1
@@ -1297,8 +1360,12 @@ update_scroll_p1:
 :       stx p1_finished
 @end:
         rts
+.endproc
 
-update_scroll_p2:
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void update_scroll_p2()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc update_scroll_p2
         sec                                     ; 16-bit substract
         lda smooth_scroll_x_p2                  ; LSB
         sbc scroll_speed_p2
@@ -1310,18 +1377,14 @@ update_scroll_p2:
         bcc :+
         rts
 :
-        ldx #0                                  ; move the chars to the left and right
-@loop:
-        .repeat 6,i                             ; 6 == LEVEL1_HEIGHT but doesn't compile
-                lda SCREEN_BASE+40*(SCROLL_ROW_P2+i)+1,x        ; scroll screen
-                sta SCREEN_BASE+40*(SCROLL_ROW_P2+i)+0,x
-                lda $d800+40*(SCROLL_ROW_P2+i)+1,x              ; scroll color RAM
-                sta $d800+40*(SCROLL_ROW_P2+i)+0,x
+        .repeat 6,YY                             ; 6 == LEVEL1_HEIGHT but doesn't compile
+                .repeat 39,XX
+                        lda SCREEN_BASE+40*(SCROLL_ROW_P2+YY)+XX+1        ; scroll screen
+                        sta SCREEN_BASE+40*(SCROLL_ROW_P2+YY)+XX+0
+                        lda $d800+40*(SCROLL_ROW_P2+YY)+XX+1             ; scroll color RAM
+                        sta $d800+40*(SCROLL_ROW_P2+YY)+XX+0
+                .endrepeat
         .endrepeat
-
-        inx
-        cpx #39
-        bne @loop
 
         ldx scroll_idx_p2
         ldy scroll_idx_p2+1
@@ -2132,6 +2195,11 @@ l0:     lda spr_colors,x
 
         jsr music_patch_table_1                 ; convert to PAL if needed
 
+
+.if !(::RECORD_FIRE)                            ; only copy if not recording fires
+                                                ; otherwise the table might have additional
+                                                ; jumps
+
         ldx #0                                  ; computer jump table
 l1:
         lda computer_fires_cyclocross_lo,x
@@ -2141,6 +2209,7 @@ l1:
         inx
         cpx #FIRE_TBL_SIZE
         bne l1
+.endif
 
         rts
 spr_colors:
@@ -2208,6 +2277,10 @@ l0:     lda spr_colors,x
         jsr music_patch_table_2                 ; convert to NTSC if needed
 
 
+
+.if !(::RECORD_FIRE)                            ; only copy if not recording fires
+                                                ; otherwise the table might have additional
+                                                ; jumps
         ldx #0                                  ; computer jump table
 l1:
         lda computer_fires_crosscountry_lo,x
@@ -2217,6 +2290,7 @@ l1:
         inx
         cpx #FIRE_TBL_SIZE
         bne l1
+.endif
 
         rts
 spr_colors:
@@ -2246,7 +2320,9 @@ l0:
 
 
 
-sync_raster_irq:        .byte $00
+sync_raster_anims:      .byte $00
+sync_raster_bottom_p1:  .byte $00
+sync_raster_bottom_p2:  .byte $00
 game_state:             .byte GAME_STATE::GET_SET_GO
 p1_state:               .byte PLAYER_STATE::GET_SET_GO
 p2_state:               .byte PLAYER_STATE::GET_SET_GO
@@ -2355,14 +2431,14 @@ background_color:
 
 sprites_x:      .byte 80, 80, 80, 80            ; player 1
                 .byte 80, 80, 80, 80            ; player 2
-sprites_y:      .byte (SCROLL_ROW_P1+5)*7+30    ; player 1
-                .byte (SCROLL_ROW_P1+5)*7+30
-                .byte (SCROLL_ROW_P1+5)*7+30
-                .byte (SCROLL_ROW_P1+5)*7+30
-                .byte (SCROLL_ROW_P2+5)*7+30    ; player 2
-                .byte (SCROLL_ROW_P2+5)*7+30
-                .byte (SCROLL_ROW_P2+5)*7+30
-                .byte (SCROLL_ROW_P2+5)*7+30
+sprites_y:      .byte (SCROLL_ROW_P1+5)*7+26    ; player 1
+                .byte (SCROLL_ROW_P1+5)*7+26
+                .byte (SCROLL_ROW_P1+5)*7+26
+                .byte (SCROLL_ROW_P1+5)*7+26
+                .byte (SCROLL_ROW_P2+5)*7+26    ; player 2
+                .byte (SCROLL_ROW_P2+5)*7+26
+                .byte (SCROLL_ROW_P2+5)*7+26
+                .byte (SCROLL_ROW_P2+5)*7+26
 sprite_frames:
                 .byte SPRITES_POINTER + 0       ; player 1
                 .byte SPRITES_POINTER + 1
