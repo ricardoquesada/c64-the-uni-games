@@ -26,6 +26,7 @@ res:
 	exomizer mem -q res/intro-charset.prg -o src/intro-charset.prg.exo
 	exomizer mem -q res/intro-map.prg -o src/intro-map.prg.exo
 	cp res/select_event-map.bin src
+	cp res/number_of_players-map.bin src
 	cp res/mainscreen-map.bin src
 	cp res/mainscreen-colors.bin src
 	cp res/about-map.bin src

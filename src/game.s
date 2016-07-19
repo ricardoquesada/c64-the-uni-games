@@ -38,6 +38,12 @@
         LOSER = 2
 .endenum
 
+.enum GAME_EVENT                        ; Events of the game
+        ROAD_RACE = 0
+        CYCLO_CROSS = 1
+        CROSS_COUNTRY = 2
+.endenum
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -132,9 +138,9 @@ MUSIC_PLAY = $1003
 
 .segment "HI_CODE"
 
-.proc game_init
+.export game_start
+.proc game_start
         sei
-
 
         jsr init_sound                  ; turn off volume right now
 
@@ -146,6 +152,8 @@ MUSIC_PLAY = $1003
         sta $d011                       ; extended background color mode: on
         lda #%00011000
         sta $d016                       ; turn on multicolor
+
+        jsr level_setup                 ; setup data for selected level
 
         jsr game_init_data              ; uncrunch data
 
@@ -1889,10 +1897,25 @@ TOTAL_COLORS = * - colors
         rts
 .endproc
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void game_start_roadrace()
+; void level_setup()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export game_start_roadrace
-.proc game_start_roadrace
+.proc level_setup
+        lda game_selected_event
+        cmp #GAME_EVENT::ROAD_RACE
+        beq start_roadrace
+        cmp #GAME_EVENT::CYCLO_CROSS
+        beq start_cyclocross
+
+        jmp level_setup_crosscountry             ; else cross country
+start_roadrace:
+        jmp level_setup_roadrace
+start_cyclocross:
+        jmp level_setup_cyclocross
+.endproc
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void level_setup_roadrace()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc level_setup_roadrace
         ldx #<level_roadrace_map_exo            ; map
         ldy #>level_roadrace_map_exo
         stx level_map_address
@@ -1924,7 +1947,7 @@ TOTAL_COLORS = * - colors
         sty process_p2::joy2_address+1
 
         lda #03                                 ; $1003
-        sta game_init::music_play_addr
+        sta game_start::music_play_addr
 
         lda #0
         sta $d020
@@ -1937,8 +1960,8 @@ TOTAL_COLORS = * - colors
 
         ldx #<animate_level_roadrace
         ldy #>animate_level_roadrace
-        stx game_init::animate_level_addr
-        sty game_init::animate_level_addr+1
+        stx game_start::animate_level_addr
+        sty game_start::animate_level_addr+1
 
         ldx #7
 l0:     lda spr_colors,x
@@ -1948,18 +1971,16 @@ l0:     lda spr_colors,x
 
         jsr music_patch_table_1                 ; convert to PAL if needed
 
-        jmp game_init
-
+        rts
 spr_colors:
                 .byte 1, 1, 0, 7                ; player 1
                 .byte 1, 1, 0, 7                ; player 2
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void game_start_cyclocross()
+; void level_setup_cyclocross()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export game_start_cyclocross
-.proc game_start_cyclocross
+.proc level_setup_cyclocross
         ldx #<level_cyclocross_map_exo          ; map
         ldy #>level_cyclocross_map_exo
         stx level_map_address
@@ -1991,7 +2012,7 @@ spr_colors:
         sty process_p2::joy2_address+1
 
         lda #03                                 ; $1003
-        sta game_init::music_play_addr
+        sta game_start::music_play_addr
 
         lda #0
         sta $d020
@@ -2004,8 +2025,8 @@ spr_colors:
 
         ldx #<animate_level_cyclocross
         ldy #>animate_level_cyclocross
-        stx game_init::animate_level_addr
-        sty game_init::animate_level_addr+1
+        stx game_start::animate_level_addr
+        sty game_start::animate_level_addr+1
 
         ldx #7
 l0:     lda spr_colors,x
@@ -2015,18 +2036,16 @@ l0:     lda spr_colors,x
 
         jsr music_patch_table_1                 ; convert to PAL if needed
 
-        jmp game_init
-
+        rts
 spr_colors:
                 .byte 1, 1, 0, 7                ; player 1
                 .byte 1, 1, 0, 7                ; player 2
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void game_start_crosscountry()
+; void level_setup_crosscountry()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export game_start_crosscountry
-.proc game_start_crosscountry
+.proc level_setup_crosscountry
         ldx #<level_crosscountry_map_exo        ; map
         ldy #>level_crosscountry_map_exo
         stx level_map_address
@@ -2058,7 +2077,7 @@ spr_colors:
         sty process_p2::joy2_address+1
 
         lda #06                                 ; $1006
-        sta game_init::music_play_addr
+        sta game_start::music_play_addr
 
         lda #0
         sta $d020
@@ -2071,8 +2090,8 @@ spr_colors:
 
         ldx #<animate_level_crosscountry
         ldy #>animate_level_crosscountry
-        stx game_init::animate_level_addr
-        sty game_init::animate_level_addr+1
+        stx game_start::animate_level_addr
+        sty game_start::animate_level_addr+1
 
         ldx #7
 l0:     lda spr_colors,x
@@ -2082,8 +2101,7 @@ l0:     lda spr_colors,x
 
         jsr music_patch_table_2                 ; convert to NTSC if needed
 
-        jmp game_init
-
+        rts
 spr_colors:
                 .byte 15, 15, 0, 12                ; player 1
                 .byte 15, 15, 0, 12                ; player 2
@@ -2222,6 +2240,11 @@ sprite_frames:
 
 remove_go_counter:  .byte $80                           ; delay to remove "go" label
 
+.export game_number_of_players
+game_number_of_players: .byte 0                         ; number of human players: one (0) or two (1)
+.export game_selected_event
+game_selected_event:    .byte 0                         ; which event was selected
+
 .segment "COMPRESSED_DATA"
 
         ; road race data
@@ -2248,7 +2271,7 @@ level_cyclocross_map_exo:
         .incbin "level-cyclocross-colors.prg.exo"       ; 256b at $4000
 level_cyclocross_colors_exo:
 
-        .incbin "music_cyclocross.sid.exo"                   ; export at $1000
+        .incbin "music_cyclocross.sid.exo"              ; export at $1000
 game_music1_exo:
 
 
@@ -2262,7 +2285,7 @@ level_crosscountry_map_exo:
         .incbin "level-crosscountry-colors.prg.exo"     ; 256b at $4000
 level_crosscountry_colors_exo:
 
-        .incbin "music_crosscountry.sid.exo"                   ; export at $1000
+        .incbin "music_crosscountry.sid.exo"            ; export at $1000
 game_music3_exo:
 
 .byte 0                                                 ; ignore
