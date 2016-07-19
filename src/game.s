@@ -2178,9 +2178,9 @@ spr_colors:
 
         lda #0
         sta $d020
-        lda #15
+        lda #11
         sta background_color
-        lda #2
+        lda #5
         sta $d022                               ; used in level
         lda #12
         sta $d023                               ; used in level and extended background color
@@ -2216,8 +2216,8 @@ l1:
 
         rts
 spr_colors:
-                .byte 1, 1, 0, 7                ; player 1
-                .byte 1, 1, 0, 7                ; player 2
+                .byte 15, 15, 0, 13             ; player 1
+                .byte 15, 15, 0, 13             ; player 2
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
