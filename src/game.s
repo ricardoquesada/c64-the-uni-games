@@ -44,6 +44,10 @@
         CROSS_COUNTRY = 2
 .endenum
 
+RECORD_FIRE = 0                         ; record fire, or play fire?
+                                        ; 0 for "PLAY" (normal value)
+                                        ; 1 for "RECORD"
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -154,6 +158,7 @@ MUSIC_PLAY = $1003
         sta $d016                       ; turn on multicolor
 
         jsr level_setup                 ; setup data for selected level
+        jsr computer_setup              ; in case a "one player" was selected
 
         jsr game_init_data              ; uncrunch data
 
@@ -1113,26 +1118,109 @@ left:
 ; returns A values
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_joy_computer
+        jsr test_fire
         dec delay
-        beq :+
+        beq l0
         lda last_value
         rts
-:
-        lda #$04
-        sta delay
 
-        lda left
-        eor #%00000001
+test_fire:
+.if (::RECORD_FIRE)
+        jmp record_fire
+.else
+        jmp play_fire
+.endif
+
+l0:
+        lda scroll_idx_p1+1                     ; adjust speed according to
+        cmp scroll_idx_p2+1                     ; position of player #2
+        bcc dofast                              ; p1 < p2, set FAST speed
+        bne doslow                              ; p1 > p2, slow down
+
+compare_lsb:                                    ; p1 == p2
+        lda scroll_idx_p1
+        cmp scroll_idx_p2
+        bcc dofast                              ; p1 < p2, set FAST speed
+        bne doslow                              ; p1 > p2, slow down
+
+        lda #$05                                ; p1 == p2, medium
+        bne cont
+
+doslow:
+.if (::RECORD_FIRE)                             ; while recording
+        lda #$05                                ; slow is medium
+.else
+        lda #$06
+.endif
+        bne cont
+dofast:
+        lda #$04                                ; slow down a bit if computer is
+cont:
+        sta delay                               ; ahead of player
+
+        lda left                                ; joy position to send
+        eor #%00000001                          ; left or right?
         sta left
 
         beq doleft
-        lda #%11110111
+
+        lda #%11110111                          ; right
         sta last_value
         rts
 doleft:
-        lda #%11111011
+        lda #%11111011                          ; left
         sta last_value
         rts
+
+.if (::RECORD_FIRE)
+record_fire:                                    ; record "button pressed"
+        lda $dc01                               ; button pressed?
+        and #%00010000
+        bne fire_off                            ; no, continue with left/right
+        jsr store_fire                          ; pressed? process button pressed
+        lda last_value                          ; set the button-pressed flag
+        and #%11101111
+        sta last_value
+        rts
+fire_off:
+        lda last_value
+        ora #%00010000
+        sta last_value
+        rts
+store_fire:                                     ; record "button pressed"
+        ldx computer_fires_idx                  ; in which X position
+        lda scroll_idx_p1                       ; occurred
+        sta computer_fires_lo,x
+        lda scroll_idx_p1+1
+        sta computer_fires_hi,x
+        inc computer_fires_idx
+        rts
+.else
+play_fire:
+        ldx computer_fires_idx
+        lda scroll_idx_p1+1
+        cmp computer_fires_hi,x
+        bcc do_no_fire                          ; p1 < fires_hi
+        bne do_fire                             ; p1 > fires_hi
+
+        lda scroll_idx_p1
+        cmp computer_fires_lo,x
+        bcc do_no_fire
+
+do_fire:
+        inc computer_fires_idx                  ; next index of fires
+        lda last_value                          ; simulate "button pressed"
+        and #%11101111
+        sta last_value
+        rts
+
+do_no_fire:
+        lda last_value                          ; simulate "button not pressed"
+        ora #%00010000
+        sta last_value
+        rts
+.endif
+
 delay:
         .byte $04
 last_value:
@@ -1954,9 +2042,9 @@ start_cyclocross:
         lda #15
         sta background_color
         lda #2
-        sta $d022                       ; used for extended background
+        sta $d022                               ; used for extended background
         lda #12
-        sta $d023                       ; used for extended background
+        sta $d023                               ; used for extended background
 
         ldx #<animate_level_roadrace
         ldy #>animate_level_roadrace
@@ -1965,11 +2053,19 @@ start_cyclocross:
 
         ldx #7
 l0:     lda spr_colors,x
-        sta VIC_SPR0_COLOR,x            ; sprite color
+        sta VIC_SPR0_COLOR,x                    ; sprite color
         dex
         bpl l0
 
         jsr music_patch_table_1                 ; convert to PAL if needed
+
+        ldx #0
+        lda #$ff                                ; jump table is $ffff. no jump
+l1:     sta computer_fires_lo,x                 ; in this level for the computer
+        sta computer_fires_hi,x
+        inx
+        cpx #FIRE_TBL_SIZE
+        bne l1
 
         rts
 spr_colors:
@@ -2030,11 +2126,21 @@ spr_colors:
 
         ldx #7
 l0:     lda spr_colors,x
-        sta VIC_SPR0_COLOR,x            ; sprite color
+        sta VIC_SPR0_COLOR,x                    ; sprite color
         dex
         bpl l0
 
         jsr music_patch_table_1                 ; convert to PAL if needed
+
+        ldx #0                                  ; computer jump table
+l1:
+        lda computer_fires_cyclocross_lo,x
+        sta computer_fires_lo,x
+        lda computer_fires_cyclocross_hi,x
+        sta computer_fires_hi,x
+        inx
+        cpx #FIRE_TBL_SIZE
+        bne l1
 
         rts
 spr_colors:
@@ -2095,17 +2201,47 @@ spr_colors:
 
         ldx #7
 l0:     lda spr_colors,x
-        sta VIC_SPR0_COLOR,x            ; sprite color
+        sta VIC_SPR0_COLOR,x                    ; sprite color
         dex
         bpl l0
 
         jsr music_patch_table_2                 ; convert to NTSC if needed
 
+
+        ldx #0                                  ; computer jump table
+l1:
+        lda computer_fires_crosscountry_lo,x
+        sta computer_fires_lo,x
+        lda computer_fires_crosscountry_hi,x
+        sta computer_fires_hi,x
+        inx
+        cpx #FIRE_TBL_SIZE
+        bne l1
+
         rts
 spr_colors:
-                .byte 15, 15, 0, 12                ; player 1
-                .byte 15, 15, 0, 12                ; player 2
+                .byte 15, 15, 0, 12             ; player 1
+                .byte 15, 15, 0, 12             ; player 2
 .endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void computer_setup()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc computer_setup
+        lda game_number_of_players
+        bne l0                                  ; no computer
+
+        ldx #<read_joy_computer                 ; computer?
+        ldy #>read_joy_computer                 ; joystick is controlled by
+        stx process_p1::joy1_address            ; computer then
+        sty process_p1::joy1_address+1
+
+l0:
+        lda #0
+        sta computer_fires_idx                  ; next fire to read? 0
+        rts
+.endproc
+
 
 
 
@@ -2244,6 +2380,22 @@ remove_go_counter:  .byte $80                           ; delay to remove "go" l
 game_number_of_players: .byte 0                         ; number of human players: one (0) or two (1)
 .export game_selected_event
 game_selected_event:    .byte 0                         ; which event was selected
+
+computer_fires_idx:     .byte 0
+computer_fires_lo:      .res 64,255
+computer_fires_hi:      .res 64,255
+FIRE_TBL_SIZE = * - computer_fires_hi                   ; size
+
+computer_fires_cyclocross_lo:
+        .incbin "fires_cyclocross_lo.bin"               ; XXX: should be in compressed segment
+computer_fires_cyclocross_hi:
+        .incbin "fires_cyclocross_hi.bin"
+
+computer_fires_crosscountry_lo:                         ; XXX: should be in compressed segment
+        .incbin "fires_crosscountry_lo.bin"
+computer_fires_crosscountry_hi:
+        .incbin "fires_crosscountry_hi.bin"
+
 
 .segment "COMPRESSED_DATA"
 
