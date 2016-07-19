@@ -176,28 +176,31 @@ MUSIC_PLAY = $1003
         sta $dc0d                       ; turn off cia 1 interrupts
         sta $dd0d                       ; turn off cia 2 interrupts
 
-        lda #01                         ; Enable raster irq
-        sta $d01a
-
-        ldx #<irq_top_p1                ; raster irq vector
-        ldy #>irq_top_p1
-        stx $fffe
-        sty $ffff
-
-        lda #RASTER_TOP_P1
-        sta $d012
 
         lda $dc0d                       ; clear interrupts and ACK irq
         lda $dd0d
         asl $d019
 
-        lda #0
-        sta $d012
+:       lda $d012                       ; wait for start of raster
+:       cmp $d012
+        beq :-
+        bmi :--
                                         ; turn VIC on again
         lda #%00011011                  ; charset mode, default scroll-Y position, 25-rows
         sta $d011                       ; extended color mode: off
         lda #%00001000                  ; no scroll, hires (mono color), 40-cols
         sta $d016                       ; turn off multicolor
+
+        ldx #<irq_top_p2                ; raster irq vector
+        ldy #>irq_top_p2
+        stx $fffe
+        sty $ffff
+
+        lda #RASTER_TOP_P2
+        sta $d012
+
+        lda #01                         ; Enable raster irq
+        sta $d01a
 
         cli
 
