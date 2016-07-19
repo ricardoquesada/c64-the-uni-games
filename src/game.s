@@ -1143,14 +1143,14 @@ compare_lsb:                                    ; p1 == p2
         bcc dofast                              ; p1 < p2, set FAST speed
         bne doslow                              ; p1 > p2, slow down
 
-        lda #$05                                ; p1 == p2, medium
+        lda #$04                                ; p1 == p2, fast
         bne cont
 
 doslow:
 .if (::RECORD_FIRE)                             ; while recording
-        lda #$05                                ; slow is medium
+        lda #$04                                ; slow is fast
 .else
-        lda #$06
+        lda #$05
 .endif
         bne cont
 dofast:
