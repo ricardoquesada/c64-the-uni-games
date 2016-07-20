@@ -1250,7 +1250,7 @@ store_fire:                                     ; record "button pressed"
         sta computer_fires_hi,x
         inc computer_fires_idx
         rts
-.else
+.else                                           ; !RECORD_FIRE. Normal gameplay
 play_fire:
         ldx computer_fires_idx
         lda scroll_idx_p1+1                     ; MSB
@@ -1274,7 +1274,7 @@ do_no_fire:
         ora #%00010000
         sta last_value
         rts
-.endif
+.endif                                          ; !RECORD_FIRE
 
 delay:
         .byte $04

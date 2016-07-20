@@ -48,6 +48,9 @@ unigames: ${SRC}
 	echo "Running game..."
 	$(X64) -moncommands bin/$@.sym $(D64_IMAGE)
 
+run:
+	$(X64) -moncommands bin/unigames.sym $(D64_IMAGE)
+
 clean:
 	rm -f src/*.o bin/*.sym bin/*.prg $(D64_IMAGE)
 
