@@ -1,12 +1,13 @@
 .SILENT:
 
-.PHONY: all clean res
+.PHONY: all clean res run
 
 D64_IMAGE = "bin/unigames.d64"
 C1541 = c1541
 X64 = x64
 
-all: res unigames
+all: res bin
+bin: unigames d64 run
 
 SRC=src/intro.s src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s src/about.s src/music_table.s
 
@@ -41,14 +42,15 @@ unigames: ${SRC}
 	cl65 -d -g -Ln bin/$@.sym -o bin/$@.prg -u __EXEHDR__ -t c64 -C $@.cfg $^
 	echo "Compressing executable..."
 	exomizer sfx sys -x1 -Di_line_number=2016 -o bin/$@_exo.prg bin/$@.prg
+
+d64:
 	echo "Generating d64 file..."
 	$(C1541) -format "unigames,rq" d64 $(D64_IMAGE)
-	$(C1541) $(D64_IMAGE) -write bin/$@_exo.prg
+	$(C1541) $(D64_IMAGE) -write bin/unigames_exo.prg
 	$(C1541) $(D64_IMAGE) -list
-	echo "Running game..."
-	$(X64) -moncommands bin/$@.sym $(D64_IMAGE)
 
 run:
+	echo "Running game"
 	$(X64) -moncommands bin/unigames.sym $(D64_IMAGE)
 
 clean:
