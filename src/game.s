@@ -44,6 +44,9 @@
         CROSS_COUNTRY = 2
 .endenum
 
+AUTO_SPEED = 4                          ; how fast is the auto-acceleration
+                                        ; 0 highest, 255 super slow
+
 RECORD_FIRE = 0                         ; computer player: record fire, or play fire? 
                                         ; 0 for "PLAY" (normal mode)
                                         ; 1 to "RECORD" jumps
@@ -1105,7 +1108,7 @@ end_p2:
         beq :+
         rts
 :
-        lda #$04
+        lda #AUTO_SPEED
         sta delay
 
         lda left
@@ -1164,7 +1167,7 @@ left:
         beq :+
         rts
 :
-        lda #$04
+        lda #AUTO_SPEED
         sta delay
 
         lda left
@@ -1192,9 +1195,10 @@ left:
 ; returns A values
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_joy_computer
-        jsr test_fire
         dec delay
-        beq l0
+        bne cont
+        jsr move_joystick
+cont:   jsr test_fire
         lda last_value
         rts
 
@@ -1205,32 +1209,9 @@ test_fire:
         jmp play_fire
 .endif
 
-l0:
-        lda scroll_idx_p1+1                     ; adjust speed according to
-        cmp scroll_idx_p2+1                     ; position of player #2
-        bcc dofast                              ; p1 < p2, set FAST speed
-        bne doslow                              ; p1 > p2, slow down
-
-compare_lsb:                                    ; p1 == p2
-        lda scroll_idx_p1
-        cmp scroll_idx_p2
-        bcc dofast                              ; p1 < p2, set FAST speed
-        bne doslow                              ; p1 > p2, slow down
-
-        lda #$04                                ; p1 == p2, fast
-        bne cont
-
-doslow:
-.if (::RECORD_FIRE)                             ; while recording
-        lda #$04                                ; slow is fast
-.else
-        lda #$05
-.endif
-        bne cont
-dofast:
-        lda #$04                                ; slow down a bit if computer is
-cont:
-        sta delay                               ; ahead of player
+move_joystick:
+        lda #AUTO_SPEED
+        sta delay
 
         lda left                                ; joy position to send
         eor #%00000001                          ; left or right?
