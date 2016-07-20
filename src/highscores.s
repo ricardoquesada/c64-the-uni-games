@@ -54,7 +54,7 @@ UNI2_COL = 10
         lda #$20
         jsr ut_clear_screen
 
-        jsr init_screen
+        jsr scores_init_screen
         cli
 
 
@@ -74,9 +74,9 @@ play_music:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; init_screen
+; scores_init_screen
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc init_screen
+.proc scores_init_screen
 
         ldx #0
 l0:

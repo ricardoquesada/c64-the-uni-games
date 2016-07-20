@@ -305,18 +305,15 @@ l0:
         bpl :-
 
 
-        lda #%00011111                  ; enable sprites
-        sta VIC_SPR_ENA
-        lda #%00010000                  ; set sprite #7 x-pos 9-bit ON
-        sta $d010                       ; since x pos > 255
-        lda #%00000111
-        sta VIC_SPR_MCOLOR              ; enable multicolor
-
         lda #0
         sta VIC_SPR_EXP_X
         sta VIC_SPR_EXP_Y
-        sta VIC_SPR_HI_X
-
+        lda #%00011111                  ; enable sprites
+        sta VIC_SPR_ENA
+        lda #%00010000                  ; set sprite #7 x-pos 9-bit ON
+        sta VIC_SPR_HI_X                ; since x pos > 255
+        lda #%00000111
+        sta VIC_SPR_MCOLOR              ; enable multicolor
         lda #10                         ; sprites multicolor values
         sta VIC_SPR_MCOLOR0
         lda #9

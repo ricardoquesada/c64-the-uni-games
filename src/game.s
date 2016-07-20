@@ -94,7 +94,7 @@ RECORD_FIRE = 0                         ; computer player: record fire, or play 
         .endrepeat
 @ntsc2:
 
-        .repeat 3
+        .repeat 4
                 nop
         .endrepeat
 .endmacro
@@ -203,17 +203,17 @@ MAX_SPEED = $05                         ; max speed MSB: eg: $05 means $0500
         cli
 
 _mainloop:
-        lda sync_raster_anims
+        lda zp_sync_raster_anims
         bne animations
-        lda sync_raster_bottom_p1
+        lda zp_sync_raster_bottom_p1
         bne scroll_p2
-        lda sync_raster_bottom_p2
+        lda zp_sync_raster_bottom_p2
         beq _mainloop
 
 .if (::DEBUG & 1)
         dec $d020
 .endif
-        dec sync_raster_bottom_p2
+        dec zp_sync_raster_bottom_p2
         jsr update_scroll_p1                   ; when P1 irq is triggered, scroll P2
 .if (::DEBUG & 1)
         inc $d020
@@ -224,7 +224,7 @@ scroll_p2:
 .if (::DEBUG & 1)
         dec $d020
 .endif
-        dec sync_raster_bottom_p1
+        dec zp_sync_raster_bottom_p1
         jsr update_scroll_p2                   ; when P2 irq is triggered, scroll P1
 .if (::DEBUG & 1)
         inc $d020
@@ -232,7 +232,7 @@ scroll_p2:
         jmp _mainloop
 
 animations:
-        dec sync_raster_anims
+        dec zp_sync_raster_anims
 
 .if (::DEBUG & 1)
         dec $d020
@@ -242,7 +242,7 @@ animations:
 animate_level_addr = * + 1
         jsr animate_level_roadrace      ; level specific animation: self modyfing
 
-        lda game_state
+        lda zp_game_state
         cmp #GAME_STATE::ON_YOUR_MARKS
         beq on_your_marks
         cmp #GAME_STATE::GET_SET_GO
@@ -418,7 +418,7 @@ end_irq:
         pha
 
         asl $d019                       ; clears raster interrupt
-        inc sync_raster_anims
+        inc zp_sync_raster_anims
 
         lda #<irq_bottom_p1             ; set a new irq vector
         sta $fffe
@@ -457,11 +457,11 @@ end_irq:
 ;raster:
         CONSUME_CYCLES
 
-        lda smooth_scroll_x_p1+1        ; scroll x
+        lda zp_smooth_scroll_x_p1+1        ; scroll x
         ora #%00010000                  ; multicolor on
         sta $d016
 
-        lda background_color
+        lda zp_background_color
         sta $d021                       ; background color
 
         lda #%00011011
@@ -475,7 +475,7 @@ end_irq:
         lda #RASTER_TOP_P2
         sta $d012
 
-        inc sync_raster_bottom_p1
+        inc zp_sync_raster_bottom_p1
 
 end_irq:
         pla                             ; restores A, X, Y
@@ -557,11 +557,11 @@ end_irq:
 ;raster:
         CONSUME_CYCLES
 
-        lda smooth_scroll_x_p2+1        ; scroll x
+        lda zp_smooth_scroll_x_p2+1        ; scroll x
         ora #%00010000                  ; multicolor on
         sta $d016
 
-        lda background_color
+        lda zp_background_color
         sta $d021                       ; background color
 
         lda #%00011011
@@ -575,7 +575,7 @@ end_irq:
         lda #RASTER_TOP_P1
         sta $d012
 
-        inc sync_raster_bottom_p2
+        inc zp_sync_raster_bottom_p2
 
 end_irq:
         pla                             ; restores A, X, Y
@@ -638,50 +638,54 @@ _loop2:
         jsr init_sprites                ; setup sprites
 
         lda #GAME_STATE::ON_YOUR_MARKS  ; game state machine = "get set"
-        sta game_state
+        sta zp_game_state
 
         lda #PLAYER_STATE::GET_SET_GO   ; player state machine = "get set"
-        sta p1_state
-        sta p2_state
+        sta zp_p1_state
+        sta zp_p2_state
         lda #FINISH_STATE::NOT_FINISHED
-        sta p1_finished
-        sta p2_finished
+        sta zp_p1_finished
+        sta zp_p2_finished
 
         lda #0
-        sta frame_idx_p1
-        sta frame_idx_p2
-        sta animation_idx_p1
-        sta animation_idx_p2
-        sta resistance_idx_p1
-        sta resistance_idx_p2
-        sta jump_idx_p1
-        sta jump_idx_p2
-        sta smooth_scroll_x_p1
-        sta smooth_scroll_x_p1+1
-        sta smooth_scroll_x_p2
-        sta smooth_scroll_x_p2+1
-        sta expected_joy1_idx
-        sta expected_joy2_idx
-        sta sync_raster_anims
-        sta sync_raster_bottom_p1
-        sta sync_raster_bottom_p2
+        sta zp_frame_idx_p1
+        sta zp_frame_idx_p2
+        sta zp_animation_idx_p1
+        sta zp_animation_idx_p2
+        sta zp_resistance_idx_p1
+        sta zp_resistance_idx_p2
+        sta zp_jump_idx_p1
+        sta zp_jump_idx_p2
+        sta zp_smooth_scroll_x_p1
+        sta zp_smooth_scroll_x_p1+1
+        sta zp_smooth_scroll_x_p2
+        sta zp_smooth_scroll_x_p2+1
+        sta zp_expected_joy1_idx
+        sta zp_expected_joy2_idx
+        sta zp_sync_raster_anims
+        sta zp_sync_raster_bottom_p1
+        sta zp_sync_raster_bottom_p2
+
+        lda #ACTOR_ANIMATION_SPEED
+        sta zp_animation_delay_p1
+        sta zp_animation_delay_p2
 
         ldx #<SCROLL_SPEED              ; initial speed
         ldy #>SCROLL_SPEED
-        stx scroll_speed_p1             ; LSB
-        stx scroll_speed_p2
-        sty scroll_speed_p1+1           ; MSB
-        sty scroll_speed_p2+1
+        stx zp_scroll_speed_p1          ; LSB
+        stx zp_scroll_speed_p2
+        sty zp_scroll_speed_p1+1        ; MSB
+        sty zp_scroll_speed_p2+1
 
         lda #$80
-        sta remove_go_counter
+        sta zp_remove_go_counter
 
         ldx #<(LEVEL1_MAP+40)
         ldy #>(LEVEL1_MAP+40)
-        stx scroll_idx_p1
-        stx scroll_idx_p2
-        sty scroll_idx_p1+1
-        sty scroll_idx_p2+1
+        stx zp_scroll_idx_p1
+        stx zp_scroll_idx_p2
+        sty zp_scroll_idx_p1+1
+        sty zp_scroll_idx_p2+1
 
         rts
 .endproc
@@ -745,16 +749,16 @@ loop:
 ; void update_on_your_marks()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_on_your_marks
-        ldx resistance_idx_p1
+        ldx zp_resistance_idx_p1
         sec
-        lda scroll_speed_p1             ; subtract
+        lda zp_scroll_speed_p1          ; subtract
         sbc resistance_tbl,x
-        sta scroll_speed_p1             ; LSB
-        sta scroll_speed_p2             ; LSB
+        sta zp_scroll_speed_p1          ; LSB
+        sta zp_scroll_speed_p2          ; LSB
 
         bcs @end                        ; shortcut for MSB
-        dec scroll_speed_p1+1           ; MSB
-        dec scroll_speed_p2+1           ; MSB
+        dec zp_scroll_speed_p1+1        ; MSB
+        dec zp_scroll_speed_p2+1        ; MSB
 
         bpl @end                        ; if < 0, then 0
 
@@ -764,8 +768,8 @@ loop:
         cpx #(RESISTANCE_TBL_SIZE .MOD 256)
         bne :+
         ldx #RESISTANCE_TBL_SIZE-1
-:       stx resistance_idx_p1
-        stx resistance_idx_p2
+:       stx zp_resistance_idx_p1
+        stx zp_resistance_idx_p2
         rts
 .endproc
 
@@ -774,12 +778,12 @@ loop:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc init_get_set_go
         lda #0                          ; reset variables
-        sta scroll_speed_p1
-        sta scroll_speed_p1+1
-        sta scroll_speed_p2
-        sta scroll_speed_p2+1
-        sta resistance_idx_p1
-        sta resistance_idx_p2
+        sta zp_scroll_speed_p1
+        sta zp_scroll_speed_p1+1
+        sta zp_scroll_speed_p2
+        sta zp_scroll_speed_p2+1
+        sta zp_resistance_idx_p1
+        sta zp_resistance_idx_p2
 
         ldx #39                         ; display "on your marks"
 :       lda on_your_marks_lbl,x
@@ -788,7 +792,7 @@ loop:
         bpl :-
 
         lda #GAME_STATE::GET_SET_GO
-        sta game_state
+        sta zp_game_state
 
         ldx #12*4                       ; Do. 4th octave
         jsr play_sound
@@ -830,7 +834,7 @@ loop:
         sta $dc08                       ;- (deciseconds)
 
         lda #GAME_STATE::RIDING
-        sta game_state
+        sta zp_game_state
 
         ldx #12*5                       ; Do: 5th octave
         jsr play_sound
@@ -847,9 +851,9 @@ counter: .byte 0
 ; remove_go_lbl
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc remove_go_lbl
-        lda remove_go_counter
+        lda zp_remove_go_counter
         beq @end
-        dec remove_go_counter
+        dec zp_remove_go_counter
         bne @end
 
         ldx #39                         ; clean the "go" message
@@ -908,10 +912,10 @@ counter: .byte $40
 .endproc
 
 .proc process_p1
-        lda p1_finished                 ; if finished, go directly to
+        lda zp_p1_finished              ; if finished, go directly to
         bne decrease_speed_p1           ; decrease speed
 
-        lda p1_state                    ; if "falling" or "jumping", decrease speed
+        lda zp_p1_state                 ; if "falling" or "jumping", decrease speed
         cmp #PLAYER_STATE::AIR_DOWN     ; since it can't accelerate
         beq decrease_speed_p1
         cmp #PLAYER_STATE::AIR_UP
@@ -924,16 +928,16 @@ joy1_address = *+1
         bne test_movement_p1
 
         lda #PLAYER_STATE::AIR_UP       ; start jump sequence
-        sta p1_state
+        sta zp_p1_state
         lda #0                          ; use sine to jump
-        sta jump_idx_p1                 ; set pointer to beginning of sine
+        sta zp_jump_idx_p1              ; set pointer to beginning of sine
         rts
 
 test_movement_p1:
         tya
         eor #%00001111                  ; invert joy bits, since they are inverted
-        ldx expected_joy1_idx
-        and expected_joy,x              ; AND instead of CMP to support diagonals
+        ldx zp_expected_joy1_idx
+        and expected_joy_tbl,x          ; AND instead of CMP to support diagonals
         bne increase_velocity_p1
         jmp decrease_speed_p1
 
@@ -941,57 +945,57 @@ increase_velocity_p1:
         inx
         txa
         and #%00000001
-        sta expected_joy1_idx           ; cycles between 0,1
+        sta zp_expected_joy1_idx           ; cycles between 0,1
 
         lda #0
-        sta resistance_idx_p1
+        sta zp_resistance_idx_p1
 
         clc
-        lda scroll_speed_p1             ; increase
+        lda zp_scroll_speed_p1          ; increase
         adc #ACCEL_SPEED
-        sta scroll_speed_p1             ; LSB
+        sta zp_scroll_speed_p1          ; LSB
         bcc :+
-        inc scroll_speed_p1+1           ; MSB
+        inc zp_scroll_speed_p1+1        ; MSB
 :
-        lda scroll_speed_p1+1
+        lda zp_scroll_speed_p1+1
         cmp #MAX_SPEED                  ; max speed MSB
         bne @end
 
         lda #$00                        ; if $0500 or more, then make it $500
-        sta scroll_speed_p1
+        sta zp_scroll_speed_p1
 @end:
         rts
 
 decrease_speed_p1:
-        ldx resistance_idx_p1
+        ldx zp_resistance_idx_p1
         sec
-        lda scroll_speed_p1            ; subtract
+        lda zp_scroll_speed_p1         ; subtract
         sbc resistance_tbl,x
-        sta scroll_speed_p1            ; LSB
+        sta zp_scroll_speed_p1         ; LSB
 
         bcs end_p1                     ; shortcut for MSB
-        dec scroll_speed_p1+1          ; MSB
+        dec zp_scroll_speed_p1+1       ; MSB
 
         bpl end_p1                     ; if < 0, then 0
         lda #0
-        sta scroll_speed_p1
-        sta scroll_speed_p1+1
+        sta zp_scroll_speed_p1
+        sta zp_scroll_speed_p1+1
 
 end_p1:
         inx
         cpx #(RESISTANCE_TBL_SIZE .MOD 256)
         bne :+
         ldx #RESISTANCE_TBL_SIZE-1
-:       stx resistance_idx_p1
+:       stx zp_resistance_idx_p1
         rts
 .endproc
 
 
 .proc process_p2
-        lda p2_finished                 ; if finished, go directly to
+        lda zp_p2_finished              ; if finished, go directly to
         bne decrease_speed_p2           ; decrease speed
 
-        lda p2_state                    ; if "falling" or "jumping", decrease speed
+        lda zp_p2_state                 ; if "falling" or "jumping", decrease speed
         cmp #PLAYER_STATE::AIR_DOWN     ; since it can't accelerate
         beq decrease_speed_p2
         cmp #PLAYER_STATE::AIR_UP
@@ -1004,16 +1008,16 @@ joy2_address = *+1
         bne test_movement_p2
 
         lda #PLAYER_STATE::AIR_UP       ; start jump sequence
-        sta p2_state
+        sta zp_p2_state
         lda #0                          ; use sine to jump
-        sta jump_idx_p2                 ; set pointer to beginning of sine
+        sta zp_jump_idx_p2              ; set pointer to beginning of sine
         rts
 
 test_movement_p2:
         tya
         eor #%00001111                  ; invert joy bits, since they are inverted
-        ldx expected_joy2_idx
-        and expected_joy,x              ; AND instead of CMP to support diagonals
+        ldx zp_expected_joy2_idx
+        and expected_joy_tbl,x          ; AND instead of CMP to support diagonals
         bne increase_velocity_p2
         jmp decrease_speed_p2
 
@@ -1021,49 +1025,49 @@ increase_velocity_p2:
         inx
         txa
         and #%00000001
-        sta expected_joy2_idx           ; cycles between 0,1
+        sta zp_expected_joy2_idx           ; cycles between 0,1
 
         lda #0
-        sta resistance_idx_p2
+        sta zp_resistance_idx_p2
 
         clc
-        lda scroll_speed_p2             ; increase
+        lda zp_scroll_speed_p2          ; increase
         adc #ACCEL_SPEED
-        sta scroll_speed_p2             ; LSB
+        sta zp_scroll_speed_p2          ; LSB
         bcc :+
-        inc scroll_speed_p2+1           ; MSB
+        inc zp_scroll_speed_p2+1        ; MSB
 
 :                                       ; check if it reached max speed
-        lda scroll_speed_p2+1
+        lda zp_scroll_speed_p2+1
         cmp #MAX_SPEED                  ; max speed MSB
         bne @end
 
         lda #$00                        ; if $0500 or more, then make it $500
-        sta scroll_speed_p2
+        sta zp_scroll_speed_p2
 @end:
         rts
 
 decrease_speed_p2:
-        ldx resistance_idx_p2
+        ldx zp_resistance_idx_p2
         sec
-        lda scroll_speed_p2            ; subtract
+        lda zp_scroll_speed_p2         ; subtract
         sbc resistance_tbl,x
-        sta scroll_speed_p2            ; LSB
+        sta zp_scroll_speed_p2         ; LSB
 
         bcs end_p2                     ; shortcut for MSB
-        dec scroll_speed_p2+1          ; MSB
+        dec zp_scroll_speed_p2+1       ; MSB
 
         bpl end_p2                     ; if < 0, then 0
         lda #0
-        sta scroll_speed_p2
-        sta scroll_speed_p2+1
+        sta zp_scroll_speed_p2
+        sta zp_scroll_speed_p2+1
 
 end_p2:
         inx
         cpx #(RESISTANCE_TBL_SIZE .MOD 256)
         bne :+
         ldx #RESISTANCE_TBL_SIZE-1
-:       stx resistance_idx_p2
+:       stx zp_resistance_idx_p2
         rts
 .endproc
 
@@ -1238,27 +1242,27 @@ fire_off:
         sta last_value
         rts
 store_fire:                                     ; record "button pressed"
-        ldx computer_fires_idx                  ; in which X position
-        lda scroll_idx_p1                       ; occurred
+        ldx zp_computer_fires_idx               ; in which X position
+        lda zp_scroll_idx_p1                    ; occurred
         sta computer_fires_lo,x
-        lda scroll_idx_p1+1
+        lda zp_scroll_idx_p1+1
         sta computer_fires_hi,x
-        inc computer_fires_idx
+        inc zp_computer_fires_idx
         rts
 .else                                           ; !RECORD_FIRE. Normal gameplay
 play_fire:
-        ldx computer_fires_idx
-        lda scroll_idx_p1+1                     ; MSB
+        ldx zp_computer_fires_idx
+        lda zp_scroll_idx_p1+1                  ; MSB
         cmp computer_fires_hi,x
         bcc do_no_fire                          ; p1 < fires_hi
         bne do_fire                             ; p1 > fires_hi
 
-        lda scroll_idx_p1
+        lda zp_scroll_idx_p1
         cmp computer_fires_lo,x
         bcc do_no_fire                          ; p1 < fires_lo? yes.
                                                 ; else: p1 >= fires_lo.. do fire
 do_fire:
-        inc computer_fires_idx                  ; next index of fires
+        inc zp_computer_fires_idx               ; next index of fires
         lda last_value                          ; simulate "button pressed"
         and #%11101111
         sta last_value
@@ -1284,13 +1288,13 @@ left:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_scroll_p1
         sec                                     ; 16-bit substract
-        lda smooth_scroll_x_p1                  ; LSB
-        sbc scroll_speed_p1
-        sta smooth_scroll_x_p1
-        lda smooth_scroll_x_p1+1                ; MSB
-        sbc scroll_speed_p1+1
+        lda zp_smooth_scroll_x_p1               ; LSB
+        sbc zp_scroll_speed_p1
+        sta zp_smooth_scroll_x_p1
+        lda zp_smooth_scroll_x_p1+1             ; MSB
+        sbc zp_scroll_speed_p1+1
         and #%00000111                          ; scroll-x
-        sta smooth_scroll_x_p1+1
+        sta zp_smooth_scroll_x_p1+1
         bcc :+                                  ; only scroll if result is negative
         rts
 :
@@ -1304,8 +1308,8 @@ left:
         .endrepeat
 
 
-        ldx scroll_idx_p1
-        ldy scroll_idx_p1+1
+        ldx zp_scroll_idx_p1
+        ldy zp_scroll_idx_p1+1
         stx $f8
         sty $f9
         ldy #0
@@ -1322,21 +1326,21 @@ left:
                 sta $f9
         .endrepeat
 
-        inc scroll_idx_p1
+        inc zp_scroll_idx_p1
         bne @end
-        inc scroll_idx_p1+1
+        inc zp_scroll_idx_p1+1
 
-        lda scroll_idx_p1+1                     ; game over?
+        lda zp_scroll_idx_p1+1                  ; game over?
         cmp #>(LEVEL1_MAP + LEVEL1_WIDTH)       ; if so, the p1 state to finished
         bne @end
 
         ldx #FINISH_STATE::WINNER               ; winner?
-        lda p2_finished                         ; only if p2 hasn't finished yet
+        lda zp_p2_finished                      ; only if p2 hasn't finished yet
         beq :+
         lda #GAME_STATE::GAME_OVER              ; if loser, it also means game over
-        sta game_state                          ; since both players have finished
+        sta zp_game_state                       ; since both players have finished
         ldx #FINISH_STATE::LOSER                ; loser then
-:       stx p1_finished
+:       stx zp_p1_finished
 @end:
         rts
 .endproc
@@ -1346,13 +1350,13 @@ left:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_scroll_p2
         sec                                     ; 16-bit substract
-        lda smooth_scroll_x_p2                  ; LSB
-        sbc scroll_speed_p2
-        sta smooth_scroll_x_p2
-        lda smooth_scroll_x_p2+1                ; MSB
-        sbc scroll_speed_p2+1
+        lda zp_smooth_scroll_x_p2               ; LSB
+        sbc zp_scroll_speed_p2
+        sta zp_smooth_scroll_x_p2
+        lda zp_smooth_scroll_x_p2+1             ; MSB
+        sbc zp_scroll_speed_p2+1
         and #%00000111                          ; scroll-x
-        sta smooth_scroll_x_p2+1
+        sta zp_smooth_scroll_x_p2+1
         bcc :+
         rts
 :
@@ -1365,8 +1369,8 @@ left:
                 .endrepeat
         .endrepeat
 
-        ldx scroll_idx_p2
-        ldy scroll_idx_p2+1
+        ldx zp_scroll_idx_p2
+        ldy zp_scroll_idx_p2+1
         stx $f8
         sty $f9
 
@@ -1384,21 +1388,21 @@ left:
                 sta $f9
         .endrepeat
 
-        inc scroll_idx_p2
+        inc zp_scroll_idx_p2
         bne @end
-        inc scroll_idx_p2+1
+        inc zp_scroll_idx_p2+1
 
-        lda scroll_idx_p2+1                     ; game over?
+        lda zp_scroll_idx_p2+1                  ; game over?
         cmp #>(LEVEL1_MAP + LEVEL1_WIDTH)       ; if so, the p2 state to finished
         bne @end
 
         ldx #FINISH_STATE::WINNER               ; winner?
-        lda p1_finished                         ; only if p1 hasn't finished yet
+        lda zp_p1_finished                      ; only if p1 hasn't finished yet
         beq :+
         lda #GAME_STATE::GAME_OVER              ; if loser, it also means game over
-        sta game_state                          ; since both players have finished
+        sta zp_game_state                       ; since both players have finished
         ldx #FINISH_STATE::LOSER                ; loser then
-:       stx p2_finished
+:       stx zp_p2_finished
 @end:
 
         rts
@@ -1412,10 +1416,10 @@ left:
         and #%00001111
         ora #$30
 
-        ldy p1_finished
+        ldy zp_p1_finished
         bne :+
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 39
-:       ldy p2_finished
+:       ldy zp_p2_finished
         bne :+
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 39
 
@@ -1425,10 +1429,10 @@ left:
         and #%00001111
         ora #$30
 
-        ldy p1_finished
+        ldy zp_p1_finished
         bne :+
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 37
-:       ldy p2_finished
+:       ldy zp_p2_finished
         bne :+
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 37
 
@@ -1440,20 +1444,20 @@ left:
         lsr
         ora #$30
 
-        ldy p1_finished
+        ldy zp_p1_finished
         bne :+
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 36
-:       ldy p2_finished
+:       ldy zp_p2_finished
         bne :+
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 36
 :
         lda $dc0a                       ; minutes. digit
         and #%00001111
         ora #$30
-        ldy p1_finished
+        ldy zp_p1_finished
         bne :+
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 34
-:       ldy p2_finished
+:       ldy zp_p2_finished
         bne :+
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 34
 :
@@ -1466,9 +1470,9 @@ left:
 .proc print_speed
 
         ; player one
-        lda scroll_speed_p1                     ; firt digit
+        lda zp_scroll_speed_p1                  ; firt digit
         sta zp_tmp
-        lda scroll_speed_p1+1
+        lda zp_scroll_speed_p1+1
         sta zp_tmp+1
 
         asl zp_tmp                              ; divide 0x500 by 128
@@ -1502,9 +1506,9 @@ print_p1:
 
 
         ; player two
-        lda scroll_speed_p2                     ; firt digit
+        lda zp_scroll_speed_p2                  ; firt digit
         sta zp_tmp
-        lda scroll_speed_p2+1
+        lda zp_scroll_speed_p2+1
         sta zp_tmp+1
 
         asl zp_tmp                              ; divide 0x500 by 128
@@ -1550,7 +1554,7 @@ print_p2:
         lda $d01f                               ; collision: sprite - background
         tax
 
-        lda p1_finished                         ; don't update Y if not needed
+        lda zp_p1_finished                      ; don't update Y if not needed
         and #FINISH_STATE::DONT_UPDATE_Y
         bne skip1
 
@@ -1563,7 +1567,7 @@ print_p2:
         tax
 
 skip1:
-        lda p2_finished                         ; don't update Y if not needed
+        lda zp_p2_finished                      ; don't update Y if not needed
         and #FINISH_STATE::DONT_UPDATE_Y
         bne skip2
 
@@ -1577,24 +1581,24 @@ skip2:
 ; void update_frame_p1()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_frame_p1
-        dec animation_delay_p1
+        dec zp_animation_delay_p1
         beq :+
         rts
 :
         lda #ACTOR_ANIMATION_SPEED
-        sta animation_delay_p1
+        sta zp_animation_delay_p1
 
-        lda p1_finished
+        lda zp_p1_finished
         beq anim_riding                         ; riding animation
 
         ldx #(RESISTANCE_TBL_SIZE/3)-1          ; if not riding, then it finishes
-        stx resistance_idx_p1                   ; so slow down quickly
+        stx zp_resistance_idx_p1                   ; so slow down quickly
 
-        ldx scroll_speed_p1+1                   ; but only anim when speed is low
+        ldx zp_scroll_speed_p1+1                ; but only anim when speed is low
         bne anim_riding
 
         ora #FINISH_STATE::DONT_UPDATE_Y
-        sta p1_finished
+        sta zp_p1_finished
 
         lda VIC_SPR_ENA
         and #%11111100                          ; turn off wheel sprites
@@ -1605,49 +1609,49 @@ skip2:
         stx VIC_SPR2_Y
         stx VIC_SPR3_Y
 
-        lda p1_finished
+        lda zp_p1_finished
         and #FINISH_STATE::MASK
         cmp #FINISH_STATE::WINNER
         beq anim_winner                         ; winner animation
 
                                                 ; default: loser animation
-        ldx frame_idx_p1
+        ldx zp_frame_idx_p1
         lda frame_hair_loser_tbl,x
-        sta SPRITES_PTR0+3                        ; hair
+        sta SPRITES_PTR0+3                      ; hair
         lda frame_body_loser_tbl,x
-        sta SPRITES_PTR0+2                        ; body
+        sta SPRITES_PTR0+2                      ; body
         inx
         cpx #FRAME_HAIR_LOSER_TBL_SIZE
         bne @end
         ldx #0
-@end:   stx frame_idx_p1
+@end:   stx zp_frame_idx_p1
         rts
 
 anim_winner:
-        ldx frame_idx_p1
+        ldx zp_frame_idx_p1
         lda frame_hair_winner_tbl,x
-        sta SPRITES_PTR0+3                        ; hair
+        sta SPRITES_PTR0+3                      ; hair
         lda frame_body_winner_tbl,x
-        sta SPRITES_PTR0+2                        ; body
+        sta SPRITES_PTR0+2                      ; body
         inx
         cpx #FRAME_HAIR_WINNER_TBL_SIZE
         bne @end
         ldx #0
-@end:   stx frame_idx_p1
+@end:   stx zp_frame_idx_p1
         rts
 
 
 anim_riding:
-        ldx frame_idx_p1
+        ldx zp_frame_idx_p1
         lda frame_hair_riding_tbl,x
-        sta SPRITES_PTR0 + 3                      ; head is 4th sprite
+        sta SPRITES_PTR0 + 3                    ; head is 4th sprite
         inx
         cpx #FRAME_HAIR_RIDING_TBL_SIZE
         bne :+
         ldx #0
-:       stx frame_idx_p1
+:       stx zp_frame_idx_p1
 
-        ldx animation_idx_p1
+        ldx zp_animation_idx_p1
         lda VIC_SPR2_Y
         clc
         adc animation_tbl,x
@@ -1658,7 +1662,7 @@ anim_riding:
         cpx #ANIMATION_TBL_SIZE
         bne :+
         ldx #0
-:       stx animation_idx_p1
+:       stx zp_animation_idx_p1
         rts
 .endproc
 
@@ -1666,24 +1670,24 @@ anim_riding:
 ; void update_frame_p2()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc update_frame_p2
-        dec animation_delay_p2
+        dec zp_animation_delay_p2
         beq :+
         rts
 :
         lda #ACTOR_ANIMATION_SPEED
-        sta animation_delay_p2
+        sta zp_animation_delay_p2
 
-        lda p2_finished
+        lda zp_p2_finished
         beq anim_riding                         ; riding animation
 
         ldx #(RESISTANCE_TBL_SIZE/3)-1          ; if not riding, then it finishes
-        stx resistance_idx_p2                   ; so slow down quickly
+        stx zp_resistance_idx_p2                   ; so slow down quickly
 
-        ldx scroll_speed_p2+1                   ; but only anim when speed is low
+        ldx zp_scroll_speed_p2+1                ; but only anim when speed is low
         bne anim_riding
 
         ora #FINISH_STATE::DONT_UPDATE_Y
-        sta p2_finished
+        sta zp_p2_finished
 
         lda VIC_SPR_ENA
         and #%11001111                          ; turn off wheel sprites
@@ -1694,49 +1698,49 @@ anim_riding:
         stx VIC_SPR6_Y
         stx VIC_SPR7_Y
 
-        lda p2_finished
+        lda zp_p2_finished
         and #FINISH_STATE::MASK
         cmp #FINISH_STATE::WINNER
         beq anim_winner                         ; winner animation
 
                                                 ; default: loser animation
-        ldx frame_idx_p2
+        ldx zp_frame_idx_p2
         lda frame_hair_loser_tbl,x
-        sta SPRITES_PTR0+7                        ; hair
+        sta SPRITES_PTR0+7                      ; hair
         lda frame_body_loser_tbl,x
-        sta SPRITES_PTR0+6                        ; body
+        sta SPRITES_PTR0+6                      ; body
         inx
         cpx #FRAME_HAIR_LOSER_TBL_SIZE
         bne @end
         ldx #0
-@end:   stx frame_idx_p2
+@end:   stx zp_frame_idx_p2
         rts
 
 anim_winner:
-        ldx frame_idx_p2
+        ldx zp_frame_idx_p2
         lda frame_hair_winner_tbl,x
-        sta SPRITES_PTR0+7                        ; hair
+        sta SPRITES_PTR0+7                      ; hair
         lda frame_body_winner_tbl,x
-        sta SPRITES_PTR0+6                        ; body
+        sta SPRITES_PTR0+6                      ; body
         inx
         cpx #FRAME_HAIR_WINNER_TBL_SIZE
         bne @end
         ldx #0
-@end:   stx frame_idx_p2
+@end:   stx zp_frame_idx_p2
         rts
 
 
 anim_riding:
-        ldx frame_idx_p2
+        ldx zp_frame_idx_p2
         lda frame_hair_riding_tbl,x
-        sta SPRITES_PTR0 + 7                      ; head is 8th sprite
+        sta SPRITES_PTR0 + 7                    ; head is 8th sprite
         inx
         cpx #FRAME_HAIR_RIDING_TBL_SIZE
         bne :+
         ldx #0
-:       stx frame_idx_p2
+:       stx zp_frame_idx_p2
 
-        ldx animation_idx_p2
+        ldx zp_animation_idx_p2
         lda VIC_SPR6_Y
         clc
         adc animation_tbl,x
@@ -1747,7 +1751,7 @@ anim_riding:
         cpx #ANIMATION_TBL_SIZE
         bne :+
         ldx #0
-:       stx animation_idx_p2
+:       stx zp_animation_idx_p2
         rts
 .endproc
 
@@ -1761,7 +1765,7 @@ anim_riding:
         and #%00000100                          ; head or body?
         bne p1_collision_body
 
-        lda p1_state                            ; 2nd: was it going up?
+        lda zp_p1_state                         ; 2nd: was it going up?
         cmp #PLAYER_STATE::AIR_UP               ; if so, keep going up
         beq p1_go_up
 
@@ -1772,13 +1776,13 @@ anim_riding:
 
 :
         lda #PLAYER_STATE::AIR_DOWN             ; 4th: else, go down
-        cmp p1_state                            ; Was it already going down?
+        cmp zp_p1_state                         ; Was it already going down?
         beq l0
-        sta p1_state                            ; no? set it
+        sta zp_p1_state                         ; no? set it
         lda #JUMP_TBL_SIZE-1                    ; and the index to the correct position
-        sta jump_idx_p1
+        sta zp_jump_idx_p1
 
-l0:     ldx jump_idx_p1
+l0:     ldx zp_jump_idx_p1
         lda jump_tbl,x
         beq l2                                  ; don't go down if value is 0
         tay
@@ -1790,13 +1794,13 @@ l1:     inc VIC_SPR0_Y                          ; tire
         dey
         bne l1
 
-l2:     lda jump_idx_p1                         ; if it is already 0, stop dec
+l2:     lda zp_jump_idx_p1                      ; if it is already 0, stop dec
         beq @end
-        dec jump_idx_p1
+        dec zp_jump_idx_p1
 @end:   rts
 
 p1_go_up:
-        ldx jump_idx_p1                         ; fetch sine index
+        ldx zp_jump_idx_p1                      ; fetch sine index
         lda jump_tbl,x
         beq l4                                  ; don't go up if value is 0
         tay
@@ -1812,21 +1816,21 @@ l3:     lda VIC_SPR0_Y                          ; don't go above a certain heigh
         dey
         bne l3
 
-l4:     inc jump_idx_p1                         ; reached max height?
-        lda jump_idx_p1
+l4:     inc zp_jump_idx_p1                      ; reached max height?
+        lda zp_jump_idx_p1
         cmp #JUMP_TBL_SIZE
         bne @end
 
-        dec jump_idx_p1                         ; set idx to JUMP_TBL_SIZE-1
+        dec zp_jump_idx_p1                      ; set idx to JUMP_TBL_SIZE-1
         lda #PLAYER_STATE::AIR_DOWN             ; and start going down
-        sta p1_state
+        sta zp_p1_state
 @end:   rts
 
 p1_collision_body:
         lda #JUMP_TBL_SIZE-1
-        sta jump_idx_p1                         ; reset jmp table just in case
+        sta zp_jump_idx_p1                      ; reset jmp table just in case
         lda #PLAYER_STATE::RIDING               ; touching ground
-        sta p1_state
+        sta zp_p1_state
 
         ldx #3
 l5:     dec VIC_SPR0_Y                          ; go up three times
@@ -1836,15 +1840,15 @@ l5:     dec VIC_SPR0_Y                          ; go up three times
         dex
         bne l5
 
-        lsr scroll_speed_p1+1                   ; reduce speed by 2
-        ror scroll_speed_p1
+        lsr zp_scroll_speed_p1+1                ; reduce speed by 2
+        ror zp_scroll_speed_p1
         rts
 
 p1_collision_tire:
         ldy #JUMP_TBL_SIZE-1
-        sty jump_idx_p1                         ; reset jmp table just in case
+        sty zp_jump_idx_p1                      ; reset jmp table just in case
         ldy #PLAYER_STATE::RIDING               ; touching ground
-        sty p1_state
+        sty zp_p1_state
 
         cmp #%00000011                          ; ASSERT(A == collision bis)
         bne @end                                ; only the tire is touching ground?
@@ -1866,7 +1870,7 @@ p1_collision_tire:
         and #%01000000                          ; head or body?
         bne p2_collision_body
 
-        lda p2_state                            ; 2nd: was it going up?
+        lda zp_p2_state                         ; 2nd: was it going up?
         cmp #PLAYER_STATE::AIR_UP               ; if so, keep going up
         beq p2_go_up
 
@@ -1877,13 +1881,13 @@ p1_collision_tire:
 
 :
         lda #PLAYER_STATE::AIR_DOWN             ; 4th: else, go down
-        cmp p2_state                            ; Was it already going down?
+        cmp zp_p2_state                         ; Was it already going down?
         beq l0
-        sta p2_state                            ; no? set it
+        sta zp_p2_state                         ; no? set it
         lda #JUMP_TBL_SIZE-1                    ; and the index to the correct position
-        sta jump_idx_p2
+        sta zp_jump_idx_p2
 
-l0:     ldx jump_idx_p2
+l0:     ldx zp_jump_idx_p2
         lda jump_tbl,x
         beq l2                                  ; don't go down if value is 0
         tay
@@ -1895,15 +1899,15 @@ l1:     inc VIC_SPR4_Y                          ; tire
         dey
         bne l1
 
-l2:     lda jump_idx_p2                         ; if it is already 0, stop dec
+l2:     lda zp_jump_idx_p2                      ; if it is already 0, stop dec
         beq @end
-        dec jump_idx_p2
+        dec zp_jump_idx_p2
 @end:   rts
 
 p2_go_up:
-        ldx jump_idx_p2                         ; fetch sine index
+        ldx zp_jump_idx_p2                      ; fetch sine index
         lda jump_tbl,x
-        beq l4                                 ; don't go up if value is 0
+        beq l4                                  ; don't go up if value is 0
         tay
 
 l3:     lda VIC_SPR4_Y                          ; don't go above a certain height
@@ -1917,21 +1921,21 @@ l3:     lda VIC_SPR4_Y                          ; don't go above a certain heigh
         dey
         bne l3
 
-l4:     inc jump_idx_p2                         ; reached max height?
-        lda jump_idx_p2
+l4:     inc zp_jump_idx_p2                      ; reached max height?
+        lda zp_jump_idx_p2
         cmp #JUMP_TBL_SIZE
         bne @end
 
-        dec jump_idx_p2                         ; set idx to JUMP_TBL_SIZE-1
+        dec zp_jump_idx_p2                      ; set idx to JUMP_TBL_SIZE-1
         lda #PLAYER_STATE::AIR_DOWN             ; and start going down
-        sta p2_state
+        sta zp_p2_state
 @end:   rts
 
 p2_collision_body:
         lda #JUMP_TBL_SIZE-1
-        sta jump_idx_p2                         ; reset jmp table just in case
+        sta zp_jump_idx_p2                      ; reset jmp table just in case
         lda #PLAYER_STATE::RIDING               ; touching ground
-        sta p2_state
+        sta zp_p2_state
 
         ldx #3
 l5:     dec VIC_SPR4_Y                          ; go up three times
@@ -1941,15 +1945,15 @@ l5:     dec VIC_SPR4_Y                          ; go up three times
         dex
         bne l5
 
-        lsr scroll_speed_p2+1                   ; reduce speed by 2
-        ror scroll_speed_p2
+        lsr zp_scroll_speed_p2+1                ; reduce speed by 2
+        ror zp_scroll_speed_p2
         rts
 
 p2_collision_tire:
         ldy #JUMP_TBL_SIZE-1
-        sty jump_idx_p2                         ; reset jmp table just in case
+        sty zp_jump_idx_p2                      ; reset jmp table just in case
         ldy #PLAYER_STATE::RIDING               ; touching ground
-        sty p2_state
+        sty zp_p2_state
 
         cmp #%00110000                          ; ASSERT(A == collision bis)
         bne @end                                ; only the tire is touching ground?
@@ -2034,7 +2038,7 @@ init_anim:
 anim:
         ldx colors_idx
         lda colors,x
-        sta background_color
+        sta zp_background_color
         inx
         stx colors_idx
         cpx #TOTAL_COLORS
@@ -2117,7 +2121,7 @@ start_cyclocross:
         lda #0
         sta $d020
         lda #15
-        sta background_color
+        sta zp_background_color
         lda #2
         sta $d022                               ; used for extended background
         lda #12
@@ -2193,7 +2197,7 @@ spr_colors:
         lda #0
         sta $d020
         lda #11
-        sta background_color
+        sta zp_background_color
         lda #5
         sta $d022                               ; used in level
         lda #13
@@ -2277,7 +2281,7 @@ spr_colors:
         lda #0
         sta $d020
         lda #1
-        sta background_color
+        sta zp_background_color
         lda #11
         sta $d022                               ; used in level
         lda #12
@@ -2334,38 +2338,22 @@ spr_colors:
 
 l0:
         lda #0
-        sta computer_fires_idx                  ; next fire to read? 0
+        sta zp_computer_fires_idx               ; next fire to read? 0
         rts
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; 
+; Variables 
+; 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
-
-
-
-sync_raster_anims:      .byte $00
-sync_raster_bottom_p1:  .byte $00
-sync_raster_bottom_p2:  .byte $00
-game_state:             .byte GAME_STATE::GET_SET_GO
-p1_state:               .byte PLAYER_STATE::GET_SET_GO
-p2_state:               .byte PLAYER_STATE::GET_SET_GO
-p1_finished:            .byte FINISH_STATE::NOT_FINISHED  ; don't mix p_finished and p_state together. 0=Not finished, 1=Finished Winner, 2=Finished Loser
-p2_finished:            .byte FINISH_STATE::NOT_FINISHED  ; since scrolling should still happen while player is finished
-
-smooth_scroll_x_p1:     .word $0000     ; MSB is used for $d016
-smooth_scroll_x_p2:     .word $0000     ; MSB is used for $d016
-scroll_idx_p1:          .word 0         ; initialized in init_game
-scroll_idx_p2:          .word 0
-scroll_speed_p1:        .word SCROLL_SPEED      ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
-scroll_speed_p2:        .word SCROLL_SPEED      ; $0100 = normal speed. $0200 = 2x speed. $0080 = half speed
-expected_joy1_idx:      .byte 0
-expected_joy2_idx:      .byte 0
-expected_joy:
+expected_joy_tbl:
 ;        .byte %00000001                 ; up
         .byte %00001001                 ; right or up
 ;        .byte %00000010                 ; down
         .byte %00000110                 ; left or down
-resistance_idx_p2:      .byte 0         ; index in resistance table
-resistance_idx_p1:      .byte 0         ; index in resistance table
+
 resistance_tbl:                         ; how fast the unicycle will desacelerate
 ; autogenerated table: easing_table_generator.py -s256 -m128 -aTrue bezier:0,0.05,0.95,1
 .byte   0,  0,  0,  0,  0,  1,  1,  1
@@ -2402,8 +2390,6 @@ resistance_tbl:                         ; how fast the unicycle will desacelerat
 .byte 127,127,128,128,128,128,128,128
 RESISTANCE_TBL_SIZE = * - resistance_tbl
 
-jump_idx_p1:            .byte 0         ; sine pointer for jump/down sequence
-jump_idx_p2:            .byte 0         ; sine pointer for jump/down sequence
 jump_tbl:
 ; autogenerated table: easing_table_generator.py -s32 -m20 -aFalse sin
 .byte   2,  2,  2,  2,  1,  2,  2,  1
@@ -2411,8 +2397,6 @@ jump_tbl:
 JUMP_TBL_SIZE = * - jump_tbl
 
 ; riding
-frame_idx_p1:      .byte 0                              ; index for frame p1
-frame_idx_p2:      .byte 0                              ; index for frame p2
 frame_hair_riding_tbl:
         .byte SPRITES_POINTER + 3                       ; hair #1 riding
         .byte SPRITES_POINTER + 4                       ; hair #2 riding
@@ -2442,10 +2426,6 @@ frame_hair_loser_tbl:
         .byte SPRITES_POINTER + 12                      ; hair #2 loser
 FRAME_HAIR_LOSER_TBL_SIZE = * - frame_hair_loser_tbl
 
-animation_delay_p1:     .byte ACTOR_ANIMATION_SPEED
-animation_delay_p2:     .byte ACTOR_ANIMATION_SPEED
-animation_idx_p1:       .byte 0         ; index in the animation table
-animation_idx_p2:       .byte 0         ; index in the animation table
 animation_tbl:
         .byte 255,1,1,255               ; go up, down, down, up
 ANIMATION_TBL_SIZE = * - animation_tbl
@@ -2466,8 +2446,6 @@ screen:
         .byte 32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128,32+128
         scrcode                   "         time: 00:00:0"
 
-background_color:
-        .byte 1                                         ; $d021 color for game
 
 sprites_x:      .byte 80, 80, 80, 80            ; player 1
                 .byte 80, 80, 80, 80            ; player 2
@@ -2490,14 +2468,12 @@ sprite_frames:
                 .byte SPRITES_POINTER + 3
 
 
-remove_go_counter:  .byte $80                           ; delay to remove "go" label
 
 .export game_number_of_players
 game_number_of_players: .byte 0                         ; number of human players: one (0) or two (1)
 .export game_selected_event
 game_selected_event:    .byte 0                         ; which event was selected
 
-computer_fires_idx:     .byte 0
 computer_fires_lo:      .res 64,255
 computer_fires_hi:      .res 64,255
 FIRE_TBL_SIZE = * - computer_fires_hi                   ; size
