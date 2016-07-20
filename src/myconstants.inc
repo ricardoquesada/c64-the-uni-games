@@ -77,6 +77,11 @@ zp_remove_go_counter = $82                              ; .byte $80  delay to re
 
 zp_computer_fires_idx = $83                             ; .byte 0  index for computer_fires_lo/hi
 
+zp_computer_speed = $84                                 ; .byte AUTO_SPEED but each level can define one. 
+zp_computer_delay = $85                                 ; .byte 1
+zp_joy1_delay = $85                                     ; .byte 1 same as zp_computer_delay since they can't be used at the same time
+zp_joy2_delay = $86                                     ; .byte 1
+
 ; game constants
 BANK_BASE = $0000
 SCREEN0_BASE = BANK_BASE + $0400                        ; screen address

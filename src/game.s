@@ -1105,12 +1105,12 @@ end_p2:
         rts
 
 @simulate_left_right:
-        dec delay
+        dec zp_joy1_delay
         beq :+
         rts
 :
         lda #AUTO_SPEED
-        sta delay
+        sta zp_joy1_delay
 
         lda left
         eor #%00000001
@@ -1124,8 +1124,6 @@ doleft:
         lda #%11111011
         sta last_value
         rts
-delay:
-        .byte $04
 last_value:
         .byte %11111111
 left:
@@ -1164,12 +1162,12 @@ left:
         rts
 
 @simulate_left_right:
-        dec delay
+        dec zp_joy2_delay
         beq :+
         rts
 :
         lda #AUTO_SPEED
-        sta delay
+        sta zp_joy2_delay
 
         lda left
         eor #%00000001
@@ -1183,8 +1181,7 @@ doleft:
         lda #%11111011
         sta last_value
         rts
-delay:
-        .byte $04
+
 last_value:
         .byte %11111111
 left:
@@ -1196,7 +1193,7 @@ left:
 ; returns A values
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_joy_computer
-        dec delay
+        dec zp_computer_delay
         bne cont
         jsr move_joystick
 cont:   jsr test_fire
@@ -1211,8 +1208,8 @@ test_fire:
 .endif
 
 move_joystick:
-        lda #AUTO_SPEED
-        sta delay
+        lda zp_computer_speed
+        sta zp_computer_delay
 
         lda left                                ; joy position to send
         eor #%00000001                          ; left or right?
@@ -1277,8 +1274,6 @@ do_no_fire:
         rts
 .endif                                          ; !RECORD_FIRE
 
-delay:
-        .byte $04
 last_value:
         .byte %11111111
 left:
@@ -2218,6 +2213,10 @@ spr_colors:
         stx process_p2::joy2_address
         sty process_p2::joy2_address+1
 
+        lda #1
+        sta zp_joy1_delay                       ; 1 so that in the next cycle
+        sta zp_joy2_delay                       ; it starts
+
         lda #03                                 ; $1003
         sta game_start::music_play_addr
 
@@ -2366,13 +2365,19 @@ spr_colors:
 l0:
         lda #0
         sta zp_computer_fires_idx               ; next fire to read? 0
+
+        lda #AUTO_SPEED
+        sta zp_computer_speed
+        lda #1                                  ; 1, so that in the next cycle it moves
+        sta zp_computer_delay
+
         rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; 
-; Variables 
-; 
+;
+; Variables
+;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 expected_joy_tbl:
