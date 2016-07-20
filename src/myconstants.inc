@@ -17,6 +17,22 @@ MENU_EXEC_ADDR = $47  ; and $48                         ; When button is pressed
 
 ; variables
 zp_tmp = $50                                            ; 16 bytes ($50 - $5f) for tmp vars
+zp_tmp00 = $50
+zp_tmp01 = $51
+zp_tmp02 = $52
+zp_tmp03 = $53
+zp_tmp04 = $54
+zp_tmp05 = $55
+zp_tmp06 = $56
+zp_tmp07 = $57
+zp_tmp08 = $58
+zp_tmp09 = $59
+zp_tmp0a = $5a
+zp_tmp0b = $5b
+zp_tmp0c = $5c
+zp_tmp0d = $5d
+zp_tmp0e = $5e
+zp_tmp0f = $5f
 
 zp_mc_color = $60                                       ; .byte
 

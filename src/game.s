@@ -239,8 +239,9 @@ animations:
 .endif
 
         jsr update_players              ; sprite animations, physics
+        jsr print_speed
 animate_level_addr = * + 1
-        jsr animate_level_roadrace      ; level specific animation: self modyfing
+        jsr animate_level_roadrace      ; self modyfing: level specific animation
 
         lda zp_game_state
         cmp #GAME_STATE::ON_YOUR_MARKS
@@ -252,7 +253,6 @@ animate_level_addr = * + 1
 music_play_addr = *+1
         jsr MUSIC_PLAY                  ; self modifying since changes from song to song
         jsr process_events
-        jsr print_speed
         pla
 
         cmp #GAME_STATE::RIDING
@@ -457,7 +457,7 @@ end_irq:
 ;raster:
         CONSUME_CYCLES
 
-        lda zp_smooth_scroll_x_p1+1        ; scroll x
+        lda zp_smooth_scroll_x_p1+1     ; scroll x
         ora #%00010000                  ; multicolor on
         sta $d016
 
@@ -687,6 +687,8 @@ _loop2:
         sty zp_scroll_idx_p1+1
         sty zp_scroll_idx_p2+1
 
+        lda $d01f                       ; clear collisions... just in case
+
         rts
 .endproc
 
@@ -751,7 +753,7 @@ loop:
 .proc update_on_your_marks
         ldx zp_resistance_idx_p1
         sec
-        lda zp_scroll_speed_p1          ; subtract
+        lda zp_scroll_speed_p1          ; reuse P1 values both for P1 and P2
         sbc resistance_tbl,x
         sta zp_scroll_speed_p1          ; LSB
         sta zp_scroll_speed_p2          ; LSB
@@ -1308,22 +1310,35 @@ left:
         .endrepeat
 
 
-        ldx zp_scroll_idx_p1
-        ldy zp_scroll_idx_p1+1
-        stx $f8
-        sty $f9
-        ldy #0
+        lda zp_scroll_idx_p1                    ; address to load: LSB
+        sta addr0                               ; FIXME: should be put in a repeat
+        sta addr1                               ; but apparently it fails when:
+        sta addr2                               ; sta .CONCAT("addr", .STRING(YY))
+        sta addr3
+        sta addr4
+        sta addr5
+
+        clc                                     ; no need to "clc" all the "adc"
+        lda zp_scroll_idx_p1+1                  ; address to load: MSB
+        sta addr0+1
+        adc #>LEVEL1_WIDTH
+        sta addr1+1
+        adc #>LEVEL1_WIDTH
+        sta addr2+1
+        adc #>LEVEL1_WIDTH
+        sta addr3+1
+        adc #>LEVEL1_WIDTH
+        sta addr4+1
+        adc #>LEVEL1_WIDTH
+        sta addr5+1
+
         .repeat 6,YY                            ; 6 == LEVEL1_HEIGHT but doesn't compile
-                lda ($f8),y                     ; new char
+                .IDENT(.CONCAT("addr", .STRING(YY))) = * + 1
+                lda $4000                       ; self modifying. new char
                 sta SCREEN0_BASE+40*(SCROLL_ROW_P1+YY)+39
                 tax                             ; color for new char
                 lda LEVEL1_COLORS,x
                 sta $d800+40*(SCROLL_ROW_P1+YY)+39
-
-                clc
-                lda $f9                         ; fetch char 1024 chars ahead
-                adc #>LEVEL1_WIDTH              ; LEVEL1_WIDTH must be multiple of 256
-                sta $f9
         .endrepeat
 
         inc zp_scroll_idx_p1
@@ -1369,23 +1384,35 @@ left:
                 .endrepeat
         .endrepeat
 
-        ldx zp_scroll_idx_p2
-        ldy zp_scroll_idx_p2+1
-        stx $f8
-        sty $f9
+        lda zp_scroll_idx_p2                    ; address to load: LSB
+        sta addr0
+        sta addr1
+        sta addr2
+        sta addr3
+        sta addr4
+        sta addr5
 
-        ldy #0
+        clc
+        lda zp_scroll_idx_p2+1                  ; address to load: MSB
+        sta addr0+1
+        adc #>LEVEL1_WIDTH
+        sta addr1+1
+        adc #>LEVEL1_WIDTH
+        sta addr2+1
+        adc #>LEVEL1_WIDTH
+        sta addr3+1
+        adc #>LEVEL1_WIDTH
+        sta addr4+1
+        adc #>LEVEL1_WIDTH
+        sta addr5+1
+
         .repeat 6,YY                            ; 6 == LEVEL1_HEIGHT but doesn't compile
-                lda ($f8),y                     ; new char
+                .IDENT(.CONCAT("addr", .STRING(YY))) = * + 1
+                lda $4000                       ; self modifying. new char
                 sta SCREEN0_BASE+40*(SCROLL_ROW_P2+YY)+39
-                tax
-                lda LEVEL1_COLORS,x             ; color for new char
+                tax                             ; color for new char
+                lda LEVEL1_COLORS,x
                 sta $d800+40*(SCROLL_ROW_P2+YY)+39
-
-                clc
-                lda $f9                         ; fetch char 1024 chars ahead
-                adc #>LEVEL1_WIDTH              ; must be multiple of 256
-                sta $f9
         .endrepeat
 
         inc zp_scroll_idx_p2
@@ -1471,26 +1498,26 @@ left:
 
         ; player one
         lda zp_scroll_speed_p1                  ; firt digit
-        sta zp_tmp
+        sta zp_tmp00
         lda zp_scroll_speed_p1+1
-        sta zp_tmp+1
+        sta zp_tmp01
 
-        asl zp_tmp                              ; divide 0x500 by 128
-        rol zp_tmp+1                            ; which is the same as using the
+        asl zp_tmp00                            ; divide 0x500 by 128
+        rol zp_tmp01                            ; which is the same as using the
                                                 ; the first 4 MSB bits
         ldx #10                                 ; print speed bar. 10 chars
 l1:     lda #42                                 ; char to fill the speed bar
-        cpx zp_tmp+1
+        cpx zp_tmp01
         bmi print_p1
 
         lda #32                                 ; empty char
 print_p1:
-        ora zp_mc_color
+        ora zp_mc_color                         ; which Extended color?
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 7,x
         dex
         bpl l1
 
-        lda zp_tmp                              ; use 3-MSB bits
+        lda zp_tmp00                            ; use 3-MSB bits
         lsr                                     ; from tmp for the
         lsr                                     ; variable char
         lsr
@@ -1500,33 +1527,33 @@ print_p1:
         clc
         adc #35                                 ; base char is 35
 
-        ldx zp_tmp+1
-        ora zp_mc_color
+        ldx zp_tmp01                            ; index
+        ora zp_mc_color                         ; which Extended color?
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 7,x
 
 
         ; player two
         lda zp_scroll_speed_p2                  ; firt digit
-        sta zp_tmp
+        sta zp_tmp00
         lda zp_scroll_speed_p2+1
-        sta zp_tmp+1
+        sta zp_tmp01
 
-        asl zp_tmp                              ; divide 0x500 by 128
-        rol zp_tmp+1                            ; which is the same as using the
+        asl zp_tmp00                            ; divide 0x500 by 128
+        rol zp_tmp01                            ; which is the same as using the
                                                 ; the first 4 MSB bits
         ldx #10                                 ; print speed bar. 10 chars
 l2:     lda #42                                 ; char to fill the speed bar
-        cpx zp_tmp+1
+        cpx zp_tmp01
         bmi print_p2
 
         lda #32                                 ; empty char
 print_p2:
-        ora zp_mc_color
+        ora zp_mc_color                         ; which Extended color?
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 7,x
         dex
         bpl l2
 
-        lda zp_tmp                              ; use 3-MSB bits
+        lda zp_tmp00                            ; use 3-MSB bits
         lsr                                     ; from tmp for the
         lsr                                     ; variable char
         lsr
@@ -1536,8 +1563,8 @@ print_p2:
         clc
         adc #35                                 ; base char
 
-        ldx zp_tmp+1
-        ora zp_mc_color
+        ldx zp_tmp01                            ; index
+        ora zp_mc_color                         ; which Extended color?
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 7,x
 
         rts
@@ -1681,7 +1708,7 @@ anim_riding:
         beq anim_riding                         ; riding animation
 
         ldx #(RESISTANCE_TBL_SIZE/3)-1          ; if not riding, then it finishes
-        stx zp_resistance_idx_p2                   ; so slow down quickly
+        stx zp_resistance_idx_p2                ; so slow down quickly
 
         ldx zp_scroll_speed_p2+1                ; but only anim when speed is low
         bne anim_riding
@@ -2449,14 +2476,14 @@ screen:
 
 sprites_x:      .byte 80, 80, 80, 80            ; player 1
                 .byte 80, 80, 80, 80            ; player 2
-sprites_y:      .byte (SCROLL_ROW_P1+5)*7+26    ; player 1
-                .byte (SCROLL_ROW_P1+5)*7+26
-                .byte (SCROLL_ROW_P1+5)*7+26
-                .byte (SCROLL_ROW_P1+5)*7+26
-                .byte (SCROLL_ROW_P2+5)*7+26    ; player 2
-                .byte (SCROLL_ROW_P2+5)*7+26
-                .byte (SCROLL_ROW_P2+5)*7+26
-                .byte (SCROLL_ROW_P2+5)*7+26
+sprites_y:      .byte (SCROLL_ROW_P1+5)*7+28    ; player 1
+                .byte (SCROLL_ROW_P1+5)*7+28
+                .byte (SCROLL_ROW_P1+5)*7+28
+                .byte (SCROLL_ROW_P1+5)*7+28
+                .byte (SCROLL_ROW_P2+5)*7+28    ; player 2
+                .byte (SCROLL_ROW_P2+5)*7+28
+                .byte (SCROLL_ROW_P2+5)*7+28
+                .byte (SCROLL_ROW_P2+5)*7+28
 sprite_frames:
                 .byte SPRITES_POINTER + 0       ; player 1
                 .byte SPRITES_POINTER + 1
