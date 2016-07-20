@@ -15,6 +15,10 @@ MENU_CURRENT_ROW_ADDR = $45 ; and $46                   ; screen ptr to current 
 MENU_EXEC_ADDR = $47  ; and $48                         ; When button is pressed, what to do
 
 
+; variables
+zp_tmp = $50                                            ; 16 bytes ($50 - $5f) for tmp vars
+zp_mc_color = $60
+
 ; game constants
 BANK_BASE = $0000
 SCREEN0_BASE = BANK_BASE + $0400                        ; screen address

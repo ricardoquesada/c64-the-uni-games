@@ -103,6 +103,7 @@ RECORD_FIRE = 0                         ; computer player: record fire, or play 
 ; Constants
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .include "c64.inc"                      ; c64 constants
+.include "myconstants.inc"              ; constants and ZP variables
 
 DEBUG = 0                               ; bitwise: 1=raster-sync code. 2=asserts
                                         ; 4=colllision detection
@@ -117,11 +118,6 @@ EMPTY_ROWS = 2                          ; there are two empty rows at the top of
                                         ; so the map is 8 rows height, but
                                         ; only 6 rows are scrolled
 
-BANK_BASE = $0000
-SCREEN_BASE = BANK_BASE + $0400                     ; screen address
-SPRITES_BASE = BANK_BASE + $2400                    ; Sprite 0 at $2400
-SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64) ; Sprite 0 at 144
-SPRITE_PTR = SCREEN_BASE + 1016                     ; right after the screen, at $7f8
 
 SCROLL_ROW_P1= 4
 RASTER_TOP_P1 = 50 + 8 * (SCROLL_ROW_P2 + LEVEL1_HEIGHT)        ; first raster line (where P2 scroll ends)
@@ -143,9 +139,6 @@ SCROLL_SPEED = $0130                    ; $0100 = normal speed. $0200 = 2x speed
                                         ; $0080 = half speed
 ACCEL_SPEED = $20                       ; how fast the speed will increase
 MAX_SPEED = $05                         ; max speed MSB: eg: $05 means $0500
-
-MUSIC_INIT = $1000
-MUSIC_PLAY = $1003
 
 .segment "HI_CODE"
 
@@ -603,20 +596,20 @@ end_irq:
         lda #%00011100                  ; screen:  $0400 %0001xxxx
         sta $d018                       ; charset: $3000 %xxxx110x
 
-        ldx #$00                        ; screen starts at SCREEN_BASE
+        ldx #$00                        ; screen starts at SCREEN0_BASE
 _loop:
         lda #$20
-        sta SCREEN_BASE,x
-        sta SCREEN_BASE+$0100,x
-        sta SCREEN_BASE+$0200,x
-        sta SCREEN_BASE+$02e8,x
+        sta SCREEN0_BASE,x
+        sta SCREEN0_BASE+$0100,x
+        sta SCREEN0_BASE+$0200,x
+        sta SCREEN0_BASE+$02e8,x
         inx
         bne _loop
 
         ldx #40-1                       ; 2 lines only
 :       lda screen,x
-        sta SCREEN_BASE+40*(SCROLL_ROW_P1-EMPTY_ROWS-1),x
-        sta SCREEN_BASE+40*(SCROLL_ROW_P2-EMPTY_ROWS-1),x
+        sta SCREEN0_BASE+40*(SCROLL_ROW_P1-EMPTY_ROWS-1),x
+        sta SCREEN0_BASE+40*(SCROLL_ROW_P2-EMPTY_ROWS-1),x
         dex
         bpl :-
 
@@ -624,8 +617,8 @@ _loop:
 _loop2:
         .repeat 6, YY
                 lda LEVEL1_MAP + LEVEL1_WIDTH* YY,x
-                sta SCREEN_BASE + 40 * SCROLL_ROW_P1 + 40 * YY, x
-                sta SCREEN_BASE + 40 * SCROLL_ROW_P2 + 40 * YY, x
+                sta SCREEN0_BASE + 40 * SCROLL_ROW_P1 + 40 * YY, x
+                sta SCREEN0_BASE + 40 * SCROLL_ROW_P2 + 40 * YY, x
                 tay
                 lda LEVEL1_COLORS,y
                 sta $d800 + 40 * SCROLL_ROW_P1 + 40 * YY, x
@@ -722,7 +715,7 @@ loop:
         tay
 
         lda sprite_frames,x
-        sta SPRITE_PTR,x
+        sta SPRITES_PTR0,x
 
         lda sprites_x,x
         sta VIC_SPR0_X,y
@@ -790,7 +783,7 @@ loop:
 
         ldx #39                         ; display "on your marks"
 :       lda on_your_marks_lbl,x
-        sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
+        sta SCREEN0_BASE + 40 * ON_YOUR_MARKS_ROW,x
         dex
         bpl :-
 
@@ -818,7 +811,7 @@ loop:
 
         ldx #39                         ; display "get set"
 :       lda on_your_marks_lbl + 40*1,x
-        sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
+        sta SCREEN0_BASE + 40 * ON_YOUR_MARKS_ROW,x
         dex
         bpl :-
         rts
@@ -826,7 +819,7 @@ loop:
 @riding_state:
         ldx #39                         ; display "go!"
 :       lda on_your_marks_lbl + 40*2,x
-        sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
+        sta SCREEN0_BASE + 40 * ON_YOUR_MARKS_ROW,x
         dex
         bpl :-
 
@@ -861,7 +854,7 @@ counter: .byte 0
 
         ldx #39                         ; clean the "go" message
         lda #$20                        ; ' ' (space)
-:       sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
+:       sta SCREEN0_BASE + 40 * ON_YOUR_MARKS_ROW,x
         dex
         bpl :-
 
@@ -889,7 +882,7 @@ counter: .byte 0
 
         ldx #39                         ; clean the "go" message
         lda #$20
-l0:     sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
+l0:     sta SCREEN0_BASE + 40 * ON_YOUR_MARKS_ROW,x
         dex
         bpl l0
         rts
@@ -897,7 +890,7 @@ l0:     sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
 show_label:
         ldx #39                         ; clean the "go" message
 l1:     lda press_space_lbl,x
-        sta SCREEN_BASE + 40 * ON_YOUR_MARKS_ROW,x
+        sta SCREEN0_BASE + 40 * ON_YOUR_MARKS_ROW,x
         dex
         bpl l1
         rts
@@ -1303,8 +1296,8 @@ left:
 :
         .repeat 6,YY                            ; 6 == LEVEL1_HEIGHT but doesn't compile
                 .repeat 39,XX                   ; 40 chars
-                        lda SCREEN_BASE+40*(SCROLL_ROW_P1+YY)+XX+1      ; scroll screen
-                        sta SCREEN_BASE+40*(SCROLL_ROW_P1+YY)+XX+0
+                        lda SCREEN0_BASE+40*(SCROLL_ROW_P1+YY)+XX+1      ; scroll screen
+                        sta SCREEN0_BASE+40*(SCROLL_ROW_P1+YY)+XX+0
                         lda $d800+40*(SCROLL_ROW_P1+YY)+XX+1            ; scroll color RAM
                         sta $d800+40*(SCROLL_ROW_P1+YY)+XX+0
                 .endrepeat
@@ -1318,7 +1311,7 @@ left:
         ldy #0
         .repeat 6,YY                            ; 6 == LEVEL1_HEIGHT but doesn't compile
                 lda ($f8),y                     ; new char
-                sta SCREEN_BASE+40*(SCROLL_ROW_P1+YY)+39
+                sta SCREEN0_BASE+40*(SCROLL_ROW_P1+YY)+39
                 tax                             ; color for new char
                 lda LEVEL1_COLORS,x
                 sta $d800+40*(SCROLL_ROW_P1+YY)+39
@@ -1365,8 +1358,8 @@ left:
 :
         .repeat 6,YY                             ; 6 == LEVEL1_HEIGHT but doesn't compile
                 .repeat 39,XX
-                        lda SCREEN_BASE+40*(SCROLL_ROW_P2+YY)+XX+1        ; scroll screen
-                        sta SCREEN_BASE+40*(SCROLL_ROW_P2+YY)+XX+0
+                        lda SCREEN0_BASE+40*(SCROLL_ROW_P2+YY)+XX+1        ; scroll screen
+                        sta SCREEN0_BASE+40*(SCROLL_ROW_P2+YY)+XX+0
                         lda $d800+40*(SCROLL_ROW_P2+YY)+XX+1             ; scroll color RAM
                         sta $d800+40*(SCROLL_ROW_P2+YY)+XX+0
                 .endrepeat
@@ -1380,7 +1373,7 @@ left:
         ldy #0
         .repeat 6,YY                            ; 6 == LEVEL1_HEIGHT but doesn't compile
                 lda ($f8),y                     ; new char
-                sta SCREEN_BASE+40*(SCROLL_ROW_P2+YY)+39
+                sta SCREEN0_BASE+40*(SCROLL_ROW_P2+YY)+39
                 tax
                 lda LEVEL1_COLORS,x             ; color for new char
                 sta $d800+40*(SCROLL_ROW_P2+YY)+39
@@ -1421,10 +1414,10 @@ left:
 
         ldy p1_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 39
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 39
 :       ldy p2_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 39
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 39
 
 
 :       lda $dc09                       ; seconds. digit
@@ -1434,10 +1427,10 @@ left:
 
         ldy p1_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 37
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 37
 :       ldy p2_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 37
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 37
 
 :
         txa                             ; seconds. Ten digit
@@ -1449,20 +1442,20 @@ left:
 
         ldy p1_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 36
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 36
 :       ldy p2_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 36
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 36
 :
         lda $dc0a                       ; minutes. digit
         and #%00001111
         ora #$30
         ldy p1_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 34
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 34
 :       ldy p2_finished
         bne :+
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 34
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 34
 :
         rts
 .endproc
@@ -1474,25 +1467,26 @@ left:
 
         ; player one
         lda scroll_speed_p1                     ; firt digit
-        sta tmp
+        sta zp_tmp
         lda scroll_speed_p1+1
-        sta tmp+1
+        sta zp_tmp+1
 
-        asl tmp                                 ; divide 0x500 by 128
-        rol tmp+1                               ; which is the same as using the
+        asl zp_tmp                              ; divide 0x500 by 128
+        rol zp_tmp+1                            ; which is the same as using the
                                                 ; the first 4 MSB bits
         ldx #10                                 ; print speed bar. 10 chars
-l1:     lda #42+128                             ; char to fill the speed bar
-        cpx tmp+1
+l1:     lda #42                                 ; char to fill the speed bar
+        cpx zp_tmp+1
         bmi print_p1
 
-        lda #32+128                             ; empty char
+        lda #32                                 ; empty char
 print_p1:
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 7,x
+        ora zp_mc_color
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 7,x
         dex
         bpl l1
 
-        lda tmp                                 ; use 3-MSB bits
+        lda zp_tmp                              ; use 3-MSB bits
         lsr                                     ; from tmp for the
         lsr                                     ; variable char
         lsr
@@ -1500,33 +1494,35 @@ print_p1:
         lsr
 
         clc
-        adc #35+128                             ; base char is 35
+        adc #35                                 ; base char is 35
 
-        ldx tmp+1
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 7,x
+        ldx zp_tmp+1
+        ora zp_mc_color
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 7,x
 
 
         ; player two
         lda scroll_speed_p2                     ; firt digit
-        sta tmp
+        sta zp_tmp
         lda scroll_speed_p2+1
-        sta tmp+1
+        sta zp_tmp+1
 
-        asl tmp                                 ; divide 0x500 by 128
-        rol tmp+1                               ; which is the same as using the
+        asl zp_tmp                              ; divide 0x500 by 128
+        rol zp_tmp+1                            ; which is the same as using the
                                                 ; the first 4 MSB bits
         ldx #10                                 ; print speed bar. 10 chars
-l2:     lda #42+128                             ; char to fill the speed bar
-        cpx tmp+1
+l2:     lda #42                                 ; char to fill the speed bar
+        cpx zp_tmp+1
         bmi print_p2
 
-        lda #32+128                             ; empty char
+        lda #32                                 ; empty char
 print_p2:
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 7,x
+        ora zp_mc_color
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 7,x
         dex
         bpl l2
 
-        lda tmp                                 ; use 3-MSB bits
+        lda zp_tmp                              ; use 3-MSB bits
         lsr                                     ; from tmp for the
         lsr                                     ; variable char
         lsr
@@ -1534,15 +1530,13 @@ print_p2:
         lsr
 
         clc
-        adc #35+128                             ; base char
+        adc #35                                 ; base char
 
-        ldx tmp+1
-        sta SCREEN_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 7,x
+        ldx zp_tmp+1
+        ora zp_mc_color
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 7,x
 
         rts
-
-tmp:
-.byte 0, 0
 
 .endproc
 
@@ -1619,9 +1613,9 @@ skip2:
                                                 ; default: loser animation
         ldx frame_idx_p1
         lda frame_hair_loser_tbl,x
-        sta SPRITE_PTR+3                        ; hair
+        sta SPRITES_PTR0+3                        ; hair
         lda frame_body_loser_tbl,x
-        sta SPRITE_PTR+2                        ; body
+        sta SPRITES_PTR0+2                        ; body
         inx
         cpx #FRAME_HAIR_LOSER_TBL_SIZE
         bne @end
@@ -1632,9 +1626,9 @@ skip2:
 anim_winner:
         ldx frame_idx_p1
         lda frame_hair_winner_tbl,x
-        sta SPRITE_PTR+3                        ; hair
+        sta SPRITES_PTR0+3                        ; hair
         lda frame_body_winner_tbl,x
-        sta SPRITE_PTR+2                        ; body
+        sta SPRITES_PTR0+2                        ; body
         inx
         cpx #FRAME_HAIR_WINNER_TBL_SIZE
         bne @end
@@ -1646,7 +1640,7 @@ anim_winner:
 anim_riding:
         ldx frame_idx_p1
         lda frame_hair_riding_tbl,x
-        sta SPRITE_PTR + 3                      ; head is 4th sprite
+        sta SPRITES_PTR0 + 3                      ; head is 4th sprite
         inx
         cpx #FRAME_HAIR_RIDING_TBL_SIZE
         bne :+
@@ -1708,9 +1702,9 @@ anim_riding:
                                                 ; default: loser animation
         ldx frame_idx_p2
         lda frame_hair_loser_tbl,x
-        sta SPRITE_PTR+7                        ; hair
+        sta SPRITES_PTR0+7                        ; hair
         lda frame_body_loser_tbl,x
-        sta SPRITE_PTR+6                        ; body
+        sta SPRITES_PTR0+6                        ; body
         inx
         cpx #FRAME_HAIR_LOSER_TBL_SIZE
         bne @end
@@ -1721,9 +1715,9 @@ anim_riding:
 anim_winner:
         ldx frame_idx_p2
         lda frame_hair_winner_tbl,x
-        sta SPRITE_PTR+7                        ; hair
+        sta SPRITES_PTR0+7                        ; hair
         lda frame_body_winner_tbl,x
-        sta SPRITE_PTR+6                        ; body
+        sta SPRITES_PTR0+6                        ; body
         inx
         cpx #FRAME_HAIR_WINNER_TBL_SIZE
         bne @end
@@ -1735,7 +1729,7 @@ anim_winner:
 anim_riding:
         ldx frame_idx_p2
         lda frame_hair_riding_tbl,x
-        sta SPRITE_PTR + 7                      ; head is 8th sprite
+        sta SPRITES_PTR0 + 7                      ; head is 8th sprite
         inx
         cpx #FRAME_HAIR_RIDING_TBL_SIZE
         bne :+
@@ -2150,6 +2144,9 @@ l1:     sta computer_fires_lo,x                 ; in this level for the computer
         cpx #FIRE_TBL_SIZE
         bne l1
 
+        lda #%10000000                          ; extended color to be used in speedbar
+        sta zp_mc_color
+
         rts
 spr_colors:
                 .byte 1, 1, 0, 7                ; player 1
@@ -2199,7 +2196,7 @@ spr_colors:
         sta background_color
         lda #5
         sta $d022                               ; used in level
-        lda #12
+        lda #13
         sta $d023                               ; used in level and extended background color
 
         ldx #<animate_level_cyclocross
@@ -2214,6 +2211,9 @@ l0:     lda spr_colors,x
         bpl l0
 
         jsr music_patch_table_1                 ; convert to PAL if needed
+
+        lda #%01000000                          ; extended color to be used in speedbar
+        sta zp_mc_color
 
 
 .if !(::RECORD_FIRE)                            ; only copy if not recording fires
@@ -2296,6 +2296,8 @@ l0:     lda spr_colors,x
 
         jsr music_patch_table_2                 ; convert to NTSC if needed
 
+        lda #%10000000                          ; extended color to be used in speedbar
+        sta zp_mc_color
 
 
 .if !(::RECORD_FIRE)                            ; only copy if not recording fires
