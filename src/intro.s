@@ -190,7 +190,7 @@ delay:
         sta VIC_SPR_EXP_X               ; no expansion
         sta VIC_SPR_EXP_Y
 
-        ldx #(SPRITES_POINTER + $0f)    ; sprite pointer to PAL (15)
+        ldx #(SPRITES_POINTER + 39)     ; sprite pointer to PAL
         lda ut_vic_video_type           ; ntsc, pal or paln?
         cmp #$01                        ; Pal ?
         beq @end                        ; yes.
@@ -199,14 +199,14 @@ delay:
         cmp #$2e                        ; NTSC Old?
         beq @ntscold                    ; yes
 
-        ldx #(SPRITES_POINTER + $0e)    ; otherwise it is NTSC
+        ldx #(SPRITES_POINTER + 38)     ; otherwise it is NTSC
         bne @end
 
 @ntscold:
-        ldx #(SPRITES_POINTER + $0c)    ; NTSC old
+        ldx #(SPRITES_POINTER + 36)     ; NTSC old
         bne @end
 @paln:
-        ldx #(SPRITES_POINTER + $0d)    ; PAL-N (Drean)
+        ldx #(SPRITES_POINTER + 37)     ; PAL-N (Drean)
 @end:
         stx SPRITES_PTR0 + 7            ; set sprite pointer for screen0
         rts

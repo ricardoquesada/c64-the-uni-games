@@ -36,6 +36,8 @@
         NOT_FINISHED = 0
         WINNER = 1
         LOSER = 2
+        MASK = %01111111                ; mask to test WINNER or LOSER
+        DONT_UPDATE_Y = 1 << 7          ; when wheel is no longer visible, don't update Y
 .endenum
 
 .enum GAME_EVENT                        ; Events of the game
@@ -47,7 +49,7 @@
 AUTO_SPEED = 4                          ; how fast is the auto-acceleration
                                         ; 0 highest, 255 super slow
 
-RECORD_FIRE = 0                         ; computer player: record fire, or play fire? 
+RECORD_FIRE = 0                         ; computer player: record fire, or play fire?
                                         ; 0 for "PLAY" (normal mode)
                                         ; 1 to "RECORD" jumps
 
@@ -363,7 +365,7 @@ level_charset_address = *+1
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ;
 ; IRQ handlers
-; 
+;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -1300,7 +1302,7 @@ left:
         rts
 :
         .repeat 6,YY                            ; 6 == LEVEL1_HEIGHT but doesn't compile
-                .repeat 39,XX                   ; 40 chars 
+                .repeat 39,XX                   ; 40 chars
                         lda SCREEN_BASE+40*(SCROLL_ROW_P1+YY)+XX+1      ; scroll screen
                         sta SCREEN_BASE+40*(SCROLL_ROW_P1+YY)+XX+0
                         lda $d800+40*(SCROLL_ROW_P1+YY)+XX+1            ; scroll color RAM
@@ -1552,10 +1554,29 @@ tmp:
         jsr update_frame_p2
 
         lda $d01f                               ; collision: sprite - background
-        pha                                     ; save value since it is cleared
+        tax
+
+        lda p1_finished                         ; don't update Y if not needed
+        and #FINISH_STATE::DONT_UPDATE_Y
+        bne skip1
+
+        txa
+        pha                                     ; save A ($d01f)
+
         jsr update_position_y_p1                ; after reading it
-        pla                                     ; restore value
+
+        pla                                     ; restore A ($d01f)
+        tax
+
+skip1:
+        lda p2_finished                         ; don't update Y if not needed
+        and #FINISH_STATE::DONT_UPDATE_Y
+        bne skip2
+
+        txa
         jmp update_position_y_p2
+skip2:
+        rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -1569,35 +1590,46 @@ tmp:
         lda #ACTOR_ANIMATION_SPEED
         sta animation_delay_p1
 
-
         lda p1_finished
         beq anim_riding                         ; riding animation
 
         ldx #(RESISTANCE_TBL_SIZE/3)-1          ; if not riding, then it finishes
         stx resistance_idx_p1                   ; so slow down quickly
 
-        cmp #FINISH_STATE::WINNER
-        beq anim_winner                         ; winner animation
-
-                                                ; default: loser animation
-        lda scroll_speed_p1+1                   ; but only anim when speed is low
+        ldx scroll_speed_p1+1                   ; but only anim when speed is low
         bne anim_riding
 
-        lda #SPRITES_POINTER+10                 ; hair sprite
-        sta SPRITE_PTR+3
-        lda #SPRITES_POINTER+9                  ; body sprite
-        sta SPRITE_PTR+2
+        ora #FINISH_STATE::DONT_UPDATE_Y
+        sta p1_finished
+
+        lda VIC_SPR_ENA
+        and #%11111100                          ; turn off wheel sprites
+        sta VIC_SPR_ENA                         ; both winning and loser anims don't need them
 
         ldx VIC_SPR1_Y                          ; hair and head
         dex                                     ; one pixel above wheel
         stx VIC_SPR2_Y
         stx VIC_SPR3_Y
+
+        lda p1_finished
+        and #FINISH_STATE::MASK
+        cmp #FINISH_STATE::WINNER
+        beq anim_winner                         ; winner animation
+
+                                                ; default: loser animation
+        ldx frame_idx_p1
+        lda frame_hair_loser_tbl,x
+        sta SPRITE_PTR+3                        ; hair
+        lda frame_body_loser_tbl,x
+        sta SPRITE_PTR+2                        ; body
+        inx
+        cpx #FRAME_HAIR_LOSER_TBL_SIZE
+        bne @end
+        ldx #0
+@end:   stx frame_idx_p1
         rts
 
 anim_winner:
-        lda scroll_speed_p1+1                   ; only anim when speed is low
-        bne anim_riding
-
         ldx frame_idx_p1
         lda frame_hair_winner_tbl,x
         sta SPRITE_PTR+3                        ; hair
@@ -1608,12 +1640,8 @@ anim_winner:
         bne @end
         ldx #0
 @end:   stx frame_idx_p1
-
-        ldx VIC_SPR1_Y                          ; hair and head
-        dex                                     ; one pixel above wheel
-        stx VIC_SPR2_Y
-        stx VIC_SPR3_Y
         rts
+
 
 anim_riding:
         ldx frame_idx_p1
@@ -1657,44 +1685,52 @@ anim_riding:
         ldx #(RESISTANCE_TBL_SIZE/3)-1          ; if not riding, then it finishes
         stx resistance_idx_p2                   ; so slow down quickly
 
-        cmp #FINISH_STATE::WINNER
-        beq anim_winner                         ; winner animation
-
-                                                ; default: loser animation
-        lda scroll_speed_p2+1                   ; but only anim when speed is low
+        ldx scroll_speed_p2+1                   ; but only anim when speed is low
         bne anim_riding
 
-        lda #SPRITES_POINTER+10                 ; hair sprite
-        sta SPRITE_PTR+7
-        lda #SPRITES_POINTER+9                  ; body sprite
-        sta SPRITE_PTR+6
+        ora #FINISH_STATE::DONT_UPDATE_Y
+        sta p2_finished
+
+        lda VIC_SPR_ENA
+        and #%11001111                          ; turn off wheel sprites
+        sta VIC_SPR_ENA                         ; both winning and loser anims don't need them
 
         ldx VIC_SPR5_Y                          ; hair and head
         dex                                     ; one pixel above wheel
         stx VIC_SPR6_Y
         stx VIC_SPR7_Y
 
-        rts
-anim_winner:
-        lda scroll_speed_p2+1                   ; only anim when speed is low
-        bne anim_riding
+        lda p2_finished
+        and #FINISH_STATE::MASK
+        cmp #FINISH_STATE::WINNER
+        beq anim_winner                         ; winner animation
 
+                                                ; default: loser animation
+        ldx frame_idx_p2
+        lda frame_hair_loser_tbl,x
+        sta SPRITE_PTR+7                        ; hair
+        lda frame_body_loser_tbl,x
+        sta SPRITE_PTR+6                        ; body
+        inx
+        cpx #FRAME_HAIR_LOSER_TBL_SIZE
+        bne @end
+        ldx #0
+@end:   stx frame_idx_p2
+        rts
+
+anim_winner:
         ldx frame_idx_p2
         lda frame_hair_winner_tbl,x
-        sta SPRITE_PTR+7
+        sta SPRITE_PTR+7                        ; hair
         lda frame_body_winner_tbl,x
-        sta SPRITE_PTR+6
+        sta SPRITE_PTR+6                        ; body
         inx
         cpx #FRAME_HAIR_WINNER_TBL_SIZE
         bne @end
         ldx #0
 @end:   stx frame_idx_p2
-
-        ldx VIC_SPR5_Y                          ; hair and head
-        dex                                     ; one pixel above wheel
-        stx VIC_SPR6_Y
-        stx VIC_SPR7_Y
         rts
+
 
 anim_riding:
         ldx frame_idx_p2
@@ -2379,13 +2415,31 @@ frame_hair_riding_tbl:
         .byte SPRITES_POINTER + 3                       ; hair #1 riding
         .byte SPRITES_POINTER + 4                       ; hair #2 riding
 FRAME_HAIR_RIDING_TBL_SIZE = * - frame_hair_riding_tbl
+
+frame_body_winner_tbl:
+        .byte SPRITES_POINTER + 5                       ; body winner #1
+        .byte SPRITES_POINTER + 6                       ; body winner #2
 frame_hair_winner_tbl:
         .byte SPRITES_POINTER + 7                       ; hair #1 winner
         .byte SPRITES_POINTER + 8                       ; hair #2 winner
 FRAME_HAIR_WINNER_TBL_SIZE = * - frame_hair_winner_tbl
-frame_body_winner_tbl:
-        .byte SPRITES_POINTER + 5                       ; body winner #1
-        .byte SPRITES_POINTER + 6                       ; body winner #2
+
+frame_body_loser_tbl:
+        .byte SPRITES_POINTER + 9                       ; body loser #1
+        .byte SPRITES_POINTER + 9                       ; body loser #1
+        .byte SPRITES_POINTER + 9                       ; body loser #1
+        .byte SPRITES_POINTER + 10                      ; body loser #2
+        .byte SPRITES_POINTER + 10                      ; body loser #2
+        .byte SPRITES_POINTER + 10                      ; body loser #2
+frame_hair_loser_tbl:
+        .byte SPRITES_POINTER + 11                      ; hair #1 loser
+        .byte SPRITES_POINTER + 11                      ; hair #1 loser
+        .byte SPRITES_POINTER + 11                      ; hair #1 loser
+        .byte SPRITES_POINTER + 12                      ; hair #2 loser
+        .byte SPRITES_POINTER + 12                      ; hair #2 loser
+        .byte SPRITES_POINTER + 12                      ; hair #2 loser
+FRAME_HAIR_LOSER_TBL_SIZE = * - frame_hair_loser_tbl
+
 animation_delay_p1:     .byte ACTOR_ANIMATION_SPEED
 animation_delay_p2:     .byte ACTOR_ANIMATION_SPEED
 animation_idx_p1:       .byte 0         ; index in the animation table
