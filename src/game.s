@@ -46,6 +46,46 @@
         CROSS_COUNTRY = 2
 .endenum
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; Constants
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.include "c64.inc"                      ; c64 constants
+.include "myconstants.inc"              ; constants and ZP variables
+
+DEBUG = 0                               ; bitwise: 1=raster-sync code. 2=asserts
+                                        ; 4=colllision detection
+
+LEVEL1_WIDTH = 1024                     ; width of map. must be multiple of 256
+LEVEL1_HEIGHT = 6
+LEVEL1_MAP = $4100                      ; map address. must be 256-aligned
+LEVEL1_COLORS = $4000                   ; color address
+
+EMPTY_ROWS = 2                          ; there are two empty rows at the top of
+                                        ; the map that is not used.
+                                        ; so the map is 8 rows height, but
+                                        ; only 6 rows are scrolled
+
+SCROLL_ROW_P1 = 4
+RASTER_TOP_P1 = 50 + 8 * (SCROLL_ROW_P2 + LEVEL1_HEIGHT)        ; first raster line (where P2 scroll ends)
+RASTER_BOTTOM_P1 = 50 + 8 * (SCROLL_ROW_P1-EMPTY_ROWS)          ; moving part of the screen
+
+SCROLL_ROW_P2 = 17
+RASTER_TOP_P2 = 50 + 8 * (SCROLL_ROW_P1 + LEVEL1_HEIGHT)        ; first raster line (where P1 scroll ends)
+RASTER_BOTTOM_P2 = 50 + 8 * (SCROLL_ROW_P2-EMPTY_ROWS)          ; moving part of the screen
+
+RASTER_TRIGGER_ANIMS = 1                ; raster to trigger the animations
+
+ON_YOUR_MARKS_ROW = 12                  ; row to display on your marks
+
+LEVEL_BKG_COLOR = 15
+HUD_BKG_COLOR = 0
+
+ACTOR_ANIMATION_SPEED = 8               ; animation speed. the bigger the number, the slower it goes
+SCROLL_SPEED = $0130                    ; $0100 = normal speed. $0200 = 2x speed
+                                        ; $0080 = half speed
+ACCEL_SPEED = $20                       ; how fast the speed will increase
+MAX_SPEED = $05                         ; max speed MSB: eg: $05 means $0500
+
 AUTO_SPEED = 4                          ; how fast is the auto-acceleration
                                         ; 0 highest, 255 super slow
 
@@ -99,46 +139,6 @@ RECORD_FIRE = 0                         ; computer player: record fire, or play 
         .endrepeat
 .endmacro
 
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; Constants
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.include "c64.inc"                      ; c64 constants
-.include "myconstants.inc"              ; constants and ZP variables
-
-DEBUG = 0                               ; bitwise: 1=raster-sync code. 2=asserts
-                                        ; 4=colllision detection
-
-LEVEL1_WIDTH = 1024                     ; width of map. must be multiple of 256
-LEVEL1_HEIGHT = 6
-LEVEL1_MAP = $4100                      ; map address. must be 256-aligned
-LEVEL1_COLORS = $4000                   ; color address
-
-EMPTY_ROWS = 2                          ; there are two empty rows at the top of
-                                        ; the map that is not used.
-                                        ; so the map is 8 rows height, but
-                                        ; only 6 rows are scrolled
-
-
-SCROLL_ROW_P1= 4
-RASTER_TOP_P1 = 50 + 8 * (SCROLL_ROW_P2 + LEVEL1_HEIGHT)        ; first raster line (where P2 scroll ends)
-RASTER_BOTTOM_P1 = 50 + 8 * (SCROLL_ROW_P1-EMPTY_ROWS)          ; moving part of the screen
-
-SCROLL_ROW_P2 = 17
-RASTER_TOP_P2 = 50 + 8 * (SCROLL_ROW_P1 + LEVEL1_HEIGHT)        ; first raster line (where P1 scroll ends)
-RASTER_BOTTOM_P2 = 50 + 8 * (SCROLL_ROW_P2-EMPTY_ROWS)          ; moving part of the screen
-
-RASTER_TRIGGER_ANIMS = 0                ; raster to trigger the animations
-
-ON_YOUR_MARKS_ROW = 12                  ; row to display on your marks
-
-LEVEL_BKG_COLOR = 15
-HUD_BKG_COLOR = 0
-
-ACTOR_ANIMATION_SPEED = 8               ; animation speed. the bigger the number, the slower it goes
-SCROLL_SPEED = $0130                    ; $0100 = normal speed. $0200 = 2x speed
-                                        ; $0080 = half speed
-ACCEL_SPEED = $20                       ; how fast the speed will increase
-MAX_SPEED = $05                         ; max speed MSB: eg: $05 means $0500
 
 .segment "HI_CODE"
 
@@ -146,12 +146,23 @@ MAX_SPEED = $05                         ; max speed MSB: eg: $05 means $0500
 .proc game_start
         sei
 
+        lda #$00
+        sta $d01a                       ; no raster IRQ
+
+        lda #$7f
+        sta $dc0d                       ; turn off cia 1 interrupts
+        sta $dd0d                       ; turn off cia 2 interrupts
+
+        lda $dc0d                       ; clear interrupts and ACK irq
+        lda $dd0d
+        asl $d019
+
         jsr init_sound                  ; turn off volume right now
 
         lda #$00
         sta VIC_SPR_ENA                 ; disable sprites... temporary
 
-                                        ; multicolor mode + extended color causes
+                                        ; turn off VIC
         lda #%01011011                  ; the bug that blanks the screen
         sta $d011                       ; extended background color mode: on
         lda #%00011000
@@ -170,36 +181,26 @@ MAX_SPEED = $05                         ; max speed MSB: eg: $05 means $0500
 
         jsr ut_setup_tod                ; must be called AFTER detect_pal_...
 
-        lda #$7f
-        sta $dc0d                       ; turn off cia 1 interrupts
-        sta $dd0d                       ; turn off cia 2 interrupts
 
-
-        lda $dc0d                       ; clear interrupts and ACK irq
-        lda $dd0d
-        asl $d019
-
-:       lda $d012                       ; wait for start of raster
-:       cmp $d012
-        beq :-
-        bmi :--
-                                        ; turn VIC on again
-        lda #%00011011                  ; charset mode, default scroll-Y position, 25-rows
-        sta $d011                       ; extended color mode: off
-        lda #%00001000                  ; no scroll, hires (mono color), 40-cols
-        sta $d016                       ; turn off multicolor
-
-        ldx #<irq_top_p2                ; raster irq vector
-        ldy #>irq_top_p2
+        ldx #<irq_anims                 ; raster irq vector
+        ldy #>irq_anims
         stx $fffe
         sty $ffff
 
-        lda #RASTER_TOP_P2
+        lda #RASTER_TRIGGER_ANIMS
         sta $d012
 
         lda #01                         ; Enable raster irq
         sta $d01a
 
+:       lda $d012                       ; wait for start of raster
+:       cmp $d012
+        beq :-
+        bmi :--
+
+                                        ; no need to turn on the VIC
+                                        ; again since it will be turned on
+                                        ; in the raster
         cli
 
 _mainloop:
@@ -299,19 +300,7 @@ cont:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc game_init_music
         lda #0
-        jsr MUSIC_INIT                  ; init song #0
-
-;        lda music_speed                 ; init with PAL frequency
-;        sta $dc04                       ; it plays at 50.125hz
-;        lda music_speed+1
-;        sta $dc05
-;
-;        lda #$81                        ; enable timer to play music
-;        sta $dc0d                       ; CIA1
-;
-;        lda #$11
-;        sta $dc0e                       ; start timer interrupt A
-        rts
+        jmp MUSIC_INIT                  ; init song #0
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -335,7 +324,6 @@ level_map_address = *+1
         stx _crunched_byte_lo
         sty _crunched_byte_hi
         jsr decrunch                    ; uncrunch map
-
 
 level_color_address = *+1
         ldx #<level_roadrace_colors_exo ; self-modifying
@@ -387,10 +375,10 @@ level_charset_address = *+1
         lda #%01011011
         sta $d011                       ; extended background color mode: on
 
-        lda #<irq_anims                 ; set a new irq vector
-        sta $fffe
-        lda #>irq_anims
-        sta $ffff
+        ldx #<irq_anims                 ; set a new irq vector
+        ldy #>irq_anims
+        stx $fffe
+        sty $ffff
 
         lda #RASTER_TRIGGER_ANIMS       ; should be triggered when raster = RASTER_TRIGGER_ANIMS
         sta $d012
@@ -418,15 +406,16 @@ end_irq:
         pha
 
         asl $d019                       ; clears raster interrupt
-        inc zp_sync_raster_anims
 
-        lda #<irq_bottom_p1             ; set a new irq vector
-        sta $fffe
-        lda #>irq_bottom_p1
-        sta $ffff
+        ldx #<irq_bottom_p1             ; set a new irq vector
+        ldy #>irq_bottom_p1
+        stx $fffe
+        sty $ffff
 
         lda #RASTER_BOTTOM_P1           ; should be triggered when raster = RASTER_BOTTOM
         sta $d012
+
+        inc zp_sync_raster_anims
 
         pla                             ; restores A, X, Y
         tay
@@ -448,13 +437,7 @@ end_irq:
         pha
 
         asl $d019                       ; clears raster interrupt
-;        bcs raster
-;
-;        lda $dc0d                       ; clears CIA interrupts, in particular timer A
-;        inc sync_timer_irq
-;        jmp end_irq
-;
-;raster:
+
         CONSUME_CYCLES
 
         lda zp_smooth_scroll_x_p1+1     ; scroll x
@@ -467,10 +450,10 @@ end_irq:
         lda #%00011011
         sta $d011                       ; extended color mode: off
 
-        lda #<irq_top_p2                ; set new IRQ-raster vector
-        sta $fffe
-        lda #>irq_top_p2
-        sta $ffff
+        ldx #<irq_top_p2                ; set new IRQ-raster vector
+        ldy #>irq_top_p2
+        stx $fffe
+        sty $ffff
 
         lda #RASTER_TOP_P2
         sta $d012
@@ -498,14 +481,7 @@ end_irq:
         pha
 
         asl $d019                       ; clears raster interrupt
-;        bcs raster
-;
-;        lda $dc0d                       ; clears CIA interrupts, in particular timer A
-;        inc sync_timer_irq
-;        jmp end_irq
-;
-;raster:
-;        STABILIZE_RASTER
+
         .repeat 14
                 nop
         .endrepeat
@@ -519,10 +495,10 @@ end_irq:
         lda #%01011011
         sta $d011                       ; extended background color mode: on
 
-        lda #<irq_bottom_p2             ; set a new irq vector
-        sta $fffe
-        lda #>irq_bottom_p2
-        sta $ffff
+        ldx #<irq_bottom_p2             ; set a new irq vector
+        ldy #>irq_bottom_p2
+        stx $fffe
+        sty $ffff
 
         lda #RASTER_BOTTOM_P2           ; should be triggered when raster = RASTER_BOTTOM
         sta $d012
@@ -548,13 +524,7 @@ end_irq:
         pha
 
         asl $d019                       ; clears raster interrupt
-;        bcs raster
-;
-;        lda $dc0d                       ; clears CIA interrupts, in particular timer A
-;        inc sync_timer_irq
-;        jmp end_irq
-;
-;raster:
+
         CONSUME_CYCLES
 
         lda zp_smooth_scroll_x_p2+1        ; scroll x
@@ -567,10 +537,10 @@ end_irq:
         lda #%00011011
         sta $d011                       ; extended color mode: off
 
-        lda #<irq_top_p1                ; set new IRQ-raster vector
-        sta $fffe
-        lda #>irq_top_p1
-        sta $ffff
+        ldx #<irq_top_p1                ; set new IRQ-raster vector
+        ldy #>irq_top_p1
+        stx $fffe
+        sty $ffff
 
         lda #RASTER_TOP_P1
         sta $d012
@@ -2162,6 +2132,9 @@ l0:     lda spr_colors,x
 
         jsr music_patch_table_1                 ; convert to PAL if needed
 
+        lda #AUTO_SPEED+1                       ; computer accelerates a bit slower
+        sta zp_computer_speed
+
         ldx #0
         lda #$ff                                ; jump table is $ffff. no jump
 l1:     sta computer_fires_lo,x                 ; in this level for the computer
@@ -2245,6 +2218,8 @@ l0:     lda spr_colors,x
         lda #%01000000                          ; extended color to be used in speedbar
         sta zp_mc_color
 
+        lda #AUTO_SPEED                         ; computer accelerates at normal speed
+        sta zp_computer_speed
 
 .if !(::RECORD_FIRE)                            ; only copy if not recording fires
                                                 ; otherwise the table might have additional
@@ -2329,6 +2304,8 @@ l0:     lda spr_colors,x
         lda #%10000000                          ; extended color to be used in speedbar
         sta zp_mc_color
 
+        lda #AUTO_SPEED+1                       ; computer accelerates a bit slower
+        sta zp_computer_speed
 
 .if !(::RECORD_FIRE)                            ; only copy if not recording fires
                                                 ; otherwise the table might have additional
@@ -2366,8 +2343,6 @@ l0:
         lda #0
         sta zp_computer_fires_idx               ; next fire to read? 0
 
-        lda #AUTO_SPEED
-        sta zp_computer_speed
         lda #1                                  ; 1, so that in the next cycle it moves
         sta zp_computer_delay
 
