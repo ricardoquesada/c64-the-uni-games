@@ -4,8 +4,6 @@
 ;
 ; High Scores screen
 ;
-; Uses $fe/$ff. $fe/$ff CANNOT be used by other functions
-;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; from utils.s
@@ -99,8 +97,8 @@ l0:
 
         ldx #<(SCREEN0_BASE + 40 * 10 + 6)  ; init "save" pointer
         ldy #>(SCREEN0_BASE + 40 * 10 + 6)  ; start writing at 10th line
-        stx $fe
-        sty $ff
+        stx zp_hs_ptr_lo
+        sty zp_hs_ptr_hi
         rts
 .endproc
 
@@ -126,11 +124,11 @@ paint:
         jsr @print_highscore_entry
 
         clc                             ; pointer to the next line in the screen
-        lda $fe
+        lda zp_hs_ptr_lo 
         adc #(40 * 2)                   ; skip one line
-        sta $fe
+        sta zp_hs_ptr_lo
         bcc :+
-        inc $ff
+        inc zp_hs_ptr_hi
 :
         inc score_counter
 
@@ -150,7 +148,7 @@ paint:
         bne @print_second_digit
 
         lda #$31                        ; hack: if number is 10, print '1'. $31 = '1'
-        sta ($fe),y                     ; otherwise, skip to second number
+        sta (zp_hs_ptr_lo),y            ; otherwise, skip to second number
         ora #$40
         iny
         lda #00                         ; second digit is '0'
@@ -161,11 +159,11 @@ paint:
 :
         clc
         adc #$30                        ; A = high_score entry.
-        sta ($fe),y
+        sta (zp_hs_ptr_lo),y
         iny
 
         lda #$2e                        ; print '.'
-        sta ($fe),y
+        sta (zp_hs_ptr_lo),y
         iny
 
 
@@ -180,7 +178,7 @@ paint:
         tax                             ; x = high score pointer
 
 :       lda entries,x                   ; points to entry[i].name
-        sta ($fe),y                     ; pointer to screen
+        sta (zp_hs_ptr_lo),y            ; pointer to screen
         iny
         inx
         dec @tmp_counter
@@ -198,7 +196,7 @@ paint:
 :       lda entries,x                   ; points to entry[i].score
         clc
         adc #$30
-        sta ($fe),y                     ; pointer to screen
+        sta (zp_hs_ptr_lo),y            ; pointer to screen
         iny
         inx
         dec @tmp_counter
@@ -215,9 +213,9 @@ paint:
 
                 ;0123456789|123456789|123456789|123456789|
 categories:
-        scrcode "             10k road racing            "
-        scrcode "              muni downhill             "
-        scrcode "             stairs climbing            "
+        scrcode "                road race               "
+        scrcode "               cyclo cross              "
+        scrcode "              cross country             "
 
 entries:
         ; high score entry:

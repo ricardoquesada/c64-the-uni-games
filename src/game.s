@@ -2148,8 +2148,8 @@ l1:     sta computer_fires_lo,x                 ; in this level for the computer
 
         rts
 spr_colors:
-                .byte 1, 1, 0, 7                ; player 1
-                .byte 1, 1, 0, 7                ; player 2
+                .byte 1, 1, 9, 7                ; player 1
+                .byte 1, 1, 9, 7                ; player 2
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;

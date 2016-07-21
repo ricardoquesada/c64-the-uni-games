@@ -82,6 +82,10 @@ zp_computer_delay = $85                                 ; .byte 1
 zp_joy1_delay = $85                                     ; .byte 1 same as zp_computer_delay since they can't be used at the same time
 zp_joy2_delay = $86                                     ; .byte 1
 
+
+zp_hs_ptr_lo = $90                                      ; .byte  used for sta (),x
+zp_hs_ptr_hi = $91                                      ; .byte
+
 ; game constants
 BANK_BASE = $0000
 SCREEN0_BASE = BANK_BASE + $0400                        ; screen address
