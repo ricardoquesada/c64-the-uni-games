@@ -122,8 +122,8 @@ l1:     sta $d800 + 24 * 40,x
         sta MENU_ITEM_LEN
         lda #(40*2)
         sta MENU_BYTES_BETWEEN_ITEMS
-        ldx #<(SCREEN0_BASE + 40 * 20 + 5)
-        ldy #>(SCREEN0_BASE + 40 * 20 + 5)
+        ldx #<(SCREEN0_BASE + 40 * 21 + 5)
+        ldy #>(SCREEN0_BASE + 40 * 21 + 5)
         stx MENU_CURRENT_ROW_ADDR
         sty MENU_CURRENT_ROW_ADDR+1
         ldx #<number_of_players_exec

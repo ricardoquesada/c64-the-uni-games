@@ -907,11 +907,16 @@ joy1_address = *+1
 
 test_movement_p1:
         tya
+        and #%00001111
         eor #%00001111                  ; invert joy bits, since they are inverted
+        sta zp_tmp00
         ldx zp_expected_joy1_idx
         and expected_joy_tbl,x          ; AND instead of CMP to support diagonals
-        bne increase_velocity_p1
-        jmp decrease_speed_p1
+        beq decrease_speed_p1           ; 0? decrease speed
+        cmp zp_tmp00                    ; is the expected_joy and only the expect_joy bits on?
+        bne decrease_speed_p1           ; no? decrease speed. cheating perhaps?
+
+;inc_speed:
 
 increase_velocity_p1:
         inx
@@ -987,17 +992,20 @@ joy2_address = *+1
 
 test_movement_p2:
         tya
+        and #%00001111
         eor #%00001111                  ; invert joy bits, since they are inverted
+        sta zp_tmp00
         ldx zp_expected_joy2_idx
         and expected_joy_tbl,x          ; AND instead of CMP to support diagonals
-        bne increase_velocity_p2
-        jmp decrease_speed_p2
+        beq decrease_speed_p2           ; 0? decrease speed
+        cmp zp_tmp00                    ; is the expected_joy and only the expect_joy bits on?
+        bne decrease_speed_p2           ; no? decrease speed. cheating perhaps?
 
-increase_velocity_p2:
-        inx
+;inc_speed:
+        inx                             ; increase speed if expected_joy matches
         txa
         and #%00000001
-        sta zp_expected_joy2_idx           ; cycles between 0,1
+        sta zp_expected_joy2_idx        ; cycles between 0,1. only two expected joy states
 
         lda #0
         sta zp_resistance_idx_p2
@@ -1015,7 +1023,7 @@ increase_velocity_p2:
         bne @end
 
         lda #$00                        ; if $0500 or more, then make it $500
-        sta zp_scroll_speed_p2
+        sta zp_scroll_speed_p2          ; by reseting the LSB to 0
 @end:
         rts
 
@@ -1058,7 +1066,7 @@ end_p2:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_joy1_left_right
         lda $dc01
-        ora #%11110011                  ; only enable left & right
+        ora #%11110000                  ; only enable left & right
         rts
 .endproc
 
@@ -1115,7 +1123,7 @@ left:
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc read_joy2_left_right
         lda $dc00
-        ora #%11110011                 ; only enable left & right
+        ora #%11110000                 ; only enable left & right (and up/down)
         rts
 .endproc
 
