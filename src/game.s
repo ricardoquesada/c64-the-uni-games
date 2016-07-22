@@ -2126,10 +2126,10 @@ doanim:
 delay:
         .byte   07
 
-; Exported using VChar64 v0.0.13-6-g96573-dirty
-; Total bytes: 2048
 charset_idx:    .byte 1                 ; values: 0, 8, 16, 24
                                         ; for anims per char
+
+; Exported using VChar64 from level-crosscountry-anims
 charset:
 ; animates char #87 (Y-flipped of #84)
 .byte $55,$55,$d5,$fd,$fd,$dd,$5d,$5d,$55,$55,$75,$fd,$fd,$7d,$5d,$5d	; 0
@@ -2153,7 +2153,69 @@ charset:
 ; void animate_level_cyclocross
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc animate_level_cyclocross
+        dec delay
+        beq :+
         rts
+
+:       lda #7
+        sta delay
+
+        ;
+        ; char animations
+        ;
+
+        ldx anim_tbl_idx
+        lda anim_tbl,x
+        tax
+
+        .repeat 8, YY
+                lda charset + 0 * 6 * 8 + YY,x  ; 6 * 8 = Each anim consists of 6 chars. Each char takes 8 bytes
+                sta CHARSET_BASE + 203 * 8 + YY         ; char #203
+
+                lda charset + 1 * 6 * 8 + YY,x
+                sta CHARSET_BASE + 204 * 8 + YY         ; char #204
+
+                lda charset + 2 * 6 * 8 + YY,x
+                sta CHARSET_BASE + 235 * 8 + YY         ; char #235
+
+                lda charset + 3 * 6 * 8 + YY,x
+                sta CHARSET_BASE + 236 * 8 + YY         ; char #236
+        .endrepeat
+
+        ldx anim_tbl_idx
+        inx
+        cpx #TOTAL_ANIM_SIZE
+        bne :+
+        ldx #0
+:       stx anim_tbl_idx
+
+        rts
+
+anim_tbl_idx: .byte 0
+anim_tbl:
+        .byte 0,00,0,0,0,8,8,16,24,32,32,40,40,40,40,40,40,32,32,24,16,8,8
+TOTAL_ANIM_SIZE = * - anim_tbl
+
+delay:
+        .byte   07
+; Exported using VChar64 from level-cyclocross-anims
+charset:
+; char #203
+.byte $55,$55,$55,$00,$00,$00,$03,$0f,$55,$55,$55,$00,$00,$00,$0f,$3f	; 0
+.byte $55,$55,$55,$00,$00,$00,$3c,$ff,$55,$55,$55,$00,$00,$00,$03,$0f	; 16
+.byte $55,$55,$55,$00,$00,$00,$00,$03,$55,$55,$55,$00,$00,$00,$00,$00	; 32
+; char #235
+.byte $55,$55,$55,$00,$00,$00,$c0,$f0,$55,$55,$55,$00,$00,$00,$00,$c0	; 48
+.byte $55,$55,$55,$00,$00,$00,$00,$00,$55,$55,$55,$00,$00,$00,$c0,$f0	; 64
+.byte $55,$55,$55,$00,$00,$00,$f0,$fc,$55,$55,$55,$00,$00,$00,$3c,$ff	; 80
+; char #204
+.byte $0f,$0f,$0f,$03,$00,$00,$00,$55,$3f,$3f,$3f,$0f,$00,$00,$00,$55	; 96
+.byte $ff,$ff,$ff,$3c,$00,$00,$00,$55,$0f,$0f,$0f,$03,$00,$00,$00,$55	; 112
+.byte $03,$03,$03,$00,$00,$00,$00,$55,$00,$00,$00,$00,$00,$00,$00,$55	; 128
+; char #236
+.byte $f0,$f0,$f0,$c0,$00,$00,$00,$55,$c0,$c0,$c0,$00,$00,$00,$00,$55	; 144
+.byte $00,$00,$00,$00,$00,$00,$00,$55,$f0,$f0,$f0,$c0,$00,$00,$00,$55	; 160
+.byte $fc,$fc,$fc,$f0,$00,$00,$00,$55,$ff,$ff,$ff,$3c,$00,$00,$00,$55	; 176
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -2282,7 +2344,7 @@ l0:     lda spr_colors,x
 
         jsr music_patch_table_1                 ; convert to PAL if needed
 
-        lda #AUTO_SPEED+1                       ; computer accelerates a bit slower
+        lda #AUTO_SPEED                         ; how fast the computer accelerates
         sta zp_computer_speed
 
         ldx #0
@@ -2368,7 +2430,7 @@ l0:     lda spr_colors,x
         lda #%01000000                          ; extended color to be used in speedbar
         sta zp_mc_color
 
-        lda #AUTO_SPEED                         ; computer accelerates at normal speed
+        lda #AUTO_SPEED                         ; how fast the computer accelerates
         sta zp_computer_speed
 
 .if !(::RECORD_FIRE)                            ; only copy if not recording fires
@@ -2454,7 +2516,7 @@ l0:     lda spr_colors,x
         lda #%10000000                          ; extended color to be used in speedbar
         sta zp_mc_color
 
-        lda #AUTO_SPEED+1                       ; computer accelerates a bit slower
+        lda #AUTO_SPEED                         ; how fast the computer accelerates
         sta zp_computer_speed
 
 .if !(::RECORD_FIRE)                            ; only copy if not recording fires
