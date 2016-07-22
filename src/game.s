@@ -1996,7 +1996,157 @@ p2_collision_tire:
 ; void animate_level_roadrace
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc animate_level_roadrace
+        dec delay
+        beq doanim
         rts
+doanim:
+        lda #07
+        sta delay
+
+        ;
+        ; right animations
+        ;
+
+        lda CHARSET_BASE + 83 * 8 + 2           ; animate flow moving right. char #83
+        lsr                                     ; only row 2 and 5 need to be animated
+        bcc :+
+        ora #%10000000
+:       lsr
+        bcc :+
+        ora #%10000000
+:       sta CHARSET_BASE + 83 * 8 + 2
+        sta CHARSET_BASE + 83 * 8 + 5
+
+
+        lda CHARSET_BASE + 90 * 8 + 2           ; animate flow moving right. char #90
+        lsr                                     ; only row 2 and 5 need to be animated
+        bcc :+
+        ora #%10000000
+:       lsr
+        bcc :+
+        ora #%10000000
+:       sta CHARSET_BASE + 90 * 8 + 2
+        sta CHARSET_BASE + 90 * 8 + 5
+
+
+        lda CHARSET_BASE + 165 * 8 + 2          ; animate flow moving right. char #165
+        lsr                                     ; only row 2 and 5 need to be animated
+        bcc :+
+        ora #%10000000
+:       lsr
+        bcc :+
+        ora #%10000000
+:       sta CHARSET_BASE + 165 * 8 + 2
+        sta CHARSET_BASE + 165 * 8 + 5
+
+
+        lda CHARSET_BASE + 104 * 8 + 2          ; animate flow moving right. char #104
+        lsr                                     ; only row 2 and 5 need to be animated
+        bcc :+
+        ora #%10000000
+:       lsr
+        bcc :+
+        ora #%10000000
+:       sta CHARSET_BASE + 104 * 8 + 2
+        sta CHARSET_BASE + 104 * 8 + 5
+
+        ;
+        ; up /down animations
+        ;
+
+        ldx CHARSET_BASE + 86 * 8               ; animate flow going up. char #86
+        ldy CHARSET_BASE + 86 * 8 + 1
+        .repeat 3, YY
+                lda CHARSET_BASE + 86 * 8 + 2 + YY * 2
+                sta CHARSET_BASE + 86 * 8 + 0 + YY * 2
+                lda CHARSET_BASE + 86 * 8 + 3 + YY * 2
+                sta CHARSET_BASE + 86 * 8 + 1 + YY * 2
+        .endrepeat
+        stx CHARSET_BASE + 86 * 8 + 6
+        sty CHARSET_BASE + 86 * 8 + 7
+
+
+        ldx CHARSET_BASE + 229 * 8               ; animate flow going up. char #229
+        ldy CHARSET_BASE + 229 * 8 + 1
+        .repeat 3, YY
+                lda CHARSET_BASE + 229 * 8 + 2 + YY * 2
+                sta CHARSET_BASE + 229 * 8 + 0 + YY * 2
+                lda CHARSET_BASE + 229 * 8 + 3 + YY * 2
+                sta CHARSET_BASE + 229 * 8 + 1 + YY * 2
+        .endrepeat
+        stx CHARSET_BASE + 229 * 8 + 6
+        sty CHARSET_BASE + 229 * 8 + 7
+
+
+        ldx CHARSET_BASE + 27 * 8 + 6           ; animate flow going down. char #27
+        ldy CHARSET_BASE + 27 * 8 + 7
+        .repeat 3, YY
+                lda CHARSET_BASE + 27 * 8 + 1 + (2-YY) * 2
+                sta CHARSET_BASE + 27 * 8 + 3 + (2-YY) * 2
+                lda CHARSET_BASE + 27 * 8 + 0 + (2-YY) * 2
+                sta CHARSET_BASE + 27 * 8 + 2 + (2-YY) * 2
+        .endrepeat
+        stx CHARSET_BASE + 27 * 8 + 0
+        sty CHARSET_BASE + 27 * 8 + 1
+
+        ;
+        ; char animations
+        ;
+
+        lda charset_idx
+        tay                                     ; save value for later
+        asl
+        asl
+        asl                                     ; index =* 8
+        tax
+        .repeat 8, YY
+                lda charset + 0 * 32 + YY,x
+                sta CHARSET_BASE + 87 * 8 + YY          ; char #87
+                sta CHARSET_BASE + 84 * 8 + (7-YY)      ; char #84
+
+                lda charset + 1 * 32 + YY,x
+                sta CHARSET_BASE + 88 * 8 + YY          ; char #88
+                sta CHARSET_BASE + 85 * 8 + (7-YY)      ; char #85
+
+                lda charset + 2 * 32 + YY,x
+                sta CHARSET_BASE + 227 * 8 + YY          ; char #227
+                sta CHARSET_BASE + 231 * 8 + (7-YY)      ; char #231
+
+                lda charset + 3 * 32 + YY,x
+                sta CHARSET_BASE + 228 * 8 + YY          ; char #228
+                sta CHARSET_BASE + 232 * 8 + (7-YY)      ; char #232
+        .endrepeat
+        iny
+        cpy #4
+        bne :+
+        ldy #0
+:       sty charset_idx
+
+        rts
+delay:
+        .byte   07
+
+; Exported using VChar64 v0.0.13-6-g96573-dirty
+; Total bytes: 2048
+charset_idx:    .byte 1                 ; values: 0, 8, 16, 24
+                                        ; for anims per char
+charset:
+; animates char #87 (Y-flipped of #84)
+.byte $55,$55,$d5,$fd,$fd,$dd,$5d,$5d,$55,$55,$75,$fd,$fd,$7d,$5d,$5d	; 0
+.byte $55,$55,$55,$fd,$ff,$7f,$5d,$5d,$55,$55,$55,$fd,$fd,$5d,$7f,$7f	; 16
+
+; animates char #88 (Y-reversed of #85)
+.byte $7f,$7f,$5d,$5f,$5f,$55,$55,$55,$5d,$5d,$7f,$7f,$5f,$55,$55,$55	; 32
+.byte $5d,$5d,$5f,$5f,$5f,$5d,$55,$55,$5d,$5d,$5f,$5f,$5f,$57,$55,$55	; 48
+
+; animates char #227 (Y-flipped of #231)
+.byte $ae,$ae,$ee,$fe,$fe,$ea,$aa,$aa,$ae,$ae,$be,$fe,$fe,$ba,$aa,$aa	; 64
+.byte $ae,$ae,$bf,$ff,$fe,$aa,$aa,$aa,$bf,$bf,$ae,$fe,$fe,$aa,$aa,$aa	; 80
+
+; animates char #228 (Y-flipped of #232)
+.byte $aa,$aa,$aa,$af,$af,$ae,$bf,$bf,$aa,$aa,$aa,$af,$bf,$bf,$ae,$ae	; 96
+.byte $aa,$aa,$ae,$af,$af,$af,$ae,$ae,$aa,$aa,$ab,$af,$af,$af,$ae,$ae	; 112
+
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
