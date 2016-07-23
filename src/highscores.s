@@ -124,7 +124,7 @@ paint:
         jsr @print_highscore_entry
 
         clc                             ; pointer to the next line in the screen
-        lda zp_hs_ptr_lo 
+        lda zp_hs_ptr_lo
         adc #(40 * 2)                   ; skip one line
         sta zp_hs_ptr_lo
         bcc :+
@@ -140,7 +140,6 @@ paint:
 
         ldy #$00                        ; y = screen idx
 
-        pha
         clc
         adc #$01                        ; positions start with 1, not 0
 
@@ -149,7 +148,6 @@ paint:
 
         lda #$31                        ; hack: if number is 10, print '1'. $31 = '1'
         sta (zp_hs_ptr_lo),y            ; otherwise, skip to second number
-        ora #$40
         iny
         lda #00                         ; second digit is '0'
         jmp :+
@@ -157,8 +155,7 @@ paint:
 @print_second_digit:
         iny
 :
-        clc
-        adc #$30                        ; A = high_score entry.
+        ora #$30
         sta (zp_hs_ptr_lo),y
         iny
 
@@ -168,7 +165,7 @@ paint:
 
 
         lda #10                         ; print name. 10 chars
-        sta @tmp_counter
+        sta zp_tmp00
 
         txa                             ; multiply x by 16, since each entry has 16 bytes
         asl
@@ -177,37 +174,57 @@ paint:
         asl
         tax                             ; x = high score pointer
 
-:       lda entries,x                   ; points to entry[i].name
+:       lda entries_roadrace,x          ; points to entry[i].name
         sta (zp_hs_ptr_lo),y            ; pointer to screen
         iny
         inx
-        dec @tmp_counter
+        dec zp_tmp00
         bne :-
 
 
         lda #6                          ; print score. 6 digits
-        sta @tmp_counter
+        sta zp_tmp00
 
         tya                             ; advance some chars
         clc
         adc #8
         tay
 
-:       lda entries,x                   ; points to entry[i].score
-        clc
-        adc #$30
-        sta (zp_hs_ptr_lo),y            ; pointer to screen
-        iny
-        inx
-        dec @tmp_counter
-        bne :-
+                                        ; minutes
+        lda entries_roadrace,x          ; points to entry[i].score
+        ora #$30
+        sta (zp_hs_ptr_lo),y            ; write to screen
 
-        pla
-        tax
+        iny                             ; ptr to screen++
+        lda #58                         ; ':'
+        sta (zp_hs_ptr_lo),y            ; write to screen
+
+                                        ; seconds (first digit)
+        iny                             ; ptr to screen++
+        inx                             ; ptr to score++
+        lda entries_roadrace,x          ; points to entry[i].score
+        ora #$30
+        sta (zp_hs_ptr_lo),y            ; write to screen
+
+                                        ; seconds (second digit)
+        iny                             ; ptr to screen++
+        inx                             ; ptr to score++
+        lda entries_roadrace,x          ; points to entry[i].score
+        ora #$30
+        sta (zp_hs_ptr_lo),y            ; write to screen
+
+        iny                             ; ptr to screen++
+        lda #58                         ; ':'
+        sta (zp_hs_ptr_lo),y            ; write to screen
+
+                                        ; decimal
+        iny                             ; ptr to screen++
+        inx                             ; ptr to score++
+        lda entries_roadrace,x          ; points to entry[i].score
+        ora #$30
+        sta (zp_hs_ptr_lo),y            ; write to screen
+
         rts
-
-@tmp_counter:
-        .byte 0
 .endproc
 
 
@@ -217,27 +234,99 @@ categories:
         scrcode "               cyclo cross              "
         scrcode "              cross country             "
 
-entries:
-        ; high score entry:
+entries_roadrace:
+        ; high score entry: must have exactly 16 bytes each entry
         ;     name: 10 bytes in PETSCII
-        ;     score: 6 bytes
+        ;     score: 4 bytes
+        ;     pad: 2 bytes
         ;        0123456789
         scrcode "tom       "
-        .byte  9,0,0,0,0,0
+        .byte  0,4,0,2
+        .byte 0,0               ; ignore
         scrcode "chris     "
-        .byte  8,0,0,0,0,0
+        .byte  0,4,0,8
+        .byte 0,0               ; ignore
         scrcode "dragon    "
-        .byte  7,0,0,0,0,0
+        .byte  0,4,1,0
+        .byte 0,0               ; ignore
         scrcode "corbin    "
-        .byte  6,0,0,0,0,0
+        .byte  0,4,1,5
+        .byte 0,0               ; ignore
         scrcode "jimbo     "
-        .byte  5,0,0,0,0,0
+        .byte  0,4,2,2
+        .byte 0,0               ; ignore
         scrcode "ashley    "
-        .byte  4,0,0,0,0,0
+        .byte  0,4,5,9
+        .byte 0,0               ; ignore
         scrcode "josh      "
-        .byte  3,0,0,0,0,0
+        .byte  0,4,6,3
+        .byte 0,0               ; ignore
         scrcode "michele   "
-        .byte  2,0,0,0,0,0
+        .byte  0,4,8,8
+        .byte 0,0               ; ignore
+
+entries_crosscountry:
+        ; high score entry: must have exactly 16 bytes each entry
+        ;     name: 10 bytes in PETSCII
+        ;     score: 4 bytes
+        ;     pad: 2 bytes
+        ;        0123456789
+        scrcode "tom       "
+        .byte  0,4,0,2
+        .byte 0,0               ; ignore
+        scrcode "chris     "
+        .byte  0,4,0,8
+        .byte 0,0               ; ignore
+        scrcode "dragon    "
+        .byte  0,4,1,0
+        .byte 0,0               ; ignore
+        scrcode "corbin    "
+        .byte  0,4,1,5
+        .byte 0,0               ; ignore
+        scrcode "jimbo     "
+        .byte  0,4,2,2
+        .byte 0,0               ; ignore
+        scrcode "ashley    "
+        .byte  0,4,5,9
+        .byte 0,0               ; ignore
+        scrcode "josh      "
+        .byte  0,4,6,3
+        .byte 0,0               ; ignore
+        scrcode "michele   "
+        .byte  0,4,8,8
+        .byte 0,0               ; ignore
+
+entries_cyclocross:
+        ; high score entry: must have exactly 16 bytes each entry
+        ;     name: 10 bytes in PETSCII
+        ;     score: 4 bytes
+        ;     pad: 2 bytes
+        ;        0123456789
+        scrcode "tom       "
+        .byte  0,4,0,2
+        .byte 0,0               ; ignore
+        scrcode "chris     "
+        .byte  0,4,0,8
+        .byte 0,0               ; ignore
+        scrcode "dragon    "
+        .byte  0,4,1,0
+        .byte 0,0               ; ignore
+        scrcode "corbin    "
+        .byte  0,4,1,5
+        .byte 0,0               ; ignore
+        scrcode "jimbo     "
+        .byte  0,4,2,2
+        .byte 0,0               ; ignore
+        scrcode "ashley    "
+        .byte  0,4,5,9
+        .byte 0,0               ; ignore
+        scrcode "josh      "
+        .byte  0,4,6,3
+        .byte 0,0               ; ignore
+        scrcode "michele   "
+        .byte  0,4,8,8
+        .byte 0,0               ; ignore
+
 
 score_counter: .byte 0                  ; score that has been drawn
 delay:         .byte $10                ; delay used to print the scores
