@@ -6,8 +6,6 @@
 ;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
-.import decrunch                                ; exomizer decrunch
-.import _crunched_byte_hi, _crunched_byte_lo    ; from utils
 .import ut_clear_color, ut_get_key, ut_clear_screen
 .import menu_read_events
 .import mainscreen_colors

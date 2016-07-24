@@ -9,9 +9,11 @@
 ; exported by the linker
 .import __SIDMUSIC_LOAD__
 
-.import roadrace_init, selectevent_init, scores_init, about_init
+.import roadrace_init, selectevent_init, scores_init, about_init, instructions_init
 .import selectevent_loop
 .import music_speed, PALB_MUSIC_SPEED, NTSC_MUSIC_SPEED, PALN_MUSIC_SPEED
+.import music_patch_table_1
+.import menu_handle_events, menu_invert_row
 
 ; from exodecrunch.s
 .import decrunch                                ; exomizer decrunch
@@ -21,8 +23,7 @@
 .import ut_get_key, ut_read_joy2
 .import ut_vic_video_type, ut_start_clean
 .import ut_clear_screen, ut_clear_color
-.import menu_handle_events, menu_invert_row
-.import music_patch_table_1
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -38,8 +39,9 @@
 .enum SCENE_STATE
         MAIN_MENU
         SELECTEVENT_MENU
-        SCORES_MENU
-        ABOUT_MENU
+        SCORES
+        INSTRUCTIONS
+        ABOUT
 .endenum
 
 DEBUG = 0                               ; bitwise: 1=raster-sync code
@@ -136,7 +138,7 @@ main_loop:
 ; void mainmenu_init()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc mainmenu_init
-        lda #3                                  ; setup the global variables
+        lda #4                                  ; setup the global variables
         sta MENU_MAX_ITEMS                      ; needed for the menu code
         lda #0
         sta MENU_CURRENT_ITEM
@@ -144,8 +146,8 @@ main_loop:
         sta MENU_ITEM_LEN
         lda #(40*2)
         sta MENU_BYTES_BETWEEN_ITEMS
-        ldx #<(SCREEN0_BASE + 40 * 17 + 5)
-        ldy #>(SCREEN0_BASE + 40 * 17 + 5)
+        ldx #<(SCREEN0_BASE + 40 * 16 + 5)
+        ldy #>(SCREEN0_BASE + 40 * 16 + 5)
         stx MENU_CURRENT_ROW_ADDR
         sty MENU_CURRENT_ROW_ADDR+1
         ldx #<mainmenu_exec
@@ -165,7 +167,9 @@ main_loop:
         cmp #$01
         beq jump_high_scores            ; item 1? high scores
         cmp #$02
-        beq jump_about                  ; item 2? about
+        beq jump_instructions
+        cmp #$03
+        beq jump_about                  ; item 3? about
         jmp end                         ; FIXME: add here jump to about
 
 end:
@@ -178,16 +182,22 @@ start_game:
         rts
 
 jump_high_scores:
-        lda #SCENE_STATE::SCORES_MENU
+        lda #SCENE_STATE::SCORES
         sta scene_state
 
         jsr scores_init                 ; takes over of the mainloop
                                         ; no need to update the jmp table
         jmp set_mainmenu
 
+jump_instructions:
+        lda #SCENE_STATE::INSTRUCTIONS
+        sta scene_state
+        jsr instructions_init           ; takes over of the mainloop
+                                        ; no need to update the jmp table
+        jmp set_mainmenu
 
 jump_about:
-        lda #SCENE_STATE::ABOUT_MENU
+        lda #SCENE_STATE::ABOUT
         sta scene_state
 
         jsr about_init                  ; takes over of the mainloop

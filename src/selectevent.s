@@ -40,20 +40,20 @@
 
         ldx #0
 l0:
-        lda selectevent_map,x                   ; copy 9 * 40 chars in total
-        sta SCREEN0_BASE + 40 * 17,x
+        lda selectevent_map,x                   ; copy 8 * 40 chars in total
+        sta SCREEN0_BASE + 40 * 16,x
 
-        lda selectevent_map + 64,x
-        sta SCREEN0_BASE + 40 * 17 + 64,x
+        lda selectevent_map + 64,x              ; 320 - 256 = 64
+        sta SCREEN0_BASE + 40 * 16 + 64,x 
 
         inx
         bne l0
 
-        lda #1                                  ; white color last $d800 row
-        ldx #39
-l1:     sta $d800 + 24 * 40,x
-        dex
-        bpl l1
+;        lda #1                                  ; white color last $d800 row
+;        ldx #39
+;l1:     sta $d800 + 24 * 40,x
+;        dex
+;        bpl l1
 
 
         lda #3                                  ; setup the global variables
@@ -64,8 +64,8 @@ l1:     sta $d800 + 24 * 40,x
         sta MENU_ITEM_LEN
         lda #(40*2)
         sta MENU_BYTES_BETWEEN_ITEMS
-        ldx #<(SCREEN0_BASE + 40 * 20 + 5)
-        ldy #>(SCREEN0_BASE + 40 * 20 + 5)
+        ldx #<(SCREEN0_BASE + 40 * 19 + 5)
+        ldy #>(SCREEN0_BASE + 40 * 19 + 5)
         stx MENU_CURRENT_ROW_ADDR
         sty MENU_CURRENT_ROW_ADDR+1
         ldx #<selectevent_exec
@@ -98,20 +98,14 @@ l1:     sta $d800 + 24 * 40,x
 
         ldx #0
 l0:
-        lda number_of_players_map,x             ; copy 9 * 40 chars in total
-        sta SCREEN0_BASE + 40 * 17,x
+        lda number_of_players_map,x             ; copy 8 * 40 chars in total
+        sta SCREEN0_BASE + 40 * 16,x
 
-        lda number_of_players_map+ 64,x
-        sta SCREEN0_BASE + 40 * 17 + 64,x
+        lda number_of_players_map+ 64,x         ; 320 - 256 = 64
+        sta SCREEN0_BASE + 40 * 16 + 64,x
 
         inx
         bne l0
-
-        lda #1                                  ; white color last $d800 row
-        ldx #39
-l1:     sta $d800 + 24 * 40,x
-        dex
-        bpl l1
 
 
         lda #2                                  ; setup the global variables
@@ -122,8 +116,8 @@ l1:     sta $d800 + 24 * 40,x
         sta MENU_ITEM_LEN
         lda #(40*2)
         sta MENU_BYTES_BETWEEN_ITEMS
-        ldx #<(SCREEN0_BASE + 40 * 21 + 5)
-        ldy #>(SCREEN0_BASE + 40 * 21 + 5)
+        ldx #<(SCREEN0_BASE + 40 * 19 + 5)
+        ldy #>(SCREEN0_BASE + 40 * 19 + 5)
         stx MENU_CURRENT_ROW_ADDR
         sty MENU_CURRENT_ROW_ADDR+1
         ldx #<number_of_players_exec

@@ -9,7 +9,7 @@ X64 = x64
 all: res bin
 bin: unigames d64 run
 
-SRC=src/intro.s src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s src/about.s src/music_table.s
+SRC=src/intro.s src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s src/about.s src/music_table.s src/instructions.s
 
 res:
 	echo "Compressing resources..."
@@ -32,6 +32,7 @@ res:
 	cp res/mainscreen-colors.bin src
 	cp res/about-map.bin src
 	cp res/hiscores-map.bin src
+	cp res/instructions-map.bin src
 	cp res/Popcorn_2.exo src/maintitle_music.sid.exo
 	cp res/Action_G.exo src/music_cyclocross.sid.exo
 	cp res/12_Bar_Blues.exo src/music_roadrace.sid.exo
