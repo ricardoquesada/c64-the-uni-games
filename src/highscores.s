@@ -39,7 +39,6 @@ UNI2_COL = 10
 ;------------------------------------------------------------------------------;
 .export scores_init
 .proc scores_init
-        sei
         lda #0
         sta score_counter
 
@@ -53,7 +52,6 @@ UNI2_COL = 10
         jsr ut_clear_screen
 
         jsr scores_init_screen
-        cli
 
 
 scores_mainloop:

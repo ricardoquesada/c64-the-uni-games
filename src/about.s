@@ -157,27 +157,31 @@ l1:
         bne l1
 
         lda #1
-        sta $d01a                               ; enable raster IRQ
-
-        lda #0
-        sta $d012
-        sta about_sync_timer                    ; sync flags
-        sta about_sync_raster
-        sta scroll_y
-        sta scroll_row
-
-        lda #1
         sta scroll_delay
-
-        ldx #<irq_vscroll_top
-        ldy #>irq_vscroll_top
-        stx $fffe
-        sty $ffff
 
         ldx #<credits_map
         ldy #>credits_map
         stx about_anim_scroll::source_addr
         sty about_anim_scroll::source_addr+1
+
+        lda #0
+        sta about_sync_timer                    ; sync flags
+        sta about_sync_raster
+        sta scroll_y
+        sta scroll_row
+
+        sei
+
+        lda #1
+        sta $d01a                               ; enable raster IRQ
+
+        lda #0
+        sta $d012
+
+        ldx #<irq_vscroll_top
+        ldy #>irq_vscroll_top
+        stx $fffe
+        sty $ffff
 
         cli
 

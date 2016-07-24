@@ -373,7 +373,7 @@ l1:     lda sprite_x,x
 @end:
         rts
 
-        ; variables for BC's Tire sprites
+        ; variables for BC's Tire sprites and N,M masks
 sprite_x:
         .byte 183,176,176,176,296-256
 sprite_y:
