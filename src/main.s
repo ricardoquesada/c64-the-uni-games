@@ -468,3 +468,10 @@ mainsid_exo:
 mainscreen_charset_exo:
 
         .byte 0             ; ignore
+
+
+.segment "SIDMUSIC"
+        .res 5120,0
+
+.segment "UNCOMPRESSED_DATA"
+        .res 16384,0

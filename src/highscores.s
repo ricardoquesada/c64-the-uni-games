@@ -226,11 +226,17 @@ paint:
 .endproc
 
 
+score_counter: .byte 0                  ; score that has been drawn
+delay:         .byte $10                ; delay used to print the scores
+
                 ;0123456789|123456789|123456789|123456789|
 categories:
         scrcode "                road race               "
         scrcode "               cyclo cross              "
         scrcode "              cross country             "
+
+hiscores_map:
+        .incbin "hiscores-map.bin"      ; 40 * 6
 
 entries_roadrace:
         ; high score entry: must have exactly 16 bytes each entry
@@ -239,28 +245,28 @@ entries_roadrace:
         ;     pad: 2 bytes
         ;        0123456789
         scrcode "tom       "
-        .byte  0,4,0,2
+        .byte 0,4,0,2
         .byte 0,0               ; ignore
         scrcode "chris     "
-        .byte  0,4,0,8
+        .byte 0,4,0,8
         .byte 0,0               ; ignore
         scrcode "dragon    "
-        .byte  0,4,1,0
+        .byte 0,4,1,0
         .byte 0,0               ; ignore
         scrcode "corbin    "
-        .byte  0,4,1,5
+        .byte 0,4,1,5
         .byte 0,0               ; ignore
         scrcode "jimbo     "
-        .byte  0,4,2,2
+        .byte 0,4,2,2
         .byte 0,0               ; ignore
         scrcode "ashley    "
-        .byte  0,4,5,9
+        .byte 0,4,5,9
         .byte 0,0               ; ignore
         scrcode "josh      "
-        .byte  0,4,6,3
+        .byte 0,4,6,3
         .byte 0,0               ; ignore
         scrcode "michele   "
-        .byte  0,4,8,8
+        .byte 0,4,8,8
         .byte 0,0               ; ignore
 
 entries_crosscountry:
@@ -270,28 +276,28 @@ entries_crosscountry:
         ;     pad: 2 bytes
         ;        0123456789
         scrcode "tom       "
-        .byte  0,4,0,2
+        .byte 0,4,0,2
         .byte 0,0               ; ignore
         scrcode "chris     "
-        .byte  0,4,0,8
+        .byte 0,4,0,8
         .byte 0,0               ; ignore
         scrcode "dragon    "
-        .byte  0,4,1,0
+        .byte 0,4,1,0
         .byte 0,0               ; ignore
         scrcode "corbin    "
-        .byte  0,4,1,5
+        .byte 0,4,1,5
         .byte 0,0               ; ignore
         scrcode "jimbo     "
-        .byte  0,4,2,2
+        .byte 0,4,2,2
         .byte 0,0               ; ignore
         scrcode "ashley    "
-        .byte  0,4,5,9
+        .byte 0,4,5,9
         .byte 0,0               ; ignore
         scrcode "josh      "
-        .byte  0,4,6,3
+        .byte 0,4,6,3
         .byte 0,0               ; ignore
         scrcode "michele   "
-        .byte  0,4,8,8
+        .byte 0,4,8,8
         .byte 0,0               ; ignore
 
 entries_cyclocross:
@@ -301,33 +307,27 @@ entries_cyclocross:
         ;     pad: 2 bytes
         ;        0123456789
         scrcode "tom       "
-        .byte  0,4,0,2
+        .byte 0,4,0,2
         .byte 0,0               ; ignore
         scrcode "chris     "
-        .byte  0,4,0,8
+        .byte 0,4,0,8
         .byte 0,0               ; ignore
         scrcode "dragon    "
-        .byte  0,4,1,0
+        .byte 0,4,1,0
         .byte 0,0               ; ignore
         scrcode "corbin    "
-        .byte  0,4,1,5
+        .byte 0,4,1,5
         .byte 0,0               ; ignore
         scrcode "jimbo     "
-        .byte  0,4,2,2
+        .byte 0,4,2,2
         .byte 0,0               ; ignore
         scrcode "ashley    "
-        .byte  0,4,5,9
+        .byte 0,4,5,9
         .byte 0,0               ; ignore
         scrcode "josh      "
-        .byte  0,4,6,3
+        .byte 0,4,6,3
         .byte 0,0               ; ignore
         scrcode "michele   "
-        .byte  0,4,8,8
+        .byte 0,4,8,8
         .byte 0,0               ; ignore
 
-
-score_counter: .byte 0                  ; score that has been drawn
-delay:         .byte $10                ; delay used to print the scores
-
-hiscores_map:
-        .incbin "hiscores-map.bin"      ; 40 * 6
