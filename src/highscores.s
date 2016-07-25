@@ -34,6 +34,17 @@ UNI2_COL = 10
 
 .segment "HI_CODE"
 
+.enum SCORES_STATE
+        PAITING
+        WAITING
+.endenum
+
+.enum SCORES_CAT
+        ROAD_RACE
+        CYCLO_CROSS
+        CROSS_COUNTRY
+.endenum
+
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; scores_init
 ;------------------------------------------------------------------------------;
@@ -41,6 +52,11 @@ UNI2_COL = 10
 .proc scores_init
         lda #0
         sta score_counter
+
+        lda #SCORES_STATE::WAITING
+        sta scores_state
+        lda #SCORES_CAT::ROAD_RACE
+        sta scores_category
 
         lda #%00000000                  ; enable only PAL/NTSC scprite
         sta VIC_SPR_ENA
@@ -86,27 +102,28 @@ l0:
         cpx #240
         bne l0
 
-
-        ldx #39
-:       lda categories,x                ; displays the  category: "10k road racing"
-        sta SCREEN0_BASE + 280,x
-        dex
-        bpl :-
-
-        ldx #<(SCREEN0_BASE + 40 * 10 + 6)  ; init "save" pointer
-        ldy #>(SCREEN0_BASE + 40 * 10 + 6)  ; start writing at 10th line
-        stx zp_hs_ptr_lo
-        sty zp_hs_ptr_hi
-        rts
+        jmp scores_setup_paint
 .endproc
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; paint_score
-; entries:
-;       X = score to draw
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc paint_score
 
+        lda scores_state
+        cmp #SCORES_STATE::WAITING
+        bne paint_delay                 ; paint or wait?
+
+;wait_delay                             ; SCORES_STATE::WAITING
+        dec delay
+        bne @end
+        jmp scores_setup_paint
+@end:
+        rts
+
+
+paint_delay:                            ; SCORES_STATE::PAITING
         dec delay
         beq paint
         rts
@@ -117,8 +134,11 @@ paint:
 
         ldx score_counter
         cpx #8                          ; paint only 8 scores
-        beq @end
+        bne paint_next
 
+        jmp scores_next_category        ; setup next category then
+
+paint_next:
         jsr @print_highscore_entry
 
         clc                             ; pointer to the next line in the screen
@@ -130,7 +150,6 @@ paint:
 :
         inc score_counter
 
-@end:
         rts
 
 @print_highscore_entry:
@@ -172,7 +191,7 @@ paint:
         asl
         tax                             ; x = high score pointer
 
-:       lda entries_roadrace,x          ; points to entry[i].name
+:       lda scores_entries,x            ; points to entry[i].name
         sta (zp_hs_ptr_lo),y            ; pointer to screen
         iny
         inx
@@ -189,7 +208,7 @@ paint:
         tay
 
                                         ; minutes
-        lda entries_roadrace,x          ; points to entry[i].score
+        lda scores_entries,x            ; points to entry[i].score
         ora #$30
         sta (zp_hs_ptr_lo),y            ; write to screen
 
@@ -200,14 +219,14 @@ paint:
                                         ; seconds (first digit)
         iny                             ; ptr to screen++
         inx                             ; ptr to score++
-        lda entries_roadrace,x          ; points to entry[i].score
+        lda scores_entries,x            ; points to entry[i].score
         ora #$30
         sta (zp_hs_ptr_lo),y            ; write to screen
 
                                         ; seconds (second digit)
         iny                             ; ptr to screen++
         inx                             ; ptr to score++
-        lda entries_roadrace,x          ; points to entry[i].score
+        lda scores_entries,x            ; points to entry[i].score
         ora #$30
         sta (zp_hs_ptr_lo),y            ; write to screen
 
@@ -218,21 +237,116 @@ paint:
                                         ; decimal
         iny                             ; ptr to screen++
         inx                             ; ptr to score++
-        lda entries_roadrace,x          ; points to entry[i].score
+        lda scores_entries,x            ; points to entry[i].score
         ora #$30
         sta (zp_hs_ptr_lo),y            ; write to screen
 
         rts
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void scores_next_category()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc scores_next_category
+        lda #$ff                        ; finished paiting the 8 entries ?
+        sta delay                       ; then switch to wait mode
+        lda #SCORES_STATE::WAITING
+        sta scores_state
+        ldx scores_category
+        inx
+        cpx #3
+        bne :+
+        ldx #0
+:       stx scores_category
+        rts
+.endproc
 
-score_counter: .byte 0                  ; score that has been drawn
-delay:         .byte $10                ; delay used to print the scores
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void scores_setup_paint()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc scores_setup_paint
+        lda #SCORES_STATE::PAITING
+        sta scores_state
+        lda #$04
+        sta delay
+        lda #0
+        sta score_counter
+
+
+        ldx #0                          ; clear bottom part of the screen,
+        lda #$20                        ; where the scores go
+l0:     sta SCREEN0_BASE + 240,x
+        sta SCREEN0_BASE + 256 + 240,x
+        sta SCREEN0_BASE + 512 + 240,x
+        inx
+        bne l0
+
+        ldx scores_category
+        lda categories_name_lo,x
+        sta categories_name
+        lda categories_name_hi,x
+        sta categories_name+1
+
+        ldx #39
+categories_name = *+1                   ; self modifying
+:       lda categories_roadrace,x       ; displays the  category
+        sta SCREEN0_BASE + 280,x
+        dex
+        bpl :-
+
+
+        ldx scores_category             ; copy scores from "load"
+        lda scores_entries_lo,x         ; to final position
+        sta entries
+        lda scores_entries_hi,x
+        sta entries+1
+
+        ldx #127
+entries = *+1
+:       lda entries_roadrace,x          ; self modyfing
+        sta scores_entries,x
+        dex
+        bpl :-
+
+
+        ldx #<(SCREEN0_BASE + 40 * 10 + 6)  ; init "save" pointer
+        ldy #>(SCREEN0_BASE + 40 * 10 + 6)  ; start writing at 10th line
+        stx zp_hs_ptr_lo
+        sty zp_hs_ptr_hi
+
+
+        rts
+.endproc
+
+
+score_counter: .byte 0                          ; score that has been drawn
+delay:         .byte $10                        ; delay used to print the scores
+scores_state:  .byte SCORES_STATE::PAITING      ; status: paiting? or waiting?
+scores_category: .byte SCORES_CAT::ROAD_RACE    ; which category to print
+
+categories_name_lo:
+        .byte <categories_roadrace
+        .byte <categories_cyclocross
+        .byte <categories_crosscountry
+categories_name_hi:
+        .byte >categories_roadrace
+        .byte >categories_cyclocross
+        .byte >categories_crosscountry
+scores_entries_lo:
+        .byte <entries_roadrace
+        .byte <entries_cyclocross
+        .byte <entries_crosscountry
+scores_entries_hi:
+        .byte >entries_roadrace
+        .byte >entries_cyclocross
+        .byte >entries_crosscountry
 
                 ;0123456789|123456789|123456789|123456789|
-categories:
+categories_roadrace:
         scrcode "                road race               "
+categories_cyclocross:
         scrcode "               cyclo cross              "
+categories_crosscountry:
         scrcode "              cross country             "
 
 hiscores_map:
@@ -241,6 +355,37 @@ hiscores_map:
 ; fixed at $e80 to load/save them from disk
 .segment "SCORES"
 entries_roadrace:
+        ; high score entry: must have exactly 16 bytes each entry
+        ;     name: 10 bytes in PETSCII
+        ;     score: 4 bytes
+        ;     pad: 2 bytes
+        ;        0123456789
+        scrcode "nathan    "
+        .byte 0,4,0,2
+        .byte 0,0               ; ignore
+        scrcode "stefan    "
+        .byte 0,4,0,8
+        .byte 0,0               ; ignore
+        scrcode "beau      "
+        .byte 0,4,1,0
+        .byte 0,0               ; ignore
+        scrcode "corbin    "
+        .byte 0,4,1,5
+        .byte 0,0               ; ignore
+        scrcode "jimbo     "
+        .byte 0,4,2,2
+        .byte 0,0               ; ignore
+        scrcode "rob       "
+        .byte 0,4,5,9
+        .byte 0,0               ; ignore
+        scrcode "harrison  "
+        .byte 0,4,6,3
+        .byte 0,0               ; ignore
+        scrcode "john      "
+        .byte 0,4,8,8
+        .byte 0,0               ; ignore
+
+entries_cyclocross:
         ; high score entry: must have exactly 16 bytes each entry
         ;     name: 10 bytes in PETSCII
         ;     score: 4 bytes
@@ -272,37 +417,6 @@ entries_roadrace:
         .byte 0,0               ; ignore
 
 entries_crosscountry:
-        ; high score entry: must have exactly 16 bytes each entry
-        ;     name: 10 bytes in PETSCII
-        ;     score: 4 bytes
-        ;     pad: 2 bytes
-        ;        0123456789
-        scrcode "tom       "
-        .byte 0,4,0,2
-        .byte 0,0               ; ignore
-        scrcode "chris     "
-        .byte 0,4,0,8
-        .byte 0,0               ; ignore
-        scrcode "dragon    "
-        .byte 0,4,1,0
-        .byte 0,0               ; ignore
-        scrcode "corbin    "
-        .byte 0,4,1,5
-        .byte 0,0               ; ignore
-        scrcode "jimbo     "
-        .byte 0,4,2,2
-        .byte 0,0               ; ignore
-        scrcode "ashley    "
-        .byte 0,4,5,9
-        .byte 0,0               ; ignore
-        scrcode "josh      "
-        .byte 0,4,6,3
-        .byte 0,0               ; ignore
-        scrcode "michele   "
-        .byte 0,4,8,8
-        .byte 0,0               ; ignore
-
-entries_cyclocross:
         ; high score entry: must have exactly 16 bytes each entry
         ;     name: 10 bytes in PETSCII
         ;     score: 4 bytes

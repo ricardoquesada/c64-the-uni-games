@@ -86,6 +86,8 @@ zp_joy2_delay = $86                                     ; .byte 1
 zp_hs_ptr_lo = $90                                      ; .byte  used for sta (),x
 zp_hs_ptr_hi = $91                                      ; .byte
 
+scores_entries = $200                                   ; from $200 to $280
+
 ; game constants
 BANK_BASE = $0000
 SCREEN0_BASE = BANK_BASE + $0400                        ; screen address
