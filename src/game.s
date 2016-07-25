@@ -146,6 +146,9 @@ RECORD_FIRE = 0                         ; computer player: record fire, or play 
 .proc game_start
         sei
 
+        lda #0
+        sta zp_abort                    ; abort flag reset
+
         lda #$00
         sta $d01a                       ; no raster IRQ
 
@@ -187,6 +190,11 @@ RECORD_FIRE = 0                         ; computer player: record fire, or play 
         stx $fffe
         sty $ffff
 
+        ldx #<nmi_handler               ; "RESTORE" key handler
+        ldy #>nmi_handler               ; should be placed after
+        stx $fffa                       ; ut_setup_tod since it changes the nmi handler
+        sty $fffb
+
         lda #RASTER_TRIGGER_ANIMS
         sta $d012
 
@@ -204,6 +212,8 @@ RECORD_FIRE = 0                         ; computer player: record fire, or play 
         cli
 
 _mainloop:
+        lda zp_abort
+        bne abort
         lda zp_sync_raster_anims
         bne animations
         lda zp_sync_raster_bottom_p1
@@ -231,6 +241,11 @@ scroll_p2:
         inc $d020
 .endif
         jmp _mainloop
+
+abort:
+        lda #0
+        sta zp_abort
+        jmp main_menu
 
 animations:
         dec zp_sync_raster_anims
@@ -557,6 +572,15 @@ end_irq:
 .endproc
 
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+;
+; NMI handlers
+;
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc nmi_handler
+        inc zp_abort
+        rti                             ; restores previous PC, status
+.endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void game_init_screen()

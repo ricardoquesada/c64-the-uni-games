@@ -44,18 +44,14 @@
 ; void intro_main()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc intro_main
-                                        ; one time init code here
-        jsr ut_start_clean              ; no basic, no kernal, no interrupts
-        jsr ut_detect_pal_paln_ntsc     ; pal, pal-n or ntsc?
+
+        ldx #$ff                        ; can't be put in "one_time_init" since
+                                        ; it changes the stack pointer
+        txs                             ; init stack, in case it was used
+
+        jsr one_time_init
 
         sei
-
-        lda #$ff
-        sta CIA1_DDRA                   ; port a ddr (output)
-        lda #$0
-        sta CIA1_DDRB                   ; port b ddr (input)
-
-
         lda #$00                        ; turn off volume
         sta SID_Amp
         sta VIC_SPR_ENA                 ; no sprites
@@ -168,6 +164,49 @@ fadeout:
 delay:
         .byte $e0
 .endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void one_time_init()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc one_time_init
+
+        cld                             ; turn-off decimal mode (just in case it was on)
+
+        jsr ut_start_clean              ; no basic, no kernal, no interrupts
+        jsr ut_detect_pal_paln_ntsc     ; pal, pal-n or ntsc?
+
+        lda #$ff
+        sta CIA1_DDRA                   ; port a ddr (output)
+        lda #$0
+        sta CIA1_DDRB                   ; port b ddr (input)
+
+        lda $dd00                       ; Vic bank 0: $0000-$3FFF
+        and #$fc
+        ora #3
+        sta $dd00
+
+        lda #SCORES_CAT::ROAD_RACE      ; Initial category for scores: Road Race
+        sta zp_hs_category
+
+        sei
+        ldx #<nmi_handler
+        ldy #>nmi_handler
+        stx $fffa
+        sty $fffb
+        cli
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+;
+; NMI handlers
+;
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc nmi_handler
+        inc zp_abort
+        rti                             ; restores previous PC, status
+.endproc
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void init_sprite()

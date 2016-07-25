@@ -6,7 +6,39 @@
 ;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
-; zp
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+;
+; Global Enums and constants
+;
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.enum SCORES_CAT
+        ROAD_RACE
+        CYCLO_CROSS
+        CROSS_COUNTRY
+.endenum
+
+.enum SCORES_MODE
+        CYCLE
+        NEW_HS
+.endenum
+
+; game constants
+BANK_BASE = $0000
+SCREEN0_BASE = BANK_BASE + $0400                        ; screen address
+SPRITES_BASE = BANK_BASE + $2400                        ; Sprite 0 at $2400
+                                                        ; reserved space for 48 sprites
+                                                        ; from $2400 to $3000
+SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64)     ; Sprite 0 at 144
+SPRITES_PTR0 = SCREEN0_BASE + 1016                      ; right after the screen, at $7f8
+CHARSET_BASE = BANK_BASE + $3000                        ; place for charset
+MUSIC_INIT = $1000
+MUSIC_PLAY = $1003
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+;
+; ZP variables
+;
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 MENU_MAX_ITEMS = $41                                    ; total number of items
 MENU_CURRENT_ITEM = $42                                 ; item idx  0<idx<max_items
 MENU_BYTES_BETWEEN_ITEMS = $43                          ; 40 for one after another
@@ -82,20 +114,17 @@ zp_computer_delay = $85                                 ; .byte 1
 zp_joy1_delay = $85                                     ; .byte 1 same as zp_computer_delay since they can't be used at the same time
 zp_joy2_delay = $86                                     ; .byte 1
 
+zp_abort = $87                                          ; .byte 0 if 0, "abort" was pressed
 
 zp_hs_ptr_lo = $90                                      ; .byte  used for sta (),x
 zp_hs_ptr_hi = $91                                      ; .byte
+zp_hs_category = $92                                    ; .byte SCORES_CAT::ROAD_RACE
+                                                        ;       SCORES_CAT::CYCLO_CROSS
+                                                        ;       SCORES_CAT::CROSS_COUNTRY
+zp_hs_mode = $93                                        ; .byte SCORES_MODE::CYCLE, SCORES_MODE::NEW_HS
+
+zp_hs_latest_score = $94                                ; 4 .bytes  minutes, seconds, seconds, deci-seconds
+
 
 scores_entries = $200                                   ; from $200 to $280
 
-; game constants
-BANK_BASE = $0000
-SCREEN0_BASE = BANK_BASE + $0400                        ; screen address
-SPRITES_BASE = BANK_BASE + $2400                        ; Sprite 0 at $2400
-                                                        ; reserved space for 48 sprites
-                                                        ; from $2400 to $3000
-SPRITES_POINTER = <((SPRITES_BASE .MOD $4000) / 64)     ; Sprite 0 at 144
-SPRITES_PTR0 = SCREEN0_BASE + 1016                      ; right after the screen, at $7f8
-CHARSET_BASE = BANK_BASE + $3000                        ; place for charset
-MUSIC_INIT = $1000
-MUSIC_PLAY = $1003

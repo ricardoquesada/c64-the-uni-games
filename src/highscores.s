@@ -39,12 +39,6 @@ UNI2_COL = 10
         WAITING
 .endenum
 
-.enum SCORES_CAT
-        ROAD_RACE
-        CYCLO_CROSS
-        CROSS_COUNTRY
-.endenum
-
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; scores_init
 ;------------------------------------------------------------------------------;
@@ -55,8 +49,6 @@ UNI2_COL = 10
 
         lda #SCORES_STATE::WAITING
         sta scores_state
-        lda #SCORES_CAT::ROAD_RACE
-        sta scores_category
 
         lda #%00000000                  ; enable only PAL/NTSC scprite
         sta VIC_SPR_ENA
@@ -252,12 +244,12 @@ paint_next:
         sta delay                       ; then switch to wait mode
         lda #SCORES_STATE::WAITING
         sta scores_state
-        ldx scores_category
+        ldx zp_hs_category
         inx
         cpx #3
         bne :+
         ldx #0
-:       stx scores_category
+:       stx zp_hs_category
         rts
 .endproc
 
@@ -281,7 +273,7 @@ l0:     sta SCREEN0_BASE + 240,x
         inx
         bne l0
 
-        ldx scores_category
+        ldx zp_hs_category
         lda categories_name_lo,x
         sta categories_name
         lda categories_name_hi,x
@@ -295,7 +287,7 @@ categories_name = *+1                   ; self modifying
         bpl :-
 
 
-        ldx scores_category             ; copy scores from "load"
+        ldx zp_hs_category             ; copy scores from "load"
         lda scores_entries_lo,x         ; to final position
         sta entries
         lda scores_entries_hi,x
@@ -322,7 +314,6 @@ entries = *+1
 score_counter: .byte 0                          ; score that has been drawn
 delay:         .byte $10                        ; delay used to print the scores
 scores_state:  .byte SCORES_STATE::PAITING      ; status: paiting? or waiting?
-scores_category: .byte SCORES_CAT::ROAD_RACE    ; which category to print
 
 categories_name_lo:
         .byte <categories_roadrace

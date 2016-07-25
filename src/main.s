@@ -63,14 +63,8 @@ DEBUG = 0                               ; bitwise: 1=raster-sync code
         lda #SCENE_STATE::MAIN_MENU     ; menu to display
         sta scene_state                 ; is "main menu"
 
-        lda $dd00                       ; Vic bank 0: $0000-$3FFF
-        and #$fc
-        ora #3
-        sta $dd00
-
         lda #%00011100                  ; charset at $3000, screen at $0400
         sta $d018
-
 
         lda #$00                        ; background & border color
         sta $d020
@@ -184,6 +178,10 @@ start_game:
 jump_high_scores:
         lda #SCENE_STATE::SCORES
         sta scene_state
+        lda #SCORES_MODE::CYCLE
+        sta zp_hs_mode                  ; 0 == cycle mode
+;        lda #SCORES_CAT::ROAD_RACE     ; reuse existing one
+;        sta zp_hs_category
 
         jsr scores_init                 ; takes over of the mainloop
                                         ; no need to update the jmp table
