@@ -238,6 +238,8 @@ categories:
 hiscores_map:
         .incbin "hiscores-map.bin"      ; 40 * 6
 
+; fixed at $e80 to load/save them from disk
+.segment "SCORES"
 entries_roadrace:
         ; high score entry: must have exactly 16 bytes each entry
         ;     name: 10 bytes in PETSCII
