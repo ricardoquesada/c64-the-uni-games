@@ -1,5 +1,6 @@
-v0.3 -
+v0.3 - CommVEx release
   - new: added bot
+  - new: added instructions
   - controls:
      - road race: joy left + right
 	 - cyclo cross: joy fire
