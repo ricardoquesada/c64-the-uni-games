@@ -7,6 +7,7 @@ The first and only "Unicycle Games" games for the Commodore 64 compatible with U
 ![Title Screen](https://lh3.googleusercontent.com/-yQCSKtv_UFQ/V5ZT_h0yFAI/AAAAAAABe24/0kqLpZXgRVcHFsCEGYktsQwUe3q4E5JhACCo/s800/capture1.png)
 ![RoadRace](https://lh3.googleusercontent.com/-8hNjbAZFeQQ/V5ZT_lzJWEI/AAAAAAABe28/Vi5UdHVHvscV4jwW92_ne154eXWHQcatgCCo/s800/capture2.png)
 ![CycloCross](https://lh3.googleusercontent.com/-ce3uigCabI8/V5ZT_odzEcI/AAAAAAABe20/TXyhvXMrqZQb110Lb9xY76Ff5k1WFqHVwCCo/s800/capture3.png)
+![CrossCountry](https://lh3.googleusercontent.com/-qYOFLfHu_Ac/V5ZU1lnd5-I/AAAAAAABe3A/LBW-xfCv_30HZhN5hlLnk1pRhRgafaBFQCCo/s800/capture5.png)
 
 The game is not finished yet. However, if you want to see the progress of the game, feel free to clone it, report bugs, submit pull requests, etc.
 
