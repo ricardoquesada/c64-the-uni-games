@@ -422,28 +422,28 @@ entries_crosscountry:
         ;     score: 4 bytes
         ;     pad: 2 bytes
         ;        0123456789
-        scrcode "tom       "
+        scrcode "corbin    "
         .byte 0,4,0,2
         .byte 0,0               ; ignore
-        scrcode "chris     "
+        scrcode "tom       "
         .byte 0,4,0,8
         .byte 0,0               ; ignore
         scrcode "dragon    "
         .byte 0,4,1,0
         .byte 0,0               ; ignore
-        scrcode "corbin    "
+        scrcode "chris     "
         .byte 0,4,1,5
         .byte 0,0               ; ignore
         scrcode "jimbo     "
         .byte 0,4,2,2
         .byte 0,0               ; ignore
-        scrcode "ashley    "
+        scrcode "josh      "
         .byte 0,4,5,9
         .byte 0,0               ; ignore
-        scrcode "josh      "
+        scrcode "beau      "
         .byte 0,4,6,3
         .byte 0,0               ; ignore
-        scrcode "michele   "
+        scrcode "ricardo   "
         .byte 0,4,8,8
         .byte 0,0               ; ignore
 
