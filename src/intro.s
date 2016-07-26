@@ -76,23 +76,11 @@
 
         dec $01                         ; $34: RAM 100%
 
-        ldx #<intro_charset_exo         ; decrunch charset
-        ldy #>intro_charset_exo
-        stx _crunched_byte_lo
-        sty _crunched_byte_hi
-        jsr decrunch                    ; uncompress it
-
         ldx #<intro_map_exo             ; decrunch map
         ldy #>intro_map_exo
         stx _crunched_byte_lo
         sty _crunched_byte_hi
         jsr decrunch                    ; uncompress it
-
-        ldx #<mainsprites_exo           ; decrunch main sprites
-        ldy #>mainsprites_exo
-        stx _crunched_byte_lo
-        sty _crunched_byte_hi
-        jsr decrunch                    ; uncrunch
 
         inc $01                         ; $35: RAM + IO ($D000-$DFFF)
 
@@ -381,16 +369,8 @@ intro_state:
 
 
 .segment "COMPRESSED_DATA"
-        ; export it at 0x3000
-        .incbin "src/intro-charset.prg.exo"
-intro_charset_exo:
-
         ; export it at 0x0400
         .incbin "src/intro-map.prg.exo"
 intro_map_exo:
-
-        ; export it at 0x2400
-        .incbin "src/sprites.prg.exo"
-mainsprites_exo:
 
         .byte 0             ; ignore

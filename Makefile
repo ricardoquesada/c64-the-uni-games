@@ -9,11 +9,12 @@ X64 = x64
 all: res bin
 bin: unigames d64 run
 
-SRC=src/intro.s src/main.s src/about.s src/utils.s src/game.s src/highscores.s src/exodecrunch.s src/selectevent.s src/menu.s src/about.s src/music_table.s src/instructions.s
+SRC=src/intro.s src/main.s src/about.s src/utils.s src/game.s src/highscores.s \
+	src/exodecrunch.s src/selectevent.s src/menu.s src/about.s src/music_table.s \
+	src/instructions.s src/data.s
 
 res:
 	echo "Compressing resources..."
-	exomizer mem -q res/sprites.prg -o src/sprites.prg.exo
 	exomizer mem -q res/mainscreen-charset.prg -o src/mainscreen-charset.prg.exo
 	exomizer mem -q res/level-roadrace-map.prg -o src/level-roadrace-map.prg.exo
 	exomizer mem -q res/level-roadrace-colors.prg -o src/level-roadrace-colors.prg.exo
@@ -24,8 +25,9 @@ res:
 	exomizer mem -q res/level-crosscountry-map.prg -o src/level-crosscountry-map.prg.exo
 	exomizer mem -q res/level-crosscountry-colors.prg -o src/level-crosscountry-colors.prg.exo
 	exomizer mem -q res/level-crosscountry-charset.prg -o src/level-crosscountry-charset.prg.exo
-	exomizer mem -q res/intro-charset.prg -o src/intro-charset.prg.exo
 	exomizer mem -q res/intro-map.prg -o src/intro-map.prg.exo
+	cp res/intro-charset.bin src
+	cp res/sprites.bin src
 	cp res/select_event-map.bin src
 	cp res/number_of_players-map.bin src
 	cp res/mainscreen-map.bin src
