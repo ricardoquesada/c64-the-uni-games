@@ -14,7 +14,21 @@ The game is not finished yet. However, if you want to see the progress of the ga
 ## How to play it
 
 Best if played with a [UniJoystiCle™](https://retro.moe/unijoysticle).
-If you don't have one, go and get one. In the meantime you can try it with regular joysticks.
+If you don't have one, go and get one. In the meantime you can try it with a regular joystick.
+
+There are three events:
+
+* Road Race:
+   * Joystick: Left + Right to speed
+   * UniJoystiCle: Idle or pedal to speed
+* Cyclo Cross
+   * Joystick: Fire to jump
+   * UniJoystiCle: Hop to jump
+* Cross Country:
+   * Joystick: Left + Right to speed; fire to jump
+   * UniJoystiCle: Idle or pedal to speed; hop to jump
+
+Try to beat the computer in all three events. Or play face-to-face with a friend.
 
 ## Download
 
@@ -34,3 +48,8 @@ $ git clone https://github.com/ricardoquesada/c64-the-uni-games.git
 $ cd c64-uni-games
 $ make bin
 ```
+
+## License
+
+(c) 2015, 2016 Ricardo Quesada
+[Apache License v2.0](LICENSE)
