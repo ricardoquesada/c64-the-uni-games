@@ -54,6 +54,9 @@ DEBUG = 0                               ; bitwise: 1=raster-sync code
 .proc main_init
         sei
 
+        ldx #$ff                        ; reset stack... just in case
+        txs
+
         lda #0
         sta $d01a                       ; no raster interrups
 

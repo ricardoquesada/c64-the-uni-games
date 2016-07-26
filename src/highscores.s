@@ -47,6 +47,10 @@ UNI2_COL = 10
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export scores_init
 .proc scores_init
+        lda #$0
+        sta zp_hs_new_entry_pos         ; reset value when called from menu
+                                        ; $ff means invalid entry and could get confused
+                                        ; with the very fragile input handling code
         jsr scores_init_soft
         jmp scores_mainloop
 .endproc
@@ -83,21 +87,15 @@ UNI2_COL = 10
 
         lda #0
         sta $d01a                       ; no raster interrups
-
-        lda #0
         sta VIC_SPR_ENA                 ; no sprites while initing the screen
-
-        lda #$00                        ; background & border color
-        sta $d020
+        sta score_cursor_pos            ; reset cursor
+        sta $d020                       ; background / foreground color
         sta $d021
+        sta SID_Amp                     ; turn off volume
 
         lda #$7f                        ; turn off cia interrups
         sta $dc0d
         sta $dd0d
-
-
-        lda #$00                        ; turn off volume
-        sta SID_Amp
 
                                         ; multicolor mode + extended color causes
         lda #%01011011                  ; the bug that blanks the screen
@@ -140,26 +138,37 @@ UNI2_COL = 10
         lda sync_timer_irq
         bne animate
 
-        lda zp_hs_mode
-        cmp #SCORES_MODE::CYCLE
+        lda zp_hs_mode                  ; if mode is CYCLE or new score
+        cmp #SCORES_MODE::CYCLE         ; is invalid, then check for space
+        beq check_space
+        lda zp_hs_new_entry_pos
+        cmp #$ff
         bne new_hs_branch
 
+check_space:
         jsr menu_read_events
         cmp #%00010000                  ; space or button
         bne scores_mainloop
 
-        rts                             ; return to caller (main menu)
+        lda zp_hs_mode
+        cmp #SCORES_MODE::CYCLE
+        bne jump_to_main                ; return to main, by jumping
+        rts                             ; return to caller (main menu) by rts
+
 animate:
         dec sync_timer_irq
-        jsr $1003                       ; play music
+        jsr MUSIC_PLAY                  ; play music
         jsr paint_score                 ; print new scores if needed
 
         lda zp_hs_mode
-        cmp #SCORES_MODE::NEW_HS
-        bne scores_mainloop
+        cmp #SCORES_MODE::CYCLE
+        beq scores_mainloop
+        lda zp_hs_new_entry_pos
+        cmp #$ff
+        beq scores_mainloop
 
         jsr print_cursor                ; animate cursor if in "new score" mode
-        jmp scores_mainloop
+        jmp scores_mainloop             ; and with a valid entry
 
 new_hs_branch:
         jsr ut_get_key                  ; returns matrix code
@@ -184,32 +193,38 @@ l0:
         cmp #$ff                        ; invalid key? ignore it
         beq scores_mainloop
 
-        ldy cursor_pos
+        ldy score_cursor_pos
         sta (zp_hs_new_ptr2_lo),y       ; self-modyfing
 
         iny
         cpy #11
         bne :+
         dey
-:       sty cursor_pos
+:       sty score_cursor_pos
 
         jmp scores_mainloop
 
-return_pressed:                         ; return to main menu
-        jsr copy_entry
-        jsr main_reset_menu
-        jmp main_loop
-
-delete_pressed:
-        ldy cursor_pos                  ; don't delete if already 0
+delete_pressed:                         ; "DELETE / INSERT" pressed
+        ldy score_cursor_pos            ; don't delete if already 0
         lda #$20                        ; clean current cursor with space
         sta (zp_hs_new_ptr2_lo),y
 
         cpy #0
         beq scores_mainloop
-        dey                             ; cursor_pos -= 1
-        sty cursor_pos
+        dey                             ; score_cursor_pos -= 1
+        sty score_cursor_pos
         jmp scores_mainloop
+
+return_pressed:                         ; "RETURN" pressed.
+        lda #$20                        ; space, in case it is the inversed ($a0)
+        ldy score_cursor_pos
+        sta (zp_hs_new_ptr2_lo),y
+
+        jsr copy_entry                  ; copy name to entries
+jump_to_main:
+        jsr main_reset_menu             ; jump to main loop
+        jmp main_loop                   ; since it was called by game.s and not by main.s
+
 
 print_cursor:
         dec delay
@@ -219,7 +234,7 @@ print_cursor:
 :       lda #$08
         sta delay
 
-        ldy cursor_pos
+        ldy score_cursor_pos
         lda space_char
         sta (zp_hs_new_ptr2_lo),y        ; self-modyfing
         eor #%10000000
@@ -227,6 +242,20 @@ print_cursor:
         rts
 
 copy_entry:
+        ldx zp_hs_new_entry_pos
+        cpx #0
+        beq l3
+
+l4:     lda zp_hs_new_ptr_lo            ; the thing is that zp_hs_new_ptr_lo/hi
+        clc                             ; points to the beginning of the scores entries
+        adc #16                         ; and not to the entry that needs to be udpated
+        sta zp_hs_new_ptr_lo            ; so we have to update zp_hs_new_ptr_lo/hi manually
+        bcc :+                          ; by adding 16 bytes for each entry needed
+        inc zp_hs_new_ptr_hi
+:       dex
+        bne l4
+
+l3:
         ldy #9
 l2:     lda (zp_hs_new_ptr2_lo),y
         sta (zp_hs_new_ptr_lo),y
@@ -236,7 +265,6 @@ l2:     lda (zp_hs_new_ptr2_lo),y
 
 delay:                  .byte 1         ; delay for cursor
 space_char:             .byte $20       ; swtiches from $20 to $a0
-cursor_pos:             .byte 0
 keyboard_released:      .byte 1         ; to prevent auto-repeat
 .endproc
 
@@ -246,7 +274,6 @@ keyboard_released:      .byte 1         ; to prevent auto-repeat
 ; scores_init_screen
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc scores_init_screen
-
         ldx #0
 l0:
         lda hiscores_map,x
@@ -630,6 +657,7 @@ entries = *+1
 .endproc
 
 
+score_cursor_pos: .byte 0                       ; uses for name input
 score_counter: .byte 0                          ; score that has been drawn
 delay:         .byte $10                        ; delay used to print the scores
 scores_state:  .byte SCORES_STATE::PAITING      ; status: paiting? or waiting?
@@ -673,25 +701,25 @@ entries_roadrace:
         scrcode "nathan    "
         .byte 0,4,0,2
         .byte 0,0               ; ignore
-        scrcode "stefan    "
+        scrcode "harrison  "
         .byte 0,4,0,8
         .byte 0,0               ; ignore
-        scrcode "beau      "
+        scrcode "stefan    "
         .byte 0,4,1,0
         .byte 0,0               ; ignore
-        scrcode "corbin    "
+        scrcode "john      "
         .byte 0,4,1,5
         .byte 0,0               ; ignore
-        scrcode "jimbo     "
+        scrcode "sydney    "
         .byte 0,4,2,2
         .byte 0,0               ; ignore
         scrcode "rob       "
         .byte 0,4,5,9
         .byte 0,0               ; ignore
-        scrcode "harrison  "
+        scrcode "ricardo   "
         .byte 0,4,6,3
         .byte 0,0               ; ignore
-        scrcode "john      "
+        scrcode "ricardo   "
         .byte 0,4,8,8
         .byte 0,0               ; ignore
 
@@ -702,28 +730,28 @@ entries_cyclocross:
         ;     pad: 2 bytes
         ;        0123456789
         scrcode "tom       "
-        .byte 0,4,0,2
+        .byte 0,3,3,8
         .byte 0,0               ; ignore
         scrcode "chris     "
-        .byte 0,4,0,8
-        .byte 0,0               ; ignore
-        scrcode "dragon    "
-        .byte 0,4,1,0
-        .byte 0,0               ; ignore
-        scrcode "corbin    "
-        .byte 0,4,1,5
-        .byte 0,0               ; ignore
-        scrcode "jimbo     "
-        .byte 0,4,2,2
-        .byte 0,0               ; ignore
-        scrcode "ashley    "
-        .byte 0,4,5,9
+        .byte 0,3,3,9
         .byte 0,0               ; ignore
         scrcode "josh      "
-        .byte 0,4,6,3
+        .byte 0,3,4,0
         .byte 0,0               ; ignore
-        scrcode "michele   "
-        .byte 0,4,8,8
+        scrcode "kevin     "
+        .byte 0,3,4,1
+        .byte 0,0               ; ignore
+        scrcode "jimbo     "
+        .byte 0,3,4,2
+        .byte 0,0               ; ignore
+        scrcode "ashley    "
+        .byte 0,3,4,3
+        .byte 0,0               ; ignore
+        scrcode "ricardo   "
+        .byte 0,3,4,4
+        .byte 0,0               ; ignore
+        scrcode "ricardo   "
+        .byte 0,3,4,5
         .byte 0,0               ; ignore
 
 entries_crosscountry:
@@ -735,22 +763,22 @@ entries_crosscountry:
         scrcode "corbin    "
         .byte 0,4,0,2
         .byte 0,0               ; ignore
-        scrcode "tom       "
+        scrcode "beau      "
         .byte 0,4,0,8
         .byte 0,0               ; ignore
-        scrcode "dragon    "
+        scrcode "michele   "
         .byte 0,4,1,0
         .byte 0,0               ; ignore
-        scrcode "chris     "
+        scrcode "yu        "
         .byte 0,4,1,5
         .byte 0,0               ; ignore
-        scrcode "jimbo     "
+        scrcode "geronimo  "
         .byte 0,4,2,2
         .byte 0,0               ; ignore
-        scrcode "josh      "
+        scrcode "ray       "
         .byte 0,4,5,9
         .byte 0,0               ; ignore
-        scrcode "beau      "
+        scrcode "ricardo   "
         .byte 0,4,6,3
         .byte 0,0               ; ignore
         scrcode "ricardo   "

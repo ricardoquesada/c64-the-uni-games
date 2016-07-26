@@ -132,6 +132,10 @@ l0:
 ; number_of_players_exec
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc number_of_players_exec
+        ldx #$ff                                ; reset stack
+        txs                                     ; since after 128 cycles
+                                                ; it will overflow the stack
+                                                ; probably a "pla, pla" will fix it
         lda MENU_CURRENT_ITEM
         sta game_number_of_players
         jmp game_start
