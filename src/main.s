@@ -48,10 +48,10 @@ DEBUG = 0                               ; bitwise: 1=raster-sync code
 
 .segment "HI_CODE"
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void main()
+; void main_init()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export main_menu
-.proc main_menu
+.export main_init
+.proc main_init
         sei
 
         lda #0
@@ -87,10 +87,10 @@ DEBUG = 0                               ; bitwise: 1=raster-sync code
         sta $d016                       ; turn on multicolor
 
 
-        jsr init_data
-        jsr init_screen
-        jsr init_music
-        jsr mainmenu_init
+        jsr main_init_data
+        jsr main_init_screen
+        jsr main_init_music
+        jsr main_init_menu
 
                                         ; turn VIC on again
         lda #%00011011                  ; charset mode, default scroll-Y position, 25-rows
@@ -100,13 +100,14 @@ DEBUG = 0                               ; bitwise: 1=raster-sync code
         sta $d016                       ; turn off multicolor
 
 
-        ldx #<irq_timer                 ; irq for timer
-        ldy #>irq_timer
+        ldx #<main_irq_timer            ; irq for timer
+        ldy #>main_irq_timer
         stx $fffe
         sty $ffff
 
         cli
 
+.export main_loop
 main_loop:
         lda sync_timer_irq
         beq main_loop
@@ -128,10 +129,11 @@ main_loop:
         jmp main_loop
 .endproc
 
+
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void mainmenu_init()
+; void main_init_menu()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc mainmenu_init
+.proc main_init_menu
         lda #4                                  ; setup the global variables
         sta MENU_MAX_ITEMS                      ; needed for the menu code
         lda #0
@@ -185,14 +187,14 @@ jump_high_scores:
 
         jsr scores_init                 ; takes over of the mainloop
                                         ; no need to update the jmp table
-        jmp set_mainmenu
+        jmp main_reset_menu
 
 jump_instructions:
         lda #SCENE_STATE::INSTRUCTIONS
         sta scene_state
         jsr instructions_init           ; takes over of the mainloop
                                         ; no need to update the jmp table
-        jmp set_mainmenu
+        jmp main_reset_menu
 
 jump_about:
         lda #SCENE_STATE::ABOUT
@@ -200,29 +202,38 @@ jump_about:
 
         jsr about_init                  ; takes over of the mainloop
                                         ; no need to update the jmp table
-set_mainmenu:
+        jmp main_reset_menu
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void main_reset_menu()
+; to be called after calling a submenu
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export main_reset_menu
+.proc main_reset_menu
         lda #SCENE_STATE::MAIN_MENU     ; restore stuff modifying by scores
         sta scene_state
 
         sei
 
-        ldx #<irq_timer                 ; restore irq for timer
-        ldy #>irq_timer
+        ldx #<main_irq_timer                 ; restore irq for timer
+        ldy #>main_irq_timer
         stx $fffe
         sty $ffff
 
-        jsr init_screen
-        jsr mainmenu_init
-        cli
+        jsr main_init_screen
+        jsr main_init_menu
 
+        cli
         rts
 .endproc
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; irq_timer
+; main_irq_timer
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc irq_timer
+.export main_irq_timer
+.proc main_irq_timer
         pha                             ; saves A, X, Y
         txa
         pha
@@ -241,9 +252,10 @@ set_mainmenu:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_data()
+; void main_init_data()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc init_data
+.export main_init_data
+.proc main_init_data
         ; ASSERT (interrupts disabled)
 
         dec $01                         ; $34: RAM 100%
@@ -269,12 +281,12 @@ set_mainmenu:
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_screen()
+; void main_init_screen()
 ;------------------------------------------------------------------------------;
 ; paints the screen with the "main menu" screen
-; MUST BE CALLED after init_data()
+; MUST BE CALLED after main_init_data()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc init_screen
+.proc main_init_screen
         ldx #0
 
 l0:
@@ -389,9 +401,10 @@ sprite_frame:
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; void init_music(void)
+; void main_init_music(void)
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc init_music
+.export main_init_music
+.proc main_init_music
         lda #0
         jsr MUSIC_INIT                  ; init song #0
 

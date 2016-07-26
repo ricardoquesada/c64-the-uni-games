@@ -7,7 +7,7 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 
-.import main_menu
+.import main_init
 
 ; from exodecrunch.s
 .import decrunch                                ; exomizer decrunch
@@ -133,7 +133,7 @@ loop:
         cmp #INTRO_STATE::FADE_OUT
         beq fadeout
 
-        jmp main_menu                   ; INTRO_STATE::END? to to main menu
+        jmp main_init                   ; INTRO_STATE::END? to to main menu
 
 
 fadein:

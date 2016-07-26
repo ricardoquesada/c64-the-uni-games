@@ -12,7 +12,8 @@
 ; from main.s
 .import sync_timer_irq
 .import menu_read_events
-.import mainscreen_colors
+.import mainscreen_colors, main_irq_timer, main_init_music, main_init_data
+.import main_loop, main_reset_menu
 
 UNI1_ROW = 10                           ; unicyclist #1 x,y
 UNI1_COL = 0
@@ -39,11 +40,20 @@ UNI2_COL = 10
         WAITING
 .endenum
 
+
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; scores_init
-;------------------------------------------------------------------------------;
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export scores_init
 .proc scores_init
+        jsr scores_init_soft
+        jmp scores_mainloop
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; scores_init_soft
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc scores_init_soft
         lda #0
         sta score_counter
 
@@ -59,23 +69,95 @@ UNI2_COL = 10
         lda #$20
         jsr ut_clear_screen
 
-        jsr scores_init_screen
+        jmp scores_init_screen
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void scores_init_hard()
+; to be called from game.s, when it also needs to uncrunch some stuff for the scores
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export scores_init_hard
+.proc scores_init_hard
+        sei
+
+        lda #0
+        sta $d01a                       ; no raster interrups
+
+        lda #0
+        sta VIC_SPR_ENA                 ; no sprites while initing the screen
+
+        lda #$00                        ; background & border color
+        sta $d020
+        sta $d021
+
+        lda #$7f                        ; turn off cia interrups
+        sta $dc0d
+        sta $dd0d
 
 
-scores_mainloop:
+        lda #$00                        ; turn off volume
+        sta SID_Amp
+
+                                        ; multicolor mode + extended color causes
+        lda #%01011011                  ; the bug that blanks the screen
+        sta $d011                       ; extended color mode: on
+        lda #%00011000
+        sta $d016                       ; turn on multicolor
+
+        jsr scores_init_soft
+
+        jsr main_init_data
+        jsr main_init_music
+
+                                        ; turn VIC on again
+        lda #%00011011                  ; charset mode, default scroll-Y position, 25-rows
+        sta $d011                       ; extended color mode: off
+
+        lda #%00001000                  ; no scroll, hires (mono color), 40-cols
+        sta $d016                       ; turn off multicolor
+
+        ldx #<main_irq_timer                 ; irq for timer
+        ldy #>main_irq_timer
+        stx $fffe
+        sty $ffff
+
+        lda $dc0d                       ; clear interrupts and ACK irq
+        lda $dd0d
+        asl $d019
+
+        lda #SCORES_MODE::NEW_HS        ; "new high score", even if there is none
+        sta zp_hs_mode
+
+        cli
+        jmp scores_mainloop
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; scores_mainloop
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc scores_mainloop
         lda sync_timer_irq
         bne play_music
 
         jsr menu_read_events
         cmp #%00010000                  ; space or button
         bne scores_mainloop
-        rts                             ; return to caller (main menu)
+
+        lda zp_hs_mode
+        cmp #SCORES_MODE::CYCLE
+        beq @end
+
+        jsr main_reset_menu
+        jmp main_loop
+
+@end:   rts                             ; return to caller (main menu)
 play_music:
         dec sync_timer_irq
         jsr $1003
         jsr paint_score
         jmp scores_mainloop
 .endproc
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; scores_init_screen
@@ -97,6 +179,89 @@ l0:
         jmp scores_setup_paint
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void scores_sort(void* scores_to_sort)
+; entries: zp_hs_latest_score
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export scores_sort
+.proc scores_sort
+        ldx zp_hs_category              ; setup scores to compare
+        lda scores_entries_lo,x
+        sta zp_tmp00
+        lda scores_entries_hi,x
+        sta zp_tmp01
+
+        ldx #0
+        stx zp_tmp02                    ; used as entry index
+
+l0:     lda valid_y,x                   ; scores are 10 bytes after the name
+        tay
+
+        jsr scores_cmp_score            ; uses Y
+        bmi new_hs
+        inc zp_tmp02                    ; inc entry index
+        ldx zp_tmp02
+        cpx #8                          ; there are only 8 entries
+        bne l0
+
+;no new hs
+        rts
+
+new_hs:
+        ldx zp_tmp02                    ; set new score
+        lda valid_y,x
+        tay
+
+        lda zp_hs_latest_score          ; minutes
+        sta (zp_tmp00),y
+        iny
+        lda zp_hs_latest_score+1        ; seconds MSB
+        sta (zp_tmp00),y
+        iny
+        lda zp_hs_latest_score+2        ; seconds LSB
+        sta (zp_tmp00),y
+        iny
+        lda zp_hs_latest_score+3        ; deci-seconds
+        sta (zp_tmp00),y
+        rts
+
+
+valid_y:
+        .byte 0+10, 16+10, 32+10, 48+10         ; scores are 10 bytes after the name
+        .byte 64+10, 80+10, 96+10, 112+10
+
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; scores_cmp_score
+; entries:
+;       zp_tmp00: must point to valid score entries
+;       y = index inside score entries
+; returns:
+;       Flags: CMP(zp_hs_score, entries_score)
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc scores_cmp_score
+        lda zp_hs_latest_score          ; the minutes
+        cmp (zp_tmp00),y                ; so, compare minutes
+        bne end                         ; fallthrough only if the are equal
+
+        iny                             ; next digit
+        lda zp_hs_latest_score+1        ; seconds. first digit
+        cmp (zp_tmp00),y
+        bne end                         ; fallthrough only if the are equal
+
+        iny                             ; next digit
+        lda zp_hs_latest_score+2        ; seconds. secong digit
+        cmp (zp_tmp00),y
+        bne end                         ; fallthrough only if the are equal
+
+        iny                             ; next digit
+        lda zp_hs_latest_score+3        ; deci-seconds
+        cmp (zp_tmp00),y
+
+end:
+        rts
+.endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; paint_score
@@ -128,7 +293,11 @@ paint:
         cpx #8                          ; paint only 8 scores
         bne paint_next
 
-        jmp scores_next_category        ; setup next category then
+        lda zp_hs_mode                  ; only display next category
+        cmp #SCORES_MODE::CYCLE         ; if in cycle mode
+        beq :+
+        rts
+:       jmp scores_next_category        ; setup next category then
 
 paint_next:
         jsr @print_highscore_entry
@@ -287,7 +456,7 @@ categories_name = *+1                   ; self modifying
         bpl :-
 
 
-        ldx zp_hs_category             ; copy scores from "load"
+        ldx zp_hs_category              ; copy scores from "load"
         lda scores_entries_lo,x         ; to final position
         sta entries
         lda scores_entries_hi,x

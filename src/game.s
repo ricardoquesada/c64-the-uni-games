@@ -12,7 +12,8 @@
 ; from utils.s
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
 .import ut_clear_color, ut_setup_tod, ut_vic_video_type
-.import main_menu
+.import main_init, main_init_soft
+.import scores_init_hard, scores_sort
 .import music_speed, palb_freq_table_lo, palb_freq_table_hi
 .import music_patch_table_1, music_patch_table_2
 
@@ -184,16 +185,15 @@ RECORD_FIRE = 0                         ; computer player: record fire, or play 
 
         jsr ut_setup_tod                ; must be called AFTER detect_pal_...
 
+        ldx #<nmi_handler               ; "RESTORE" key handler
+        ldy #>nmi_handler               ; should be placed after
+        stx $fffa                       ; ut_setup_tod since it changes the nmi handler
+        sty $fffb
 
         ldx #<irq_anims                 ; raster irq vector
         ldy #>irq_anims
         stx $fffe
         sty $ffff
-
-        ldx #<nmi_handler               ; "RESTORE" key handler
-        ldy #>nmi_handler               ; should be placed after
-        stx $fffa                       ; ut_setup_tod since it changes the nmi handler
-        sty $fffb
 
         lda #RASTER_TRIGGER_ANIMS
         sta $d012
@@ -205,7 +205,6 @@ RECORD_FIRE = 0                         ; computer player: record fire, or play 
 :       cmp $d012
         beq :-
         bmi :--
-
                                         ; no need to turn on the VIC
                                         ; again since it will be turned on
                                         ; in the raster
@@ -221,6 +220,7 @@ _mainloop:
         lda zp_sync_raster_bottom_p2
         beq _mainloop
 
+; scroll_p1
 .if (::DEBUG & 1)
         dec $d020
 .endif
@@ -243,9 +243,9 @@ scroll_p2:
         jmp _mainloop
 
 abort:
-        lda #0
+        lda #0                                  ; restore key pressed ?
         sta zp_abort
-        jmp main_menu
+        jmp main_init
 
 animations:
         dec zp_sync_raster_anims
@@ -265,19 +265,19 @@ animate_level_addr = * + 1
         cmp #GAME_STATE::GET_SET_GO
         beq get_set_go
 
-        pha                             ; common events for RIDING and GAME_OVER
+                                        ; common events for RIDING and GAME_OVER
 music_play_addr = *+1
         jsr MUSIC_PLAY                  ; self modifying since changes from song to song
         jsr process_events
-        pla
 
+        lda zp_game_state
         cmp #GAME_STATE::RIDING
         beq riding
         cmp #GAME_STATE::GAME_OVER
         beq game_over
 
-        jmp main_menu                   ; end event
-
+        ; ASSERT(should not happen)
+        jmp *-2                         ; should not happen
 
 on_your_marks:
         jsr update_on_your_marks
@@ -300,7 +300,7 @@ game_over:
         lda CIA1_PRB
         and #%00010000                  ; col 4
         bne cont                        ; space pressed ?
-        jmp main_menu                   ; yes, return to main
+        jmp go_to_high_scores           ; yes, return to main
 
 cont:
 
@@ -308,6 +308,27 @@ cont:
         inc $d020
 .endif
         jmp _mainloop
+
+go_to_high_scores:
+        lda game_selected_event         ; what scores to display
+        sta zp_hs_category
+
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 34
+        and #%00001111                  ; only from 0 to ~10
+        sta zp_hs_latest_score + 0      ; minutes
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 36
+        and #%00001111                  ; only from 0 to ~10
+        sta zp_hs_latest_score + 1      ; seconds
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 37
+        and #%00001111                  ; only from 0 to ~10
+        sta zp_hs_latest_score + 2      ; seconds
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 39
+        and #%00001111                  ; only from 0 to ~10
+        sta zp_hs_latest_score + 3      ; deciseconds
+
+        jsr scores_sort
+
+        jmp scores_init_hard
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
