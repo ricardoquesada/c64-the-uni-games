@@ -152,8 +152,9 @@ check_space:
 
         lda zp_hs_mode
         cmp #SCORES_MODE::CYCLE
-        bne jump_to_main                ; return to main, by jumping
-        rts                             ; return to caller (main menu) by rts
+        beq l1
+        jmp jump_to_main                ; return to main, by jumping
+l1:     rts                             ; return to caller (main menu) by rts
 
 animate:
         dec sync_timer_irq
@@ -221,6 +222,19 @@ return_pressed:                         ; "RETURN" pressed.
         sta (zp_hs_new_ptr2_lo),y
 
         jsr copy_entry                  ; copy name to entries
+
+        sei
+        lda #0
+        sta SID_Amp                     ; volume off
+        lda #$7f
+        sta $dc0d                       ; no timer IRQ
+
+        jsr scores_file_save            ; save to disk
+
+        lda #$81
+        sta $dc0d                       ; enable timer IRQ again
+        cli
+
 jump_to_main:
         jsr main_reset_menu             ; jump to main loop
         jmp main_loop                   ; since it was called by game.s and not by main.s
@@ -655,6 +669,93 @@ entries = *+1
 
         rts
 .endproc
+
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void scores_file_save()
+; code taken from here: http://codebase64.org/doku.php?id=base:saving_a_file
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export scores_file_save
+.proc scores_file_save
+FILE_START = $e80
+FILE_END = $fff
+
+        inc $01                         ; $36: kernal in
+
+        lda #FILENAME_LEN
+        ldx #<fname
+        ldy #>fname
+        jsr $ffbd                       ; call SETNAM
+
+        lda #$00
+        ldx $ba                         ; last used device number
+        bne @skip
+        ldx #$08                        ; default to device 8
+@skip:  ldy #$00
+        jsr $ffba                       ; call SETLFS
+
+        lda #<FILE_START
+        sta $c1                         ; reuse zp's used by kernal
+        lda #>FILE_START
+        sta $c2
+
+        ldx #<FILE_END
+        ldy #>FILE_END
+        lda #$c1                        ; start address located in $c1/$c2
+        jsr $ffd8                       ; call SAVE
+        bcs @error                      ; if carry set, a load error has happened
+
+        dec $01                         ; $35: kernal out. use RAM
+        rts
+@error:
+        ; Acumulator contains BASIC error code
+        inc $d020
+        dec $01                         ; $35: kernal out. use RAM
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void scores_file_load ()
+; code taken from here: http://codebase64.org/doku.php?id=base:loading_a_file
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export scores_file_load
+.proc scores_file_load
+        inc $01                         ; $36: kernal in
+
+        lda #FILENAME_LEN
+        ldx #<fname
+        ldy #>fname
+        jsr $ffbd                       ; call SETNAM
+
+        lda #$01
+        ldx $ba                         ; last used device number
+        bne @skip
+        ldx #$08                        ; default to device 8
+@skip:  ldy #$01                        ; not $00 means: load to address stored in file
+        jsr $ffba                       ; call SETLFS
+
+        lda #$00                        ; $00 means: load to memory (not verify)
+        jsr $ffd5                       ; call LOAD
+        bcs @error                      ; if carry set, a load error has happened
+
+        dec $01                         ; $35: kernal out
+        rts
+@error:
+        ; Accumulator contains BASIC error code
+
+        ; most likely errors:
+        ; A = $05 (DEVICE NOT PRESENT)
+        ; A = $04 (FILE NOT FOUND)
+        ; A = $1D (LOAD ERROR)
+        ; A = $00 (BREAK, RUN/STOP has been pressed during loading)
+
+        inc $d020
+        dec $01                         ; $35: kernal out
+        rts
+.endproc
+
+fname:  .byte "@0:unigames-scores"
+FILENAME_LEN = * - fname
 
 
 score_cursor_pos: .byte 0                       ; uses for name input

@@ -39,6 +39,17 @@ MUSIC_PLAY = $1003
 ; ZP variables
 ;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; WARNING: Using KERNAL routines like LOAD/SAVE and overwritting ZP is tricky
+; just don't modify the variables used by those routines. 
+; As a general rule, don't use variables above $90
+; And don't use variables in the range of $2a0+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; Used by menu.s
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 MENU_MAX_ITEMS = $41                                    ; .byte  total number of items
 MENU_CURRENT_ITEM = $42                                 ; .byte  item idx  0<idx<max_items
 MENU_BYTES_BETWEEN_ITEMS = $43                          ; .byte  40 for one after another
@@ -48,24 +59,30 @@ MENU_EXEC_ADDR = $47  ; and $48                         ; 2 .bytes  When button 
 
 
 ; variables
-zp_tmp = $50                                            ; 16 bytes ($50 - $5f) for tmp vars
-zp_tmp00 = $50
+zp_tmp00 = $50                                          ; tmp variables
 zp_tmp01 = $51
-zp_tmp02 = $52
-zp_tmp03 = $53
-zp_tmp04 = $54
-zp_tmp05 = $55
-zp_tmp06 = $56
-zp_tmp07 = $57
-zp_tmp08 = $58
-zp_tmp09 = $59
-zp_tmp0a = $5a
-zp_tmp0b = $5b
-zp_tmp0c = $5c
-zp_tmp0d = $5d
-zp_tmp0e = $5e
-zp_tmp0f = $5f
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; Used by highscores.s
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+zp_hs_ptr_lo = $52                                      ; .byte  used for sta (),x while displaying the high scores
+zp_hs_ptr_hi = $53                                      ; .byte
+zp_hs_new_ptr_lo = $54                                  ; .byte  used for sta(),x while inserting a new hs
+zp_hs_new_ptr_hi = $55                                  ; .byte
+zp_hs_new_ptr2_lo = $56                                 ; .byte  used for sta(),x for the name input
+zp_hs_new_ptr2_hi = $57                                 ; .byte
+zp_hs_category = $58                                    ; .byte SCORES_CAT::ROAD_RACE
+                                                        ;       SCORES_CAT::CYCLO_CROSS
+                                                        ;       SCORES_CAT::CROSS_COUNTRY
+zp_hs_mode = $59                                        ; .byte SCORES_MODE::CYCLE, SCORES_MODE::NEW_HS
+
+zp_hs_latest_score = $5a                                ; 4 .bytes  minutes, seconds, seconds, deci-seconds
+zp_hs_new_entry_pos = $5e                               ; .byte  position of the new score. from 0 to 7. $ff no new score
+
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; Used by game.s
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 zp_mc_color = $60                                       ; .byte
 
 zp_jump_idx_p1 = $61                                    ; .byte  sine pointer for jump/down sequence
@@ -115,20 +132,6 @@ zp_joy1_delay = $85                                     ; .byte 1 same as zp_com
 zp_joy2_delay = $86                                     ; .byte 1
 
 zp_abort = $87                                          ; .byte 0 if 0, "abort" was pressed
-
-zp_hs_ptr_lo = $90                                      ; .byte  used for sta (),x while displaying the high scores
-zp_hs_ptr_hi = $91                                      ; .byte
-zp_hs_new_ptr_lo = $92                                  ; .byte  used for sta(),x while inserting a new hs
-zp_hs_new_ptr_hi = $93                                  ; .byte
-zp_hs_new_ptr2_lo = $94                                 ; .byte  used for sta(),x for the name input
-zp_hs_new_ptr2_hi = $95                                 ; .byte
-zp_hs_category = $96                                    ; .byte SCORES_CAT::ROAD_RACE
-                                                        ;       SCORES_CAT::CYCLO_CROSS
-                                                        ;       SCORES_CAT::CROSS_COUNTRY
-zp_hs_mode = $97                                        ; .byte SCORES_MODE::CYCLE, SCORES_MODE::NEW_HS
-
-zp_hs_latest_score = $98                                ; 4 .bytes  minutes, seconds, seconds, deci-seconds
-zp_hs_new_entry_pos = $9c                               ; .byte  position of the new score. from 0 to 7. $ff no new score
 
 
 scores_entries = $200                                   ; from $200 to $280

@@ -49,12 +49,13 @@ unigames: ${SRC}
 d64:
 	echo "Generating d64 file..."
 	$(C1541) -format "unigames,rq" d64 $(D64_IMAGE)
-	$(C1541) $(D64_IMAGE) -write bin/unigames_exo.prg
+	$(C1541) $(D64_IMAGE) -write bin/unigames_exo.prg unigames
+	$(C1541) $(D64_IMAGE) -write bin/unigames-scores
 	$(C1541) $(D64_IMAGE) -list
 
 run:
 	echo "Running game"
-	$(X64) -moncommands bin/unigames.sym $(D64_IMAGE)
+	$(X64) -verbose -moncommands bin/unigames.sym $(D64_IMAGE)
 
 clean:
 	rm -f src/*.o bin/*.sym bin/*.prg $(D64_IMAGE)

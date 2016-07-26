@@ -8,6 +8,7 @@
 
 
 .import main_init
+.import scores_file_load, scores_file_save
 
 ; from exodecrunch.s
 .import decrunch                                ; exomizer decrunch
@@ -16,6 +17,7 @@
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
 .import menu_handle_events
 .import ut_clear_color, ut_start_clean, ut_detect_pal_paln_ntsc, ut_vic_video_type
+.import ut_clear_screen
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -52,13 +54,25 @@
         jsr one_time_init
 
         sei
-        lda #$00                        ; turn off volume
-        sta SID_Amp
-        sta VIC_SPR_ENA                 ; no sprites
 
         lda #0
         sta $d020
         sta $d021                       ; background color
+
+        lda #0                          ; background is white
+        jsr ut_clear_color
+        lda #$20
+        jsr ut_clear_screen
+
+        lda #$00                        ; turn off volume
+        sta SID_Amp
+        sta VIC_SPR_ENA                 ; no sprites
+
+        jsr scores_file_load            ; also causes a needed delay
+                                        ; that makes the fade-in look better
+
+        sei                             ; call it again, since scores_file_load
+                                        ; might call cli
 
                                         ; turn off video
         lda #%01011011                  ; the bug that blanks the screen
@@ -84,8 +98,6 @@
 
         inc $01                         ; $35: RAM + IO ($D000-$DFFF)
 
-        lda #0                          ; background is white
-        jsr ut_clear_color
 
         jsr init_sprite
 
@@ -105,16 +117,8 @@
         lda #50
         sta $d012
 
-
-        ldx #00                         ; delay so that the fade in
-l0:     ldy #00                         ; looks better
-l1:     dey
-        bne l1
-        dex
-        bne l0
-
-
         cli
+
 
 loop:
         lda sync_raster_irq
@@ -166,6 +170,9 @@ delay:
 ; void one_time_init()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc one_time_init
+
+        lda #$00
+        sta $9d                         ; no error messages
 
         cld                             ; turn-off decimal mode (just in case it was on)
 
