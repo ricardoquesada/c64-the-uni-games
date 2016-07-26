@@ -7,13 +7,14 @@
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 
 ; from utils.s
-.import ut_clear_color, ut_get_key, ut_clear_screen
+.import ut_clear_color, ut_get_key, ut_clear_screen, ut_convert_key_matrix
 
 ; from main.s
 .import sync_timer_irq
 .import menu_read_events
 .import mainscreen_colors, main_irq_timer, main_init_music, main_init_data
 .import main_loop, main_reset_menu
+.import ut_get_key
 
 UNI1_ROW = 10                           ; unicyclist #1 x,y
 UNI1_COL = 0
@@ -137,26 +138,108 @@ UNI2_COL = 10
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc scores_mainloop
         lda sync_timer_irq
-        bne play_music
+        bne animate
+
+        lda zp_hs_mode
+        cmp #SCORES_MODE::CYCLE
+        bne new_hs_branch
 
         jsr menu_read_events
         cmp #%00010000                  ; space or button
         bne scores_mainloop
 
-        lda zp_hs_mode
-        cmp #SCORES_MODE::CYCLE
-        beq @end
+        rts                             ; return to caller (main menu)
+animate:
+        dec sync_timer_irq
+        jsr $1003                       ; play music
+        jsr paint_score                 ; print new scores if needed
 
+        lda zp_hs_mode
+        cmp #SCORES_MODE::NEW_HS
+        bne scores_mainloop
+
+        jsr print_cursor                ; animate cursor if in "new score" mode
+        jmp scores_mainloop
+
+new_hs_branch:
+        jsr ut_get_key                  ; returns matrix code
+        bcs l0                          ; if C=1
+        ldx #1
+        stx keyboard_released
+        bne scores_mainloop             ; ASSERT (Z=0). always jump
+
+l0:
+        ldx keyboard_released
+        beq scores_mainloop
+
+        ldx #0
+        stx keyboard_released
+
+        cmp #$10                        ; RETURN?
+        beq return_pressed
+        cmp #$00
+        beq delete_pressed              ; delete pressed?
+
+        jsr ut_convert_key_matrix       ; matrix code is useless. convert it to screen codes
+        cmp #$ff                        ; invalid key? ignore it
+        beq scores_mainloop
+
+        ldy cursor_pos
+        sta (zp_hs_new_ptr2_lo),y       ; self-modyfing
+
+        iny
+        cpy #11
+        bne :+
+        dey
+:       sty cursor_pos
+
+        jmp scores_mainloop
+
+return_pressed:                         ; return to main menu
+        jsr copy_entry
         jsr main_reset_menu
         jmp main_loop
 
-@end:   rts                             ; return to caller (main menu)
-play_music:
-        dec sync_timer_irq
-        jsr $1003
-        jsr paint_score
+delete_pressed:
+        ldy cursor_pos                  ; don't delete if already 0
+        lda #$20                        ; clean current cursor with space
+        sta (zp_hs_new_ptr2_lo),y
+
+        cpy #0
+        beq scores_mainloop
+        dey                             ; cursor_pos -= 1
+        sty cursor_pos
         jmp scores_mainloop
+
+print_cursor:
+        dec delay
+        beq :+
+        rts
+
+:       lda #$08
+        sta delay
+
+        ldy cursor_pos
+        lda space_char
+        sta (zp_hs_new_ptr2_lo),y        ; self-modyfing
+        eor #%10000000
+        sta space_char
+        rts
+
+copy_entry:
+        ldy #9
+l2:     lda (zp_hs_new_ptr2_lo),y
+        sta (zp_hs_new_ptr_lo),y
+        dey
+        bpl l2
+        rts
+
+delay:                  .byte 1         ; delay for cursor
+space_char:             .byte $20       ; swtiches from $20 to $a0
+cursor_pos:             .byte 0
+keyboard_released:      .byte 1         ; to prevent auto-repeat
 .endproc
+
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -187,80 +270,159 @@ l0:
 .proc scores_sort
         ldx zp_hs_category              ; setup scores to compare
         lda scores_entries_lo,x
-        sta zp_tmp00
+        sta zp_hs_new_ptr_lo
         lda scores_entries_hi,x
-        sta zp_tmp01
+        sta zp_hs_new_ptr_hi
 
         ldx #0
-        stx zp_tmp02                    ; used as entry index
+        stx zp_hs_new_entry_pos         ; used as entry index
 
 l0:     lda valid_y,x                   ; scores are 10 bytes after the name
         tay
 
         jsr scores_cmp_score            ; uses Y
         bmi new_hs
-        inc zp_tmp02                    ; inc entry index
-        ldx zp_tmp02
+        inc zp_hs_new_entry_pos         ; inc entry index
+        ldx zp_hs_new_entry_pos
         cpx #8                          ; there are only 8 entries
         bne l0
 
 ;no new hs
+        lda #$ff                        ; $ff means no new entry
+        sta zp_hs_new_entry_pos
         rts
 
 new_hs:
-        ldx zp_tmp02                    ; set new score
+        jsr scores_insert_entry         ; insert new entry in the table
+
+        ldx zp_hs_new_entry_pos         ; set new score
         lda valid_y,x
+
+        sec
+        sbc #10                         ; start at the beginning of the entry
         tay
 
+        ldx #9
+        lda #$20                        ; space
+l1:     sta (zp_hs_new_ptr_lo),y        ; replace old name with spaces
+        iny
+        dex
+        bpl l1
+
+        ; ASSERT(y should point to "minutes")
+                                        ; replace old score with new one
         lda zp_hs_latest_score          ; minutes
-        sta (zp_tmp00),y
+        sta (zp_hs_new_ptr_lo),y
         iny
         lda zp_hs_latest_score+1        ; seconds MSB
-        sta (zp_tmp00),y
+        sta (zp_hs_new_ptr_lo),y
         iny
         lda zp_hs_latest_score+2        ; seconds LSB
-        sta (zp_tmp00),y
+        sta (zp_hs_new_ptr_lo),y
         iny
         lda zp_hs_latest_score+3        ; deci-seconds
-        sta (zp_tmp00),y
-        rts
+        sta (zp_hs_new_ptr_lo),y
 
+        ldx zp_hs_new_entry_pos         ; set pointer for name input
+        lda screen_ptr_lo,x             ; can't reuse the zp_hs_new_ptr_lo ptr
+        sta zp_hs_new_ptr2_lo           ; since both will be used at the same time
+        lda screen_ptr_hi,x
+        sta zp_hs_new_ptr2_hi
+
+        rts
 
 valid_y:
         .byte 0+10, 16+10, 32+10, 48+10         ; scores are 10 bytes after the name
         .byte 64+10, 80+10, 96+10, 112+10
+
+screen_ptr_lo:
+        .repeat 8,YY
+                .byte <(SCREEN0_BASE + 40 * (10 + YY * 2) + 9)
+        .endrepeat
+screen_ptr_hi:
+        .repeat 8,YY
+                .byte >(SCREEN0_BASE + 40 * (10 + YY * 2) + 9)
+        .endrepeat
 
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; scores_cmp_score
 ; entries:
-;       zp_tmp00: must point to valid score entries
+;       zp_hs_new_ptr_lo/hi: must point to valid score entries
 ;       y = index inside score entries
 ; returns:
 ;       Flags: CMP(zp_hs_score, entries_score)
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc scores_cmp_score
         lda zp_hs_latest_score          ; the minutes
-        cmp (zp_tmp00),y                ; so, compare minutes
+        cmp (zp_hs_new_ptr_lo),y        ; so, compare minutes
         bne end                         ; fallthrough only if the are equal
 
         iny                             ; next digit
         lda zp_hs_latest_score+1        ; seconds. first digit
-        cmp (zp_tmp00),y
+        cmp (zp_hs_new_ptr_lo),y
         bne end                         ; fallthrough only if the are equal
 
         iny                             ; next digit
         lda zp_hs_latest_score+2        ; seconds. secong digit
-        cmp (zp_tmp00),y
+        cmp (zp_hs_new_ptr_lo),y
         bne end                         ; fallthrough only if the are equal
 
         iny                             ; next digit
         lda zp_hs_latest_score+3        ; deci-seconds
-        cmp (zp_tmp00),y
+        cmp (zp_hs_new_ptr_lo),y
 
 end:
         rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; scores_insert_entry
+; entries:
+;       zp_hs_new_ptr_lo/hi: must point to valid score entries
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc scores_insert_entry
+        lda #7                          ; entry 7
+        sta zp_tmp00
+
+l1:     cmp zp_hs_new_entry_pos
+        beq end
+
+        ldx zp_tmp00
+        lda score_ptr,x
+        tay                             ; Y = pointer to next score entry
+
+        ldx #15                         ; copy in total 16 bytes (each entry == 16 bytes)
+l0:     lda (zp_hs_new_ptr_lo),y        ; so, compare minutes
+        pha                             ; save A
+
+        sty save_y                      ; save Y
+        tya                             ; Y += 16
+        clc
+        adc #16
+        tay
+
+        pla                             ; restore A
+        sta (zp_hs_new_ptr_lo),y        ; and copy it to entry #8
+
+save_y = *+1
+        ldy #00                         ; self modyfing. restore Y
+        iny                             ; next byte to copy
+
+        dex
+        bpl l0
+
+        dec zp_tmp00
+        lda zp_tmp00
+        jmp l1
+
+end:
+        rts
+
+score_ptr:
+        .byte 0                         ; ignore
+        .byte 0, 16, 32, 48, 64, 80, 96
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -316,25 +478,13 @@ paint_next:
 @print_highscore_entry:
         txa                             ; x has the high score entry index
 
-        ldy #$00                        ; y = screen idx
+        ldy #$01                        ; y = screen idx
 
         clc
         adc #$01                        ; positions start with 1, not 0
 
-        cmp #10                         ; print position
-        bne @print_second_digit
-
-        lda #$31                        ; hack: if number is 10, print '1'. $31 = '1'
-        sta (zp_hs_ptr_lo),y            ; otherwise, skip to second number
-        iny
-        lda #00                         ; second digit is '0'
-        jmp :+
-
-@print_second_digit:
-        iny
-:
         ora #$30
-        sta (zp_hs_ptr_lo),y
+        sta (zp_hs_ptr_lo),y            ; print position
         iny
 
         lda #$2e                        ; print '.'

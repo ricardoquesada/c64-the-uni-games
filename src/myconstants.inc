@@ -39,12 +39,12 @@ MUSIC_PLAY = $1003
 ; ZP variables
 ;
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-MENU_MAX_ITEMS = $41                                    ; total number of items
-MENU_CURRENT_ITEM = $42                                 ; item idx  0<idx<max_items
-MENU_BYTES_BETWEEN_ITEMS = $43                          ; 40 for one after another
-MENU_ITEM_LEN = $44                                     ; 40 for complete line
-MENU_CURRENT_ROW_ADDR = $45 ; and $46                   ; screen ptr to current item
-MENU_EXEC_ADDR = $47  ; and $48                         ; When button is pressed, what to do
+MENU_MAX_ITEMS = $41                                    ; .byte  total number of items
+MENU_CURRENT_ITEM = $42                                 ; .byte  item idx  0<idx<max_items
+MENU_BYTES_BETWEEN_ITEMS = $43                          ; .byte  40 for one after another
+MENU_ITEM_LEN = $44                                     ; .byte  40 for complete line
+MENU_CURRENT_ROW_ADDR = $45 ; and $46                   ; 2 .bytes  screen ptr to current item
+MENU_EXEC_ADDR = $47  ; and $48                         ; 2 .bytes  When button is pressed, what to do
 
 
 ; variables
@@ -116,14 +116,19 @@ zp_joy2_delay = $86                                     ; .byte 1
 
 zp_abort = $87                                          ; .byte 0 if 0, "abort" was pressed
 
-zp_hs_ptr_lo = $90                                      ; .byte  used for sta (),x
+zp_hs_ptr_lo = $90                                      ; .byte  used for sta (),x while displaying the high scores
 zp_hs_ptr_hi = $91                                      ; .byte
-zp_hs_category = $92                                    ; .byte SCORES_CAT::ROAD_RACE
+zp_hs_new_ptr_lo = $92                                  ; .byte  used for sta(),x while inserting a new hs
+zp_hs_new_ptr_hi = $93                                  ; .byte
+zp_hs_new_ptr2_lo = $94                                 ; .byte  used for sta(),x for the name input
+zp_hs_new_ptr2_hi = $95                                 ; .byte
+zp_hs_category = $96                                    ; .byte SCORES_CAT::ROAD_RACE
                                                         ;       SCORES_CAT::CYCLO_CROSS
                                                         ;       SCORES_CAT::CROSS_COUNTRY
-zp_hs_mode = $93                                        ; .byte SCORES_MODE::CYCLE, SCORES_MODE::NEW_HS
+zp_hs_mode = $97                                        ; .byte SCORES_MODE::CYCLE, SCORES_MODE::NEW_HS
 
-zp_hs_latest_score = $94                                ; 4 .bytes  minutes, seconds, seconds, deci-seconds
+zp_hs_latest_score = $98                                ; 4 .bytes  minutes, seconds, seconds, deci-seconds
+zp_hs_new_entry_pos = $9c                               ; .byte  position of the new score. from 0 to 7. $ff no new score
 
 
 scores_entries = $200                                   ; from $200 to $280

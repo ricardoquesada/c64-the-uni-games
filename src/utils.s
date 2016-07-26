@@ -121,6 +121,49 @@
 
 .endproc
 
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; ut_convert_key_matrix
+; entries:
+;       A = matrix value (returned from ut_get_key)
+; return:
+;       A = screen code. $ff if it couldnt' be converted
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export ut_convert_key_matrix
+.proc ut_convert_key_matrix
+        pha
+        and #%00001111
+        asl                             ; multiply by 8
+        asl
+        asl
+        sta sum
+        pla
+
+        lsr
+        lsr
+        lsr
+        lsr
+        eor #%00000111                  ; a = ~a .MOD 8
+        clc
+sum = *+1
+        adc #00                         ; self modifying
+
+        tax
+        lda key_table,x
+        rts
+
+key_table:
+        ; taken from here: http://codebase64.org/doku.php?id=base:scanning_the_keyboard_the_correct_and_non_kernal_way
+        .byte $ff, $ff, $ff, $ff, $ff, $ff, $ff, $ff  ; CRSR DOWN, F5, F3, F1, F7, CRSR RIGHT, RETURN, INST DEL
+        .byte $ff, $05, $13, $1a, $34, $01, $17, $33  ; LEFT SHIFT, "E", "S", "Z", "4", "A", "W", "3"
+        .byte $18, $14, $06, $03, $36, $04, $12, $35  ; "X", "T", "F", "C", "6", "D", "R", "5"
+        .byte $16, $15, $08, $02, $38, $07, $19, $37  ; "V", "U", "H", "B", "8", "G", "Y", "7"
+        .byte $0e, $0f, $0b, $0d, $30, $0a, $09, $39  ; "N", "O" (Oscar), "K", "M", "0" (Zero), "J", "I", "9"
+        .byte $2c, $00, $3a, $2e, $2d, $0c, $10, $2b  ; ",", "@", ":", ".", "-", "L", "P", "+"
+        .byte $2f, $1e, $3d, $ff, $ff, $3b, $2a, $1c  ; "/", "^", "=", RIGHT SHIFT, HOME, ";", "*", "£"
+        .byte $ff, $11, $ff, $20, $32, $ff, $1f, $31  ; RUN STOP, "Q", "C=" (CMD), " " (SPC), "2", "CTRL", "<-", "1"
+.endproc
+
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; char ut_detect_pal_paln_ntsc(void)
