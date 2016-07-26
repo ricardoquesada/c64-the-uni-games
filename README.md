@@ -32,7 +32,7 @@ Try to beat the computer in all three events. Or play face-to-face with a friend
 
 ## Download
 
-Download latest version from here: [unigames_exo.prg](https://github.com/ricardoquesada/c64-the-uni-games/raw/master/bin/unigames_exo.prg)
+Download latest version from here: [unigames.d64](https://github.com/ricardoquesada/c64-the-uni-games/raw/master/bin/unigames.d64)
 
 ## How to compile it
 
