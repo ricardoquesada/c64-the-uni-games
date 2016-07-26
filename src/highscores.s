@@ -699,28 +699,28 @@ entries_roadrace:
         ;     pad: 2 bytes
         ;        0123456789
         scrcode "nathan    "
-        .byte 0,4,0,2
+        .byte 0,3,7,2
         .byte 0,0               ; ignore
         scrcode "harrison  "
-        .byte 0,4,0,8
+        .byte 0,3,7,6
         .byte 0,0               ; ignore
         scrcode "stefan    "
-        .byte 0,4,1,0
+        .byte 0,3,8,0
         .byte 0,0               ; ignore
         scrcode "john      "
-        .byte 0,4,1,5
+        .byte 0,3,8,4
         .byte 0,0               ; ignore
         scrcode "sydney    "
-        .byte 0,4,2,2
+        .byte 0,3,8,8
         .byte 0,0               ; ignore
         scrcode "rob       "
-        .byte 0,4,5,9
+        .byte 0,3,9,4
         .byte 0,0               ; ignore
         scrcode "ricardo   "
-        .byte 0,4,6,3
+        .byte 0,4,3,1
         .byte 0,0               ; ignore
         scrcode "ricardo   "
-        .byte 0,4,8,8
+        .byte 0,4,5,2
         .byte 0,0               ; ignore
 
 entries_cyclocross:
@@ -748,10 +748,10 @@ entries_cyclocross:
         .byte 0,3,4,3
         .byte 0,0               ; ignore
         scrcode "ricardo   "
-        .byte 0,3,4,4
+        .byte 0,3,8,1
         .byte 0,0               ; ignore
         scrcode "ricardo   "
-        .byte 0,3,4,5
+        .byte 0,3,9,5
         .byte 0,0               ; ignore
 
 entries_crosscountry:
@@ -761,27 +761,27 @@ entries_crosscountry:
         ;     pad: 2 bytes
         ;        0123456789
         scrcode "corbin    "
-        .byte 0,4,0,2
+        .byte 0,3,4,6
         .byte 0,0               ; ignore
         scrcode "beau      "
-        .byte 0,4,0,8
+        .byte 0,3,5,0
         .byte 0,0               ; ignore
         scrcode "michele   "
-        .byte 0,4,1,0
+        .byte 0,3,5,4
         .byte 0,0               ; ignore
         scrcode "yu        "
-        .byte 0,4,1,5
+        .byte 0,3,5,9
         .byte 0,0               ; ignore
         scrcode "geronimo  "
-        .byte 0,4,2,2
+        .byte 0,3,6,2
         .byte 0,0               ; ignore
         scrcode "ray       "
-        .byte 0,4,5,9
+        .byte 0,3,6,9
         .byte 0,0               ; ignore
         scrcode "ricardo   "
-        .byte 0,4,6,3
+        .byte 0,4,3,3
         .byte 0,0               ; ignore
         scrcode "ricardo   "
-        .byte 0,4,8,8
+        .byte 0,4,4,8
         .byte 0,0               ; ignore
 

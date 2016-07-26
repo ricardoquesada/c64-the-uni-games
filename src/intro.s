@@ -105,6 +105,15 @@
         lda #50
         sta $d012
 
+
+        ldx #00                         ; delay so that the fade in
+l0:     ldy #00                         ; looks better
+l1:     dey
+        bne l1
+        dex
+        bne l0
+
+
         cli
 
 loop:
