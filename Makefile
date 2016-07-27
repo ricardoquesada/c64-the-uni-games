@@ -2,8 +2,7 @@
 
 .PHONY: all clean res run
 
-VERSION = "0.3"
-D64_IMAGE = "bin/unigames-v$(VERSION).d64"
+D64_IMAGE = "bin/unigames.d64"
 C1541 = c1541
 X64 = x64
 
