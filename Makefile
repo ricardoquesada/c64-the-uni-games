@@ -2,7 +2,8 @@
 
 .PHONY: all clean res run
 
-D64_IMAGE = "bin/unigames-dev.d64"
+VERSION = "0.3"
+D64_IMAGE = "bin/unigames-v$(VERSION).d64"
 C1541 = c1541
 X64 = x64
 
@@ -48,7 +49,7 @@ unigames: ${SRC}
 
 d64:
 	echo "Generating d64 file..."
-	$(C1541) -format "unigames,rq" d64 $(D64_IMAGE)
+	$(C1541) -format "the uni games,rq" d64 $(D64_IMAGE)
 	$(C1541) $(D64_IMAGE) -write bin/unigames_exo.prg unigames
 	$(C1541) $(D64_IMAGE) -write bin/unigames-scores
 	$(C1541) $(D64_IMAGE) -list
