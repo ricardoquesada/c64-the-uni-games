@@ -1851,7 +1851,7 @@ p1_go_up:
         tay
 
 l3:     lda VIC_SPR0_Y                          ; don't go above a certain height
-        cmp #60                                 ; sky is the limit
+        cmp #(SCROLL_ROW_P1+4)*8+3              ; sky is the limit
         bmi l4
 
         dec VIC_SPR0_Y                          ; tire
@@ -1956,7 +1956,7 @@ p2_go_up:
         tay
 
 l3:     lda VIC_SPR4_Y                          ; don't go above a certain height
-        cmp #164                                ; sky is the limit
+        cmp #(SCROLL_ROW_P2+4)*8+3              ; sky is the limit
         bmi l4
 
         dec VIC_SPR4_Y                          ; tire
