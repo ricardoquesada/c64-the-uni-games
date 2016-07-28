@@ -2677,9 +2677,13 @@ FRAME_HAIR_RIDING_TBL_SIZE = * - frame_hair_riding_tbl
 
 frame_body_winner_tbl:
         .byte SPRITES_POINTER + 5                       ; body winner #1
+        .byte SPRITES_POINTER + 5                       ; body winner #1
+        .byte SPRITES_POINTER + 6                       ; body winner #2
         .byte SPRITES_POINTER + 6                       ; body winner #2
 frame_hair_winner_tbl:
         .byte SPRITES_POINTER + 7                       ; hair #1 winner
+        .byte SPRITES_POINTER + 7                       ; hair #1 winner
+        .byte SPRITES_POINTER + 8                       ; hair #2 winner
         .byte SPRITES_POINTER + 8                       ; hair #2 winner
 FRAME_HAIR_WINNER_TBL_SIZE = * - frame_hair_winner_tbl
 
