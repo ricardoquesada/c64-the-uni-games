@@ -2,7 +2,7 @@
 
 The first and only "Unicycle Games" games for the Commodore 64 compatible with UniJoystiCle™.
 
-## Version v0.2.4
+## Version v0.3
 
 ![Title Screen](https://lh3.googleusercontent.com/-yQCSKtv_UFQ/V5ZT_h0yFAI/AAAAAAABe24/0kqLpZXgRVcHFsCEGYktsQwUe3q4E5JhACCo/s800/capture1.png)
 ![RoadRace](https://lh3.googleusercontent.com/-8hNjbAZFeQQ/V5ZT_lzJWEI/AAAAAAABe28/Vi5UdHVHvscV4jwW92_ne154eXWHQcatgCCo/s800/capture2.png)
