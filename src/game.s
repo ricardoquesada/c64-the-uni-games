@@ -11,7 +11,7 @@
 
 ; from utils.s
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
-.import ut_clear_color, ut_setup_tod, ut_vic_video_type
+.import ut_clear_color, ut_vic_video_type
 .import main_init, main_init_soft
 .import scores_init_hard, scores_sort
 .import music_speed, palb_freq_table_lo, palb_freq_table_hi
@@ -184,8 +184,6 @@ RECORD_FIRE = 0                         ; computer player: record fire, or play 
 
         jsr init_game
 
-        jsr ut_setup_tod                ; must be called AFTER detect_pal_...
-
         ldx #<nmi_handler               ; "RESTORE" key handler
         ldy #>nmi_handler               ; should be placed after
         stx $fffa                       ; ut_setup_tod since it changes the nmi handler
@@ -302,7 +300,7 @@ get_set_go:
 
 riding:
         jsr remove_go_lbl
-        jsr print_elpased_time          ; updates playing time
+        jsr update_elapsed_time         ; updates playing time
         jmp cont
 
 game_over:
@@ -880,10 +878,12 @@ loop:
         bpl :-
 
         lda #0
-        sta $dc0b                       ; Set TOD-Clock to 0 (hours)
-        sta $dc0a                       ;- (minutes)
-        sta $dc09                       ;- (seconds)
-        sta $dc08                       ;- (deciseconds)
+        sta zp_tod_ds                   ; deciseconds
+        sta zp_tod_s_lo                 ; seconds lo
+        sta zp_tod_s_hi                 ; seconds hi
+        sta zp_tod_m                    ; minutes
+        lda #5
+        sta zp_tod_delay                ; internal delay
 
         lda #GAME_STATE::RIDING
         sta zp_game_state
@@ -1488,39 +1488,72 @@ left:
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; print_elpased_time
+; void update_elapsed_time()
+;       updates zp_tod_ds, zp_tod_s, zp_top_m
+;       it doesn't use the real TOD since we don't use one
+;       since the speed between PAL and NTSC should be reflected in the time
+;       it is important for the Highscores
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.proc print_elpased_time
-        lda $dc08                       ; 1/10th seconds.
-        and #%00001111
-        ora #$30
+.proc update_elapsed_time
+        dec zp_tod_delay
+        beq up_ds
+        rts
+up_ds:
+        lda #5
+        sta zp_tod_delay                ; reset delay
 
-        ldy zp_p1_finished
+        inc zp_tod_ds                   ; update deciseconds
+        lda zp_tod_ds
+        cmp #10
+        beq up_sec_lo                   ; update seconds lo
+        jmp print_tod_ds
+
+up_sec_lo:
+        lda #0
+        sta zp_tod_ds                   ; restore deciseconds
+
+        inc zp_tod_s_lo                 ; second++
+        lda zp_tod_s_lo
+        cmp #10
+        beq up_sec_hi                   ; update seconds hi
+        jmp print_tod_s_lo
+
+up_sec_hi:
+        lda #0
+        sta zp_tod_s_lo                 ; restore second lo
+
+        inc zp_tod_s_hi                 ; second++
+        lda zp_tod_s_hi
+        cmp #6
+        beq up_m                        ; update minutes
+        jmp print_tod_s_hi
+
+up_m:
+        lda #0
+        sta zp_tod_s_hi                 ; restore second hi
+
+        inc zp_tod_m                    ; minutes++
+        lda zp_tod_m
+        cmp #10
         bne :+
-        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 39
-:       ldy zp_p2_finished
-        bne :+
-        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 39
-
-
-:       lda $dc09                       ; seconds. digit
-        tax
-        and #%00001111
-        ora #$30
-
-        ldy zp_p1_finished
-        bne :+
-        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 37
-:       ldy zp_p2_finished
-        bne :+
-        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 37
-
+        lda #9                          ; minutes = min(minutes, 9)
+        sta zp_tod_m
 :
-        txa                             ; seconds. Ten digit
-        lsr
-        lsr
-        lsr
-        lsr
+
+
+print_tod_m:
+        lda zp_tod_m
+        ora #$30
+        ldy zp_p1_finished
+        bne :+
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 34
+:       ldy zp_p2_finished
+        bne :+
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 34
+:
+
+print_tod_s_hi:
+        lda zp_tod_s_hi
         ora #$30
 
         ldy zp_p1_finished
@@ -1530,15 +1563,26 @@ left:
         bne :+
         sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 36
 :
-        lda $dc0a                       ; minutes. digit
-        and #%00001111
+
+print_tod_s_lo:
+        lda zp_tod_s_lo
         ora #$30
         ldy zp_p1_finished
         bne :+
-        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 34
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 37
 :       ldy zp_p2_finished
         bne :+
-        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 34
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 37
+:
+print_tod_ds:
+        lda zp_tod_ds
+        ora #$30
+        ldy zp_p1_finished
+        bne :+
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 39
+:       ldy zp_p2_finished
+        bne :+
+        sta SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 39
 :
         rts
 .endproc

@@ -135,6 +135,12 @@ zp_abort = $87                                          ; .byte 0 if 0, "abort" 
 
 zp_space_counter = $88                                  ; .byte timer for the "press space"
 
+zp_tod_ds = $89                                         ; .byte: deciseconds
+zp_tod_s_hi = $8a                                       ; .byte: seconds lo
+zp_tod_s_lo = $8b                                       ; .byte: seconds hi
+zp_tod_m =  $8c                                         ; .byte: minutes
+zp_tod_delay = $8d                                      ; .byte: internal delay
+
 
 scores_entries = $200                                   ; from $200 to $280
 
