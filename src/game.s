@@ -422,13 +422,13 @@ level_charset_address = *+1
         lda #%01011011
         sta $d011                       ; extended background color mode: on
 
+        lda #RASTER_TRIGGER_ANIMS       ; should be triggered when raster = RASTER_TRIGGER_ANIMS
+        sta $d012
+
         ldx #<irq_anims                 ; set a new irq vector
         ldy #>irq_anims
         stx $fffe
         sty $ffff
-
-        lda #RASTER_TRIGGER_ANIMS       ; should be triggered when raster = RASTER_TRIGGER_ANIMS
-        sta $d012
 
 end_irq:
         pla                             ; restores A, X, Y
@@ -454,13 +454,17 @@ end_irq:
 
         asl $d019                       ; clears raster interrupt
 
+        lda $d011
+        and #%01111111
+        sta $d011                       ; is this really needed?
+
+        lda #RASTER_BOTTOM_P1           ; should be triggered when raster = RASTER_BOTTOM
+        sta $d012
+
         ldx #<irq_bottom_p1             ; set a new irq vector
         ldy #>irq_bottom_p1
         stx $fffe
         sty $ffff
-
-        lda #RASTER_BOTTOM_P1           ; should be triggered when raster = RASTER_BOTTOM
-        sta $d012
 
         inc zp_sync_raster_anims
 
@@ -497,13 +501,13 @@ end_irq:
         lda #%00011011
         sta $d011                       ; extended color mode: off
 
+        lda #RASTER_TOP_P2
+        sta $d012
+
         ldx #<irq_top_p2                ; set new IRQ-raster vector
         ldy #>irq_top_p2
         stx $fffe
         sty $ffff
-
-        lda #RASTER_TOP_P2
-        sta $d012
 
         inc zp_sync_raster_bottom_p1
 
@@ -542,13 +546,13 @@ end_irq:
         lda #%01011011
         sta $d011                       ; extended background color mode: on
 
+        lda #RASTER_BOTTOM_P2           ; should be triggered when raster = RASTER_BOTTOM
+        sta $d012
+
         ldx #<irq_bottom_p2             ; set a new irq vector
         ldy #>irq_bottom_p2
         stx $fffe
         sty $ffff
-
-        lda #RASTER_BOTTOM_P2           ; should be triggered when raster = RASTER_BOTTOM
-        sta $d012
 
 end_irq:
         pla                             ; restores A, X, Y
@@ -584,13 +588,13 @@ end_irq:
         lda #%00011011
         sta $d011                       ; extended color mode: off
 
+        lda #RASTER_TOP_P1
+        sta $d012
+
         ldx #<irq_top_p1                ; set new IRQ-raster vector
         ldy #>irq_top_p1
         stx $fffe
         sty $ffff
-
-        lda #RASTER_TOP_P1
-        sta $d012
 
         inc zp_sync_raster_bottom_p2
 

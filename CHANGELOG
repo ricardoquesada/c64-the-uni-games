@@ -1,4 +1,5 @@
 v0.4 - xx, December 2016
+  - fix: game. removed initial flicker when the screen was displayed
   - fix: game. press space before "get set go"
 		needed when played with the unijoysticle.
 		just press "space" once you are on top of the unicycle
