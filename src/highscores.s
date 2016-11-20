@@ -65,14 +65,14 @@ UNI2_COL = 10
         lda #SCORES_STATE::WAITING
         sta scores_state
 
-        lda #%00000000                  ; enable only PAL/NTSC scprite
+        lda #%00000000                  ; enable/disable sprites
         sta VIC_SPR_ENA
 
         lda #$01
-        jsr ut_clear_color
+        jsr ut_clear_color              ; clear color RAM
 
         lda #$20
-        jsr ut_clear_screen
+        jsr ut_clear_screen             ; clear screen RAM
 
         jmp scores_init_screen
 .endproc

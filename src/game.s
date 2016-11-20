@@ -184,11 +184,6 @@ RECORD_FIRE = 0                         ; computer player: record fire, or play 
 
         jsr init_game
 
-        ldx #<nmi_handler               ; "RESTORE" key handler
-        ldy #>nmi_handler               ; should be placed after
-        stx $fffa                       ; ut_setup_tod since it changes the nmi handler
-        sty $fffb
-
         ldx #<irq_anims                 ; raster irq vector
         ldy #>irq_anims
         stx $fffe
