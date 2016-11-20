@@ -714,6 +714,9 @@ _loop2:
         sty zp_scroll_idx_p1+1
         sty zp_scroll_idx_p2+1
 
+        lda #1
+        sta zp_space_counter            ; display space immediately, no delays
+
         lda $d01f                       ; clear collisions... just in case
 
         rts
@@ -787,6 +790,9 @@ loop:
         stx zp_scroll_speed_p2
         sty zp_scroll_speed_p1+1        ; MSB
         sty zp_scroll_speed_p2+1
+
+        lda #1                          ; and restore "space" delay. needed for game over
+        sta zp_space_counter            ; display space immediately, no delays
 
         rts
 .endproc
@@ -916,13 +922,13 @@ counter: .byte 0
 ; void show_press_space()
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc show_press_space
-        dec counter
+        dec zp_space_counter
         beq @display
         rts
 
 @display:
         lda #$40
-        sta counter
+        sta zp_space_counter
 
         lda on_off
         eor #%00000001
@@ -946,7 +952,6 @@ l1:     lda press_space_lbl,x
         rts
 
 on_off: .byte 0
-counter: .byte $40
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;

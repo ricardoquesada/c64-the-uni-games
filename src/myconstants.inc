@@ -133,6 +133,8 @@ zp_joy2_delay = $86                                     ; .byte 1
 
 zp_abort = $87                                          ; .byte 0 if 0, "abort" was pressed
 
+zp_space_counter = $88                                  ; .byte timer for the "press space"
+
 
 scores_entries = $200                                   ; from $200 to $280
 
