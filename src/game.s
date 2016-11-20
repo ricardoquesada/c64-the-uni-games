@@ -18,7 +18,8 @@
 .import music_patch_table_1, music_patch_table_2
 
 .enum GAME_STATE
-        ON_YOUR_MARKS                   ; initial scroll
+        PRESS_SPACE                     ; before the countdown, press space
+        ON_YOUR_MARKS                   ; on your marks
         GET_SET_GO                      ; get set, go
         RIDING                          ; race started
         GAME_OVER                       ; race finished
@@ -260,6 +261,8 @@ animate_level_addr = * + 1
         jsr animate_level_roadrace      ; self modyfing: level specific animation
 
         lda zp_game_state
+        cmp #GAME_STATE::PRESS_SPACE
+        beq press_space
         cmp #GAME_STATE::ON_YOUR_MARKS
         beq on_your_marks
         cmp #GAME_STATE::GET_SET_GO
@@ -278,6 +281,16 @@ music_play_addr = *+1
 
         ; ASSERT(should not happen)
         jmp *-2                         ; should not happen
+
+press_space:
+        jsr show_press_space
+        lda #%01111111                  ; space ?
+        sta CIA1_PRA                    ; row 7
+        lda CIA1_PRB
+        and #%00010000                  ; col 4
+        bne cont                        ; space pressed ?
+        jsr init_on_your_marks
+        jmp cont
 
 on_your_marks:
         jsr update_on_your_marks
@@ -652,7 +665,7 @@ _loop2:
 .proc init_game
         jsr init_sprites                ; setup sprites
 
-        lda #GAME_STATE::ON_YOUR_MARKS  ; game state machine = "get set"
+        lda #GAME_STATE::PRESS_SPACE    ; game state machine = "press space"
         sta zp_game_state
 
         lda #PLAYER_STATE::GET_SET_GO   ; player state machine = "get set"
@@ -685,12 +698,11 @@ _loop2:
         sta zp_animation_delay_p1
         sta zp_animation_delay_p2
 
-        ldx #<SCROLL_SPEED              ; initial speed
-        ldy #>SCROLL_SPEED
-        stx zp_scroll_speed_p1          ; LSB
-        stx zp_scroll_speed_p2
-        sty zp_scroll_speed_p1+1        ; MSB
-        sty zp_scroll_speed_p2+1
+        lda #0                          ; no scroll at the beginning
+        sta zp_scroll_speed_p1          ; LSB
+        sta zp_scroll_speed_p2
+        sta zp_scroll_speed_p1+1        ; MSB
+        sta zp_scroll_speed_p2+1
 
         lda #$80
         sta zp_remove_go_counter
@@ -760,6 +772,23 @@ loop:
 
         rts
 
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void init_on_your_marks()
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc init_on_your_marks
+        lda #GAME_STATE::ON_YOUR_MARKS
+        sta zp_game_state
+
+        ldx #<SCROLL_SPEED              ; initial speed
+        ldy #>SCROLL_SPEED
+        stx zp_scroll_speed_p1          ; LSB
+        stx zp_scroll_speed_p2
+        sty zp_scroll_speed_p1+1        ; MSB
+        sty zp_scroll_speed_p2+1
+
+        rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
