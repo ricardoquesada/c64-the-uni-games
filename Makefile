@@ -15,30 +15,30 @@ SRC=src/intro.s src/main.s src/about.s src/utils.s src/game.s src/highscores.s \
 
 res:
 	echo "Compressing resources..."
-	exomizer mem -q res/mainscreen-charset.prg -o src/mainscreen-charset.prg.exo
-	exomizer mem -q res/level-roadrace-map.prg -o src/level-roadrace-map.prg.exo
-	exomizer mem -q res/level-roadrace-colors.prg -o src/level-roadrace-colors.prg.exo
-	exomizer mem -q res/level-roadrace-charset.prg -o src/level-roadrace-charset.prg.exo
-	exomizer mem -q res/level-cyclocross-map.prg -o src/level-cyclocross-map.prg.exo
-	exomizer mem -q res/level-cyclocross-colors.prg -o src/level-cyclocross-colors.prg.exo
-	exomizer mem -q res/level-cyclocross-charset.prg -o src/level-cyclocross-charset.prg.exo
-	exomizer mem -q res/level-crosscountry-map.prg -o src/level-crosscountry-map.prg.exo
-	exomizer mem -q res/level-crosscountry-colors.prg -o src/level-crosscountry-colors.prg.exo
-	exomizer mem -q res/level-crosscountry-charset.prg -o src/level-crosscountry-charset.prg.exo
-	exomizer mem -q res/intro-map.prg -o src/intro-map.prg.exo
-	cp res/intro-charset.bin src
-	cp res/sprites.bin src
-	cp res/select_event-map.bin src
-	cp res/number_of_players-map.bin src
-	cp res/mainscreen-map.bin src
-	cp res/mainscreen-colors.bin src
-	cp res/about-map.bin src
-	cp res/hiscores-map.bin src
-	cp res/instructions-map.bin src
-	cp res/Popcorn_2.exo src/maintitle_music.sid.exo
-	cp res/Action_G.exo src/music_cyclocross.sid.exo
-	cp res/12_Bar_Blues.exo src/music_roadrace.sid.exo
-	cp res/Seek_and_Destroy.exo src/music_crosscountry.sid.exo
+	-exomizer mem -q res/mainscreen-charset.prg -o src/mainscreen-charset.prg.exo
+	-exomizer mem -q res/level-roadrace-map.prg -o src/level-roadrace-map.prg.exo
+	-exomizer mem -q res/level-roadrace-colors.prg -o src/level-roadrace-colors.prg.exo
+	-exomizer mem -q res/level-roadrace-charset.prg -o src/level-roadrace-charset.prg.exo
+	-exomizer mem -q res/level-cyclocross-map.prg -o src/level-cyclocross-map.prg.exo
+	-exomizer mem -q res/level-cyclocross-colors.prg -o src/level-cyclocross-colors.prg.exo
+	-exomizer mem -q res/level-cyclocross-charset.prg -o src/level-cyclocross-charset.prg.exo
+	-exomizer mem -q res/level-crosscountry-map.prg -o src/level-crosscountry-map.prg.exo
+	-exomizer mem -q res/level-crosscountry-colors.prg -o src/level-crosscountry-colors.prg.exo
+	-exomizer mem -q res/level-crosscountry-charset.prg -o src/level-crosscountry-charset.prg.exo
+	-exomizer mem -q res/intro-map.prg -o src/intro-map.prg.exo
+	-cp res/intro-charset.bin src
+	-cp res/sprites.bin src
+	-cp res/select_event-map.bin src
+	-cp res/number_of_players-map.bin src
+	-cp res/mainscreen-map.bin src
+	-cp res/mainscreen-colors.bin src
+	-cp res/about-map.bin src
+	-cp res/hiscores-map.bin src
+	-cp res/instructions-map.bin src
+	-cp res/Popcorn_2.exo src/maintitle_music.sid.exo
+	-cp res/Action_G.exo src/music_cyclocross.sid.exo
+	-cp res/12_Bar_Blues.exo src/music_roadrace.sid.exo
+	-cp res/Seek_and_Destroy.exo src/music_crosscountry.sid.exo
 
 unigames: ${SRC}
 	echo "Compiling..."

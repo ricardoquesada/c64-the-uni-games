@@ -6,6 +6,7 @@ v0.4 - xx, December 2016
   - fix: game. does not use the TOD anymore
 		the time should run at the speed of the machine
 		in order to make the high scores meaningful
+  - fix: highscores: display "saving..."
 
 v0.3 - 29 July, 2016 - CommVEx release
   - new: added bot
