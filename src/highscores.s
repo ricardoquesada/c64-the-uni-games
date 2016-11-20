@@ -680,25 +680,11 @@ entries = *+1
 FILE_START = $e80
 FILE_END = $fff
 
-                                        ; show "saving..." with sprites
-        lda #%11000000                  ; enable/disable sprites
-        sta VIC_SPR_ENA
-        sta VIC_SPR_HI_X                ; since x pos > 255
-        lda #SPRITES_POINTER + 28       ; "saving"
-        sta SPRITES_PTR0+6
-        lda #SPRITES_POINTER + 29       ; "..."
-        sta SPRITES_PTR0+7
-        lda #43
-        sta VIC_SPR6_X
-        lda #67
-        sta VIC_SPR7_X
-        lda #244
-        sta VIC_SPR6_Y
-        sta VIC_SPR7_Y
-        lda #1
-        sta VIC_SPR6_COLOR
-        sta VIC_SPR7_COLOR
-
+        ldx #3
+l0:     lda saving_lbl,x
+        sta SCREEN0_BASE + 40 * 24 + 36, x
+        dex
+        bpl l0
 
         inc $01                         ; $36: kernal in
 
@@ -726,16 +712,15 @@ FILE_END = $fff
         bcs @error                      ; if carry set, a load error has happened
 
         dec $01                         ; $35: kernal out. use RAM
-        ldx #SPRITES_POINTER + 30       ; "ok"
-        stx SPRITES_PTR0+7
         rts
 @error:
         ; Acumulator contains BASIC error code
         dec $01                         ; $35: kernal out. use RAM
 
-        ldx #SPRITES_POINTER + 31       ; "error"
-        stx SPRITES_PTR0+7
         rts
+
+saving_lbl:
+        .byte 221,222,223,190
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
