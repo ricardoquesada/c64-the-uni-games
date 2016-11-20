@@ -214,7 +214,8 @@ _mainloop:
 .if (::DEBUG & 1)
         dec $d020
 .endif
-        dec zp_sync_raster_bottom_p2
+        lda #0
+        sta zp_sync_raster_bottom_p2
         jsr update_scroll_p1                   ; when P1 irq is triggered, scroll P2
 .if (::DEBUG & 1)
         inc $d020
@@ -225,7 +226,8 @@ scroll_p2:
 .if (::DEBUG & 1)
         dec $d020
 .endif
-        dec zp_sync_raster_bottom_p1
+        lda #0
+        sta zp_sync_raster_bottom_p1
         jsr update_scroll_p2                   ; when P2 irq is triggered, scroll P1
 .if (::DEBUG & 1)
         inc $d020
@@ -238,7 +240,8 @@ abort:
         jmp main_init
 
 animations:
-        dec zp_sync_raster_anims
+        lda #0
+        sta zp_sync_raster_anims
 
 .if (::DEBUG & 1)
         dec $d020
