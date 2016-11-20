@@ -195,10 +195,6 @@ RECORD_FIRE = 0                         ; computer player: record fire, or play 
         lda #01                         ; Enable raster irq
         sta $d01a
 
-:       lda $d012                       ; wait for start of raster
-:       cmp $d012
-        beq :-
-        bmi :--
                                         ; no need to turn on the VIC
                                         ; again since it will be turned on
                                         ; in the raster
