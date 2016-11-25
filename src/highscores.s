@@ -16,11 +16,6 @@
 .import main_loop, main_reset_menu
 .import ut_get_key
 
-UNI1_ROW = 10                           ; unicyclist #1 x,y
-UNI1_COL = 0
-UNI2_ROW = 37                           ; unicylists #2 x,y
-UNI2_COL = 10
-
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; Macros
@@ -74,8 +69,26 @@ UNI2_COL = 10
         lda #$20
         jsr ut_clear_screen             ; clear screen RAM
 
+        jsr scores_init_hs_score_entry
+
         jmp scores_init_screen
 .endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; scores_init_hs_score_entry
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.proc scores_init_hs_score_entry
+        lda zp_hs_new_entry_pos         ; set pointer for name input
+        and #%00001111
+        tax
+        lda screen_ptr_lo,x             ; can't reuse the zp_hs_new_ptr_lo ptr
+        sta zp_hs_new_ptr2_lo           ; since both will be used at the same time
+        lda screen_ptr_hi,x
+        sta zp_hs_new_ptr2_hi
+
+.endproc
+
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void scores_init_hard()
@@ -115,7 +128,7 @@ UNI2_COL = 10
         lda #%00001000                  ; no scroll, hires (mono color), 40-cols
         sta $d016                       ; turn off multicolor
 
-        ldx #<main_irq_timer                 ; irq for timer
+        ldx #<main_irq_timer            ; irq for timer
         ldy #>main_irq_timer
         stx $fffe
         sty $ffff
@@ -315,28 +328,35 @@ l0:
         lda scores_entries_hi,x
         sta zp_hs_new_ptr_hi
 
+        asl zp_hs_new_entry_pos         ; zp_hs_new_entry_pos holds
+        asl zp_hs_new_entry_pos         ; two possible entries
+        asl zp_hs_new_entry_pos         ; $f means no entry.
+        asl zp_hs_new_entry_pos         ; shift 4 to left to save current LSB value
+
         ldx #0
-        stx zp_hs_new_entry_pos         ; used as entry index
+        stx tmp_entry_pos
 
 l0:     lda valid_y,x                   ; scores are 10 bytes after the name
         tay
 
         jsr scores_cmp_score            ; uses Y
         bmi new_hs
-        inc zp_hs_new_entry_pos         ; inc entry index
-        ldx zp_hs_new_entry_pos
+        inc tmp_entry_pos         ; inc entry index
+        ldx tmp_entry_pos
         cpx #8                          ; there are only 8 entries
         bne l0
 
 ;no new hs
-        lda #$ff                        ; $ff means no new entry
+        lda zp_hs_new_entry_pos
+        ora #$0f                        ; LSB is $f (no high score entry)
         sta zp_hs_new_entry_pos
         rts
 
 new_hs:
+        ldx tmp_entry_pos               ; position for the new score
         jsr scores_insert_entry         ; insert new entry in the table
 
-        ldx zp_hs_new_entry_pos         ; set new score
+        ldx tmp_entry_pos               ; set new score
         lda valid_y,x
 
         sec
@@ -364,11 +384,15 @@ l1:     sta (zp_hs_new_ptr_lo),y        ; replace old name with spaces
         lda zp_hs_latest_score+3        ; deci-seconds
         sta (zp_hs_new_ptr_lo),y
 
-        ldx zp_hs_new_entry_pos         ; set pointer for name input
+        ldx tmp_entry_pos               ; set pointer for name input
         lda screen_ptr_lo,x             ; can't reuse the zp_hs_new_ptr_lo ptr
         sta zp_hs_new_ptr2_lo           ; since both will be used at the same time
         lda screen_ptr_hi,x
         sta zp_hs_new_ptr2_hi
+
+        lda zp_hs_new_entry_pos         ; update LSB entry pos
+        ora tmp_entry_pos
+        sta zp_hs_new_entry_pos
 
         rts
 
@@ -376,14 +400,8 @@ valid_y:
         .byte 0+10, 16+10, 32+10, 48+10         ; scores are 10 bytes after the name
         .byte 64+10, 80+10, 96+10, 112+10
 
-screen_ptr_lo:
-        .repeat 8,YY
-                .byte <(SCREEN0_BASE + 40 * (10 + YY * 2) + 9)
-        .endrepeat
-screen_ptr_hi:
-        .repeat 8,YY
-                .byte >(SCREEN0_BASE + 40 * (10 + YY * 2) + 9)
-        .endrepeat
+tmp_entry_pos:
+        .byte 0
 
 .endproc
 
@@ -422,12 +440,16 @@ end:
 ; scores_insert_entry
 ; entries:
 ;       zp_hs_new_ptr_lo/hi: must point to valid score entries
+;       x: entry idx where the new score should be inserted
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .proc scores_insert_entry
+        stx zp_tmp01
+
         lda #7                          ; entry 7
         sta zp_tmp00
 
-l1:     cmp zp_hs_new_entry_pos
+
+l1:     cmp zp_tmp01                    ; entry where it should be inserted
         beq end
 
         ldx zp_tmp00
@@ -895,3 +917,11 @@ entries_crosscountry:
         .byte 0,4,4,8
         .byte 0,0               ; ignore
 
+screen_ptr_lo:
+        .repeat 8,YY
+                .byte <(SCREEN0_BASE + 40 * (10 + YY * 2) + 9)
+        .endrepeat
+screen_ptr_hi:
+        .repeat 8,YY
+                .byte >(SCREEN0_BASE + 40 * (10 + YY * 2) + 9)
+        .endrepeat

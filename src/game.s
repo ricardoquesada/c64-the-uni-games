@@ -315,9 +315,65 @@ cont:
         jmp _mainloop
 
 go_to_high_scores:
+
+        lda #$ff
+        sta zp_hs_new_entry_pos         ; reset high score entry
+
         lda game_selected_event         ; what scores to display
         sta zp_hs_category
 
+                                        ; there are three cases:
+                                        ; 1) Only one human player:
+                                        ;       evaluate score for player 2
+                                        ; 2) Two human players. P1 won
+                                        ;       evaluate score for player 1
+                                        ;       evaluate score for player 2
+                                        ; 3) Two human players: P2 won or tie
+                                        ;       evaluate score for player 2
+                                        ;       evaluate score for player 1
+        lda game_number_of_players
+        beq one_player
+
+        jsr p1_p2_score_cmp             ; which player has the highest score? one or two?
+                                        ; needed to know the absolute position in the score table
+                                        ; Carry set if P2 >= P1
+        bcs p2_higher
+
+        jsr store_p1_score              ; p1 > p2. So insert P1 first
+        jsr scores_sort
+        jsr store_p2_score
+        jsr scores_sort
+        jmp scores_init_hard
+
+p2_higher:
+        jsr store_p2_score              ; p2 >= p1. So insert P2 first
+        jsr scores_sort
+        jsr store_p1_score
+        jsr scores_sort
+        jmp scores_init_hard
+
+one_player:
+        jsr store_p2_score              ; if only one player, just use 2nd player (human)
+                                        ; score for the high score. ignore robot score
+        jsr scores_sort
+        jmp scores_init_hard
+
+store_p1_score:
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 34
+        and #%00001111                  ; only from 0 to ~10
+        sta zp_hs_latest_score + 0      ; minutes
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 36
+        and #%00001111                  ; only from 0 to ~10
+        sta zp_hs_latest_score + 1      ; seconds
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 37
+        and #%00001111                  ; only from 0 to ~10
+        sta zp_hs_latest_score + 2      ; seconds
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 39
+        and #%00001111                  ; only from 0 to ~10
+        sta zp_hs_latest_score + 3      ; deciseconds
+        rts
+
+store_p2_score:
         lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 34
         and #%00001111                  ; only from 0 to ~10
         sta zp_hs_latest_score + 0      ; minutes
@@ -330,10 +386,26 @@ go_to_high_scores:
         lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 39
         and #%00001111                  ; only from 0 to ~10
         sta zp_hs_latest_score + 3      ; deciseconds
+        rts
 
-        jsr scores_sort
+p1_p2_score_cmp:
+        ; carry set if P2 >= P1
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 34       ; compare minutes
+        cmp SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 34
+        bne bne_cmp
 
-        jmp scores_init_hard
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 36       ; compare seconds hi
+        cmp SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 36
+        bne bne_cmp
+
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 37       ; compare seconds lo
+        cmp SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 37
+        bne bne_cmp
+
+        lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 39       ; compare deci seconds
+        cmp SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 39
+end_cmp:
+        rts
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
