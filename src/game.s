@@ -13,7 +13,7 @@
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
 .import ut_clear_color, ut_vic_video_type
 .import main_init, main_init_soft
-.import scores_init_hard, scores_sort
+.import scores_init_hard, scores_sort, scores_init_hs_score_entry
 .import music_speed, palb_freq_table_lo, palb_freq_table_hi
 .import music_patch_table_1, music_patch_table_2
 
@@ -343,21 +343,29 @@ go_to_high_scores:
         jsr scores_sort
         jsr store_p2_score
         jsr scores_sort
-        jmp scores_init_hard
+        jmp end
 
 p2_higher:
         jsr store_p2_score              ; p2 >= p1. So insert P2 first
         jsr scores_sort
         jsr store_p1_score
         jsr scores_sort
-        jmp scores_init_hard
+        jmp end
 
 one_player:
         jsr store_p2_score              ; if only one player, just use 2nd player (human)
                                         ; score for the high score. ignore robot score
         jsr scores_sort
+
+end:
+
+        ldx #0                          ; set "cursor" to score 0... doesn't matter if it
+        jsr scores_init_hs_score_entry  ; belong to p1 or p2
+
         jmp scores_init_hard
 
+
+        ; helper functions
 store_p1_score:
         lda SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 34
         and #%00001111                  ; only from 0 to ~10
@@ -392,15 +400,15 @@ p1_p2_score_cmp:
         ; carry set if P2 >= P1
         lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 34       ; compare minutes
         cmp SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 34
-        bne bne_cmp
+        bne end_cmp
 
         lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 36       ; compare seconds hi
         cmp SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 36
-        bne bne_cmp
+        bne end_cmp
 
         lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 37       ; compare seconds lo
         cmp SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 37
-        bne bne_cmp
+        bne end_cmp
 
         lda SCREEN0_BASE + 40 * (SCROLL_ROW_P2-EMPTY_ROWS-1) + 39       ; compare deci seconds
         cmp SCREEN0_BASE + 40 * (SCROLL_ROW_P1-EMPTY_ROWS-1) + 39

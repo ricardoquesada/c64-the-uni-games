@@ -69,22 +69,57 @@
         lda #$20
         jsr ut_clear_screen             ; clear screen RAM
 
-        jsr scores_init_hs_score_entry
-
         jmp scores_init_screen
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; scores_init_hs_score_entry
+; entries:
+;       x: which score to set: 0 or 1
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export scores_init_hs_score_entry
 .proc scores_init_hs_score_entry
         lda zp_hs_new_entry_pos         ; set pointer for name input
-        and #%00001111
-        tax
-        lda screen_ptr_lo,x             ; can't reuse the zp_hs_new_ptr_lo ptr
+
+        cpx #0                          ; X, from entries
+        beq score_0
+
+        lsr                             ; use MSB
+        lsr
+        lsr
+        lsr
+
+        jmp set_entry
+
+score_0:
+        and #%00001111                  ; use LSB
+        jmp set_entry
+
+set_entry:
+        cmp #$0f                        ; valid entry
+        beq end
+
+        tay
+        lda screen_ptr_lo,y             ; can't reuse the zp_hs_new_ptr_lo ptr
         sta zp_hs_new_ptr2_lo           ; since both will be used at the same time
-        lda screen_ptr_hi,x
+        lda screen_ptr_hi,y
         sta zp_hs_new_ptr2_hi
+
+        cpx #0                          ; reset value after using it
+        bne clear_1
+
+        lda zp_hs_new_entry_pos         ; after using score 0, reset it
+        ora #$0f
+        lda zp_hs_new_entry_pos
+        jmp end
+
+clear_1:
+        lda zp_hs_new_entry_pos         ; after using score 1, reset it
+        ora #$f0
+        lda zp_hs_new_entry_pos
+
+end:
+        rts
 
 .endproc
 
@@ -822,7 +857,21 @@ categories_crosscountry:
 hiscores_map:
         .incbin "hiscores-map.bin"      ; 40 * 6
 
+
+
+screen_ptr_lo:
+        .repeat 8,YY
+                .byte <(SCREEN0_BASE + 40 * (10 + YY * 2) + 9)
+        .endrepeat
+screen_ptr_hi:
+        .repeat 8,YY
+                .byte >(SCREEN0_BASE + 40 * (10 + YY * 2) + 9)
+        .endrepeat
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; segment SCORES
 ; fixed at $e80 to load/save them from disk
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .segment "SCORES"
 entries_roadrace:
         ; high score entry: must have exactly 16 bytes each entry
@@ -916,12 +965,3 @@ entries_crosscountry:
         scrcode "ricardo   "
         .byte 0,4,4,8
         .byte 0,0               ; ignore
-
-screen_ptr_lo:
-        .repeat 8,YY
-                .byte <(SCREEN0_BASE + 40 * (10 + YY * 2) + 9)
-        .endrepeat
-screen_ptr_hi:
-        .repeat 8,YY
-                .byte >(SCREEN0_BASE + 40 * (10 + YY * 2) + 9)
-        .endrepeat
