@@ -43,9 +43,12 @@
 .export scores_init
 .proc scores_init
         lda #$0
-        sta zp_hs_new_entry_pos         ; reset value when called from menu
+        sta zp_hs_new_entries_pos         ; reset value when called from menu
                                         ; $ff means invalid entry and could get confused
                                         ; with the very fragile input handling code
+        lda #$0f
+        sta hs_new_entry_pos
+
         jsr scores_init_soft
         jmp scores_mainloop
 .endproc
@@ -76,10 +79,13 @@
 ; scores_init_hs_score_entry
 ; entries:
 ;       x: which score to set: 0 or 1
+; return:
+;       C: set: Ok
+;          clear: Error
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 .export scores_init_hs_score_entry
 .proc scores_init_hs_score_entry
-        lda zp_hs_new_entry_pos         ; set pointer for name input
+        lda zp_hs_new_entries_pos       ; set pointer for name input
 
         cpx #0                          ; X, from entries
         beq score_0
@@ -93,34 +99,47 @@
 
 score_0:
         and #%00001111                  ; use LSB
-        jmp set_entry
+
 
 set_entry:
-        cmp #$0f                        ; valid entry
-        beq end
+        sta hs_new_entry_pos            ; save current idx to hs_new_entry_pos
 
-        tay
+        cmp #$0f                        ; valid entry
+        beq error
+
+        tay                             ; udpate pointer to where the name
+                                        ; should be copied to.
         lda screen_ptr_lo,y             ; can't reuse the zp_hs_new_ptr_lo ptr
         sta zp_hs_new_ptr2_lo           ; since both will be used at the same time
         lda screen_ptr_hi,y
         sta zp_hs_new_ptr2_hi
 
+        ldy zp_hs_category              ; setup scores to compare
+        lda scores_entries_lo,y         ; scores_entries must point to the beginning
+        sta zp_hs_new_ptr_lo            ; this is needed when two scores are added
+        lda scores_entries_hi,y
+        sta zp_hs_new_ptr_hi
+
         cpx #0                          ; reset value after using it
         bne clear_1
 
-        lda zp_hs_new_entry_pos         ; after using score 0, reset it
+        lda zp_hs_new_entries_pos       ; after using score 0, reset it
         ora #$0f
-        lda zp_hs_new_entry_pos
+        sta zp_hs_new_entries_pos
         jmp end
 
 clear_1:
-        lda zp_hs_new_entry_pos         ; after using score 1, reset it
+        lda zp_hs_new_entries_pos       ; after using score 1, reset it
         ora #$f0
-        lda zp_hs_new_entry_pos
+        sta zp_hs_new_entries_pos
 
 end:
+        sec                             ; score set Ok
         rts
 
+error:
+        clc                             ; score was not set
+        rts
 .endproc
 
 
@@ -189,8 +208,8 @@ end:
         lda zp_hs_mode                  ; if mode is CYCLE or new score
         cmp #SCORES_MODE::CYCLE         ; is invalid, then check for space
         beq check_space
-        lda zp_hs_new_entry_pos
-        cmp #$ff
+        lda hs_new_entry_pos
+        cmp #$0f                        ; no high score?
         bne new_hs_branch
 
 check_space:
@@ -212,8 +231,8 @@ animate:
         lda zp_hs_mode
         cmp #SCORES_MODE::CYCLE
         beq scores_mainloop
-        lda zp_hs_new_entry_pos
-        cmp #$ff
+        lda hs_new_entry_pos
+        cmp #$0f
         beq scores_mainloop
 
         jsr print_cursor                ; animate cursor if in "new score" mode
@@ -271,6 +290,19 @@ return_pressed:                         ; "RETURN" pressed.
 
         jsr copy_entry                  ; copy name to entries
 
+        lda zp_hs_new_entries_pos
+        cmp #$ff
+        beq save_and_exit
+
+        lda #0
+        sta score_cursor_pos            ; cursor back to start position
+
+        ldx #1                          ; load second score
+        jsr scores_init_hs_score_entry
+        bcc save_and_exit               ; error? means no other score needs to be saved
+        jmp scores_mainloop
+
+save_and_exit:
         sei
         lda #0
         sta SID_Amp                     ; volume off
@@ -304,7 +336,7 @@ print_cursor:
         rts
 
 copy_entry:
-        ldx zp_hs_new_entry_pos
+        ldx hs_new_entry_pos
         cpx #0
         beq l3
 
@@ -363,10 +395,10 @@ l0:
         lda scores_entries_hi,x
         sta zp_hs_new_ptr_hi
 
-        asl zp_hs_new_entry_pos         ; zp_hs_new_entry_pos holds
-        asl zp_hs_new_entry_pos         ; two possible entries
-        asl zp_hs_new_entry_pos         ; $f means no entry.
-        asl zp_hs_new_entry_pos         ; shift 4 to left to save current LSB value
+        asl zp_hs_new_entries_pos       ; zp_hs_new_entries_pos holds
+        asl zp_hs_new_entries_pos       ; two possible entries
+        asl zp_hs_new_entries_pos       ; $f means no entry.
+        asl zp_hs_new_entries_pos       ; shift 4 to left to save current LSB value
 
         ldx #0
         stx tmp_entry_pos
@@ -376,15 +408,15 @@ l0:     lda valid_y,x                   ; scores are 10 bytes after the name
 
         jsr scores_cmp_score            ; uses Y
         bmi new_hs
-        inc tmp_entry_pos         ; inc entry index
+        inc tmp_entry_pos               ; inc entry index
         ldx tmp_entry_pos
         cpx #8                          ; there are only 8 entries
         bne l0
 
 ;no new hs
-        lda zp_hs_new_entry_pos
+        lda zp_hs_new_entries_pos
         ora #$0f                        ; LSB is $f (no high score entry)
-        sta zp_hs_new_entry_pos
+        sta zp_hs_new_entries_pos
         rts
 
 new_hs:
@@ -419,15 +451,9 @@ l1:     sta (zp_hs_new_ptr_lo),y        ; replace old name with spaces
         lda zp_hs_latest_score+3        ; deci-seconds
         sta (zp_hs_new_ptr_lo),y
 
-        ldx tmp_entry_pos               ; set pointer for name input
-        lda screen_ptr_lo,x             ; can't reuse the zp_hs_new_ptr_lo ptr
-        sta zp_hs_new_ptr2_lo           ; since both will be used at the same time
-        lda screen_ptr_hi,x
-        sta zp_hs_new_ptr2_hi
-
-        lda zp_hs_new_entry_pos         ; update LSB entry pos
+        lda zp_hs_new_entries_pos       ; update LSB entry pos
         ora tmp_entry_pos
-        sta zp_hs_new_entry_pos
+        sta zp_hs_new_entries_pos
 
         rts
 
@@ -829,6 +855,8 @@ score_counter: .byte 0                          ; score that has been drawn
 delay:         .byte $10                        ; delay used to print the scores
 scores_state:  .byte SCORES_STATE::PAITING      ; status: paiting? or waiting?
 
+hs_new_entry_pos:   .byte $0f                       ; high score being processed
+
 categories_name_lo:
         .byte <categories_roadrace
         .byte <categories_cyclocross
@@ -911,28 +939,28 @@ entries_cyclocross:
         ;     pad: 2 bytes
         ;        0123456789
         scrcode "tom       "
-        .byte 0,3,3,8
+        .byte 1,3,3,8
         .byte 0,0               ; ignore
         scrcode "chris     "
-        .byte 0,3,3,9
+        .byte 1,3,3,9
         .byte 0,0               ; ignore
         scrcode "josh      "
-        .byte 0,3,4,0
+        .byte 1,3,4,0
         .byte 0,0               ; ignore
         scrcode "kevin     "
-        .byte 0,3,4,1
+        .byte 1,3,4,1
         .byte 0,0               ; ignore
         scrcode "jimbo     "
-        .byte 0,3,4,2
+        .byte 1,3,4,2
         .byte 0,0               ; ignore
         scrcode "ashley    "
-        .byte 0,3,4,3
+        .byte 1,3,4,3
         .byte 0,0               ; ignore
         scrcode "ricardo   "
-        .byte 0,3,8,1
+        .byte 1,3,8,1
         .byte 0,0               ; ignore
         scrcode "ricardo   "
-        .byte 0,3,9,5
+        .byte 1,3,9,5
         .byte 0,0               ; ignore
 
 entries_crosscountry:

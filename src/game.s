@@ -317,7 +317,7 @@ cont:
 go_to_high_scores:
 
         lda #$ff
-        sta zp_hs_new_entry_pos         ; reset high score entry
+        sta zp_hs_new_entries_pos       ; reset high score entry
 
         lda game_selected_event         ; what scores to display
         sta zp_hs_category
@@ -334,19 +334,19 @@ go_to_high_scores:
         lda game_number_of_players
         beq one_player
 
-        jsr p1_p2_score_cmp             ; which player has the highest score? one or two?
+        jsr p1_p2_score_cmp             ; which player has the better score? one or two?
                                         ; needed to know the absolute position in the score table
-                                        ; Carry set if P2 >= P1
-        bcs p2_higher
+                                        ; Carry clear if P2 < P1 (p2 has better score than p1)
+        bcc p2_better
 
-        jsr store_p1_score              ; p1 > p2. So insert P1 first
+        jsr store_p1_score              ; p1 <= p2. So insert P1 first
         jsr scores_sort
         jsr store_p2_score
         jsr scores_sort
         jmp end
 
-p2_higher:
-        jsr store_p2_score              ; p2 >= p1. So insert P2 first
+p2_better:
+        jsr store_p2_score              ; p2 > p1. So insert P2 first
         jsr scores_sort
         jsr store_p1_score
         jsr scores_sort

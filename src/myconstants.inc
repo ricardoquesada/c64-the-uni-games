@@ -77,7 +77,7 @@ zp_hs_category = $58                                    ; .byte SCORES_CAT::ROAD
 zp_hs_mode = $59                                        ; .byte SCORES_MODE::CYCLE, SCORES_MODE::NEW_HS
 
 zp_hs_latest_score = $5a                                ; 4 .bytes  minutes, seconds, seconds, deci-seconds
-zp_hs_new_entry_pos = $5e                               ; .byte  position of the new score. from 0 to 7. $ff no new score
+zp_hs_new_entries_pos = $5e                             ; .byte  position of the new scores. from LSB/MSB 0 to 7. $ff no new score
 
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
