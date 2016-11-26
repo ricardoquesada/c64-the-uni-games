@@ -4,7 +4,7 @@ The first and only "Unicycle Games" games for the Commodore 64 compatible with U
 
 ## Version v0.4
 
-![Title Screen](https://lh3.googleusercontent.com/-yQCSKtv_UFQ/V5ZT_h0yFAI/AAAAAAABe24/0kqLpZXgRVcHFsCEGYktsQwUe3q4E5JhACCo/s800/capture1.png)
+![Title Screen](https://lh3.googleusercontent.com/DGYpbpzcSPE_4_kDfWi8_IoNdqwQNdI2cjBjxG_XHJsPkubiWrqjENliPjD8s1t3xZuE8trRVv480w=w384-h272-no)
 ![RoadRace](https://lh3.googleusercontent.com/-8hNjbAZFeQQ/V5ZT_lzJWEI/AAAAAAABe28/Vi5UdHVHvscV4jwW92_ne154eXWHQcatgCCo/s800/capture2.png)
 ![CycloCross](https://lh3.googleusercontent.com/-ce3uigCabI8/V5ZT_odzEcI/AAAAAAABe20/TXyhvXMrqZQb110Lb9xY76Ff5k1WFqHVwCCo/s800/capture3.png)
 ![CrossCountry](https://lh3.googleusercontent.com/-qYOFLfHu_Ac/V5ZU1lnd5-I/AAAAAAABe3A/LBW-xfCv_30HZhN5hlLnk1pRhRgafaBFQCCo/s800/capture5.png)
@@ -13,7 +13,7 @@ The game is not finished yet. However, if you want to see the progress of the ga
 
 ## How to play it
 
-Best if played with a [UniJoystiCle™](https://retro.moe/unijoysticle).
+Best if played with a [UniJoystiCle](https://retro.moe/unijoysticle).
 If you don't have one, go and get one. In the meantime you can try it with a regular joystick.
 
 There are three events:
