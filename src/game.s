@@ -13,7 +13,7 @@
 .import _crunched_byte_hi, _crunched_byte_lo    ; exomizer address
 .import ut_clear_color, ut_vic_video_type
 .import main_init, main_init_soft
-.import scores_init_hard, scores_sort, scores_init_hs_score_entry
+.import scores_init_hard, scores_sort, scores_init_hs_score_entry, scores_swap_entries
 .import music_speed, palb_freq_table_lo, palb_freq_table_hi
 .import music_patch_table_1, music_patch_table_2
 
@@ -343,6 +343,7 @@ go_to_high_scores:
         jsr scores_sort
         jsr store_p2_score
         jsr scores_sort
+        jsr scores_swap_entries
         jmp end
 
 p2_better:
@@ -350,6 +351,7 @@ p2_better:
         jsr scores_sort
         jsr store_p1_score
         jsr scores_sort
+        jsr scores_swap_entries
         jmp end
 
 one_player:

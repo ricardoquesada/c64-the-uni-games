@@ -76,75 +76,6 @@
 .endproc
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-; scores_init_hs_score_entry
-; entries:
-;       x: which score to set: 0 or 1
-; return:
-;       C: set: Ok
-;          clear: Error
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
-.export scores_init_hs_score_entry
-.proc scores_init_hs_score_entry
-        lda zp_hs_new_entries_pos       ; set pointer for name input
-
-        cpx #0                          ; X, from entries
-        beq score_0
-
-        lsr                             ; use MSB
-        lsr
-        lsr
-        lsr
-
-        jmp set_entry
-
-score_0:
-        and #%00001111                  ; use LSB
-
-
-set_entry:
-        sta hs_new_entry_pos            ; save current idx to hs_new_entry_pos
-
-        cmp #$0f                        ; valid entry
-        beq error
-
-        tay                             ; udpate pointer to where the name
-                                        ; should be copied to.
-        lda screen_ptr_lo,y             ; can't reuse the zp_hs_new_ptr_lo ptr
-        sta zp_hs_new_ptr2_lo           ; since both will be used at the same time
-        lda screen_ptr_hi,y
-        sta zp_hs_new_ptr2_hi
-
-        ldy zp_hs_category              ; setup scores to compare
-        lda scores_entries_lo,y         ; scores_entries must point to the beginning
-        sta zp_hs_new_ptr_lo            ; this is needed when two scores are added
-        lda scores_entries_hi,y
-        sta zp_hs_new_ptr_hi
-
-        cpx #0                          ; reset value after using it
-        bne clear_1
-
-        lda zp_hs_new_entries_pos       ; after using score 0, reset it
-        ora #$0f
-        sta zp_hs_new_entries_pos
-        jmp end
-
-clear_1:
-        lda zp_hs_new_entries_pos       ; after using score 1, reset it
-        ora #$f0
-        sta zp_hs_new_entries_pos
-
-end:
-        sec                             ; score set Ok
-        rts
-
-error:
-        clc                             ; score was not set
-        rts
-.endproc
-
-
-
-;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void scores_init_hard()
 ; to be called from game.s, when it also needs to uncrunch some stuff for the scores
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
@@ -382,6 +313,102 @@ l0:
 
         jmp scores_setup_paint
 .endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; scores_init_hs_score_entry
+; entries:
+;       x: which score to set: 0 or 1
+; return:
+;       C: set: Ok
+;          clear: Error
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export scores_init_hs_score_entry
+.proc scores_init_hs_score_entry
+        lda zp_hs_new_entries_pos       ; set pointer for name input
+
+        cpx #0                          ; X, from entries
+        beq score_0
+
+        lsr                             ; use MSB
+        lsr
+        lsr
+        lsr
+
+        jmp set_entry
+
+score_0:
+        and #%00001111                  ; use LSB
+
+
+set_entry:
+        sta hs_new_entry_pos            ; save current idx to hs_new_entry_pos
+
+        cmp #$0f                        ; valid entry
+        beq error
+
+        tay                             ; udpate pointer to where the name
+                                        ; should be copied to.
+        lda screen_ptr_lo,y             ; can't reuse the zp_hs_new_ptr_lo ptr
+        sta zp_hs_new_ptr2_lo           ; since both will be used at the same time
+        lda screen_ptr_hi,y
+        sta zp_hs_new_ptr2_hi
+
+        ldy zp_hs_category              ; setup scores to compare
+        lda scores_entries_lo,y         ; scores_entries must point to the beginning
+        sta zp_hs_new_ptr_lo            ; this is needed when two scores are added
+        lda scores_entries_hi,y
+        sta zp_hs_new_ptr_hi
+
+        cpx #0                          ; reset value after using it
+        bne clear_1
+
+        lda zp_hs_new_entries_pos       ; after using score 0, reset it
+        ora #$0f
+        sta zp_hs_new_entries_pos
+        jmp end
+
+clear_1:
+        lda zp_hs_new_entries_pos       ; after using score 1, reset it
+        ora #$f0
+        sta zp_hs_new_entries_pos
+
+end:
+        sec                             ; score set Ok
+        rts
+
+error:
+        clc                             ; score was not set
+        rts
+.endproc
+
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+; void scores_swap_entries()
+; swap the nibbles of zp_hs_new_entries_pos
+;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
+.export scores_swap_entries
+.proc scores_swap_entries
+        lda zp_hs_new_entries_pos       ; swaps the nibbles in zp_hs_new_entries_pos
+
+        lsr
+        lsr
+        lsr
+        lsr
+        sta tmp                         ; shift 4 right bits. store in tmp
+
+        lda zp_hs_new_entries_pos       ; shift left 4 bits
+        asl
+        asl
+        asl
+        asl
+
+        ora tmp                         ; ora the previous shifted values
+        sta zp_hs_new_entries_pos
+        rts
+tmp:
+        .byte 0
+.endproc
+
+
 
 ;=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-;
 ; void scores_sort(void* scores_to_sort)
@@ -916,13 +943,13 @@ entries_roadrace:
         scrcode "stefan    "
         .byte 0,3,8,0
         .byte 0,0               ; ignore
-        scrcode "john      "
+        scrcode "rob       "
         .byte 0,3,8,4
         .byte 0,0               ; ignore
         scrcode "sydney    "
         .byte 0,3,8,8
         .byte 0,0               ; ignore
-        scrcode "rob       "
+        scrcode "nader     "
         .byte 0,3,9,4
         .byte 0,0               ; ignore
         scrcode "ricardo   "
@@ -941,13 +968,13 @@ entries_cyclocross:
         scrcode "tom       "
         .byte 1,3,3,8
         .byte 0,0               ; ignore
-        scrcode "chris     "
+        scrcode "dragon    "
         .byte 1,3,3,9
         .byte 0,0               ; ignore
-        scrcode "josh      "
+        scrcode "chris     "
         .byte 1,3,4,0
         .byte 0,0               ; ignore
-        scrcode "kevin     "
+        scrcode "josh      "
         .byte 1,3,4,1
         .byte 0,0               ; ignore
         scrcode "jimbo     "
