@@ -55,8 +55,8 @@ d64:
 
 run:
 	echo "Running game"
-	$(X64) -verbose -moncommands bin/unigames.sym bin/unigames_exo.prg
-#	$(X64) -verbose -moncommands bin/unigames.sym $(D64_IMAGE)
+#	$(X64) -verbose -moncommands bin/unigames.sym bin/unigames_exo.prg
+	$(X64) -verbose -moncommands bin/unigames.sym $(D64_IMAGE)
 
 clean:
 	rm -f src/*.o bin/*.sym bin/*.prg $(D64_IMAGE)

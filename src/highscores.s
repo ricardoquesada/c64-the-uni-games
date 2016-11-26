@@ -966,28 +966,28 @@ entries_cyclocross:
         ;     pad: 2 bytes
         ;        0123456789
         scrcode "tom       "
-        .byte 1,3,3,8
+        .byte 0,3,3,8
         .byte 0,0               ; ignore
         scrcode "dragon    "
-        .byte 1,3,3,9
+        .byte 0,3,3,9
         .byte 0,0               ; ignore
         scrcode "chris     "
-        .byte 1,3,4,0
+        .byte 0,3,4,0
         .byte 0,0               ; ignore
         scrcode "josh      "
-        .byte 1,3,4,1
+        .byte 0,3,4,1
         .byte 0,0               ; ignore
         scrcode "jimbo     "
-        .byte 1,3,4,2
+        .byte 0,3,4,2
         .byte 0,0               ; ignore
         scrcode "ashley    "
-        .byte 1,3,4,3
+        .byte 0,3,4,3
         .byte 0,0               ; ignore
         scrcode "ricardo   "
-        .byte 1,3,8,1
+        .byte 0,3,8,1
         .byte 0,0               ; ignore
         scrcode "ricardo   "
-        .byte 1,3,9,5
+        .byte 0,3,9,5
         .byte 0,0               ; ignore
 
 entries_crosscountry:
