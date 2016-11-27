@@ -1,4 +1,4 @@
-v0.4 - xx, December 2016
+v0.4 - 27, November 2016
   - fix: game. removed initial flicker when the screen was displayed
   - fix: game. press space before "get set go"
 		needed when played with the unijoysticle.
