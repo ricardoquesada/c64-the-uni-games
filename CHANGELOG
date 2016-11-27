@@ -7,8 +7,9 @@ v0.4 - xx, December 2016
 		the time should run at the speed of the machine
 		in order to make the high scores meaningful
   - fix: highscores: display "saving..."
+  - fix: highscore: can save P1 and P2 scores when applicable
+  - fix: highscores: Dragon is back in the scores
   - fix: charset big R looks more like an R than an A
-  - fix: high score: can save P1 and P2 scores when applicable
 
 v0.3 - 29 July, 2016 - CommVEx release
   - new: added bot
