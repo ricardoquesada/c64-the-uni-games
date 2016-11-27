@@ -36,7 +36,7 @@ Download latest version from here: [unigames.d64](https://github.com/ricardoques
 
 ## Video
 
-[![The Uni Games v0.4](https://img.youtube.com/vi/5Ey9ZeUPRNo/0.jpg)](https://www.youtube.com/watch?v=5Ey9ZeUPRNo)
+[![The Uni Games v0.4](https://img.youtube.com/vi/ZLAgooXx4bo/0.jpg)](https://www.youtube.com/watch?v=ZLAgooXx4bo)
 
 ## How to compile it
 
